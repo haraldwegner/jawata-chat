@@ -1,0 +1,13 @@
+{
+  "base": "bases/model.jsonl",
+  "ops": [
+    {
+      "op": "seatModels",
+      "seats": [
+        "architect",
+        "test-writer"
+      ],
+      "select": "test-writer"
+    }
+  ]
+}

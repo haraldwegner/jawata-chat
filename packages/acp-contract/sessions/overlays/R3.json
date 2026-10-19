@@ -1,0 +1,61 @@
+{
+  "base": "R1.jsonl",
+  "ops": [
+    {
+      "op": "commandGroups",
+      "seat": [
+        "catalogue",
+        "cover",
+        "debug",
+        "javadocs",
+        "main",
+        "profile",
+        "refactor",
+        "report",
+        "review",
+        "ux"
+      ],
+      "utility": [
+        "agents",
+        "auto-mode-setup",
+        "autocompact",
+        "color",
+        "compact",
+        "config",
+        "output-style",
+        "context",
+        "effort",
+        "fast",
+        "focus",
+        "heapdump",
+        "init",
+        "import",
+        "model",
+        "__remote-workflow",
+        "workflow-launch-exec",
+        "reload-plugins",
+        "reload-skills",
+        "rename",
+        "ultrareview",
+        "security-review",
+        "usage-credits",
+        "extra-usage",
+        "usage",
+        "insights",
+        "recap",
+        "skill-doctor",
+        "goal",
+        "design-consent",
+        "design-revoke",
+        "list-agents",
+        "team-onboarding",
+        "built-in-browser",
+        "chrome-browser",
+        "computer-use",
+        "mcp",
+        "remote-control"
+      ],
+      "default": "skill"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@jawata/acp-contract",
+  "private": true,
+  "version": "0.0.0",
+  "license": "AGPL-3.0-only",
+  "description": "The ACP contract between jawata and its chat clients: recorded sessions and the replay agent",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test \"test/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.9.0"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./replay": "./dist/bin/replay.js",
+    "./sessions/*": "./sessions/*",
+    "./bin/*": "./dist/bin/*.js"
+  },
+  "bin": {
+    "jawata-acp-replay": "dist/bin/replay.js",
+    "jawata-acp-promote": "dist/bin/promote.js",
+    "jawata-acp-compare": "dist/bin/compare.js",
+    "jawata-acp-tee": "dist/bin/tee.js",
+    "jawata-acp-derive": "dist/bin/derive.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^7.0.2"
+  },
+  "files": [
+    "dist",
+    "sessions"
+  ]
+}

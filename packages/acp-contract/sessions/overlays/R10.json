@@ -1,0 +1,107 @@
+{
+  "base": "R1.jsonl",
+  "ops": [
+    {
+      "op": "insertAfter",
+      "at": 7,
+      "lines": [
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {
+              "sessionId": "12649565-f024-4047-adde-8b98f65efa98",
+              "update": {
+                "sessionUpdate": "plan",
+                "entries": [
+                  {
+                    "content": "name a color",
+                    "priority": "medium",
+                    "status": "pending"
+                  },
+                  {
+                    "content": "name a number",
+                    "priority": "medium",
+                    "status": "pending"
+                  },
+                  {
+                    "content": "name an animal",
+                    "priority": "medium",
+                    "status": "pending"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {
+              "sessionId": "12649565-f024-4047-adde-8b98f65efa98",
+              "update": {
+                "sessionUpdate": "plan",
+                "entries": [
+                  {
+                    "content": "name a color",
+                    "priority": "medium",
+                    "status": "completed"
+                  },
+                  {
+                    "content": "name a number",
+                    "priority": "medium",
+                    "status": "in_progress"
+                  },
+                  {
+                    "content": "name an animal",
+                    "priority": "medium",
+                    "status": "pending"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "op": "insertAfter",
+      "at": 9,
+      "lines": [
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {
+              "sessionId": "12649565-f024-4047-adde-8b98f65efa98",
+              "update": {
+                "sessionUpdate": "plan",
+                "entries": [
+                  {
+                    "content": "name a color",
+                    "priority": "medium",
+                    "status": "completed"
+                  },
+                  {
+                    "content": "name a number",
+                    "priority": "medium",
+                    "status": "completed"
+                  },
+                  {
+                    "content": "name an animal",
+                    "priority": "medium",
+                    "status": "completed"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

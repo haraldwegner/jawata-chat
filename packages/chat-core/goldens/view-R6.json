@@ -1,0 +1,316 @@
+{
+  "ignored": [
+    "cwd",
+    "updatedAt"
+  ],
+  "idsByFirstSeenOrdinal": [
+    "sessionId",
+    "messageId",
+    "toolCallId",
+    "requestId"
+  ],
+  "digested": [
+    "availableCommands"
+  ],
+  "messages": [
+    {
+      "type": "state",
+      "contractVersion": 2,
+      "activeSessionId": "eb4d7d56-b0b4-40d4-998f-2cf1fa3fd890",
+      "session": {
+        "sessionId": "sessionId#1",
+        "agentName": "Claude Agent",
+        "modes": null,
+        "models": null,
+        "configOptions": null,
+        "availableCommands": {
+          "digest": "09612b07b5ecb5a5",
+          "count": 0
+        }
+      }
+    },
+    {
+      "type": "loadSessionStart"
+    },
+    {
+      "type": "snapshot",
+      "state": {
+        "contractVersion": 2,
+        "session": {
+          "sessionId": "sessionId#1",
+          "agentName": "Claude Agent",
+          "modes": null,
+          "models": null,
+          "configOptions": null,
+          "availableCommands": {
+            "digest": "09612b07b5ecb5a5",
+            "count": 0
+          }
+        },
+        "entries": [
+          {
+            "kind": "user",
+            "text": "Reply with exactly the one word: pong",
+            "files": []
+          },
+          {
+            "kind": "turn",
+            "turn": {
+              "parts": [
+                {
+                  "kind": "text",
+                  "text": "pong"
+                }
+              ],
+              "ended": false
+            }
+          }
+        ],
+        "plan": null,
+        "processing": false,
+        "loading": true,
+        "attachments": [],
+        "queued": [],
+        "hires": [],
+        "transcripts": {},
+        "proposals": [],
+        "history": null,
+        "draft": ""
+      }
+    },
+    {
+      "type": "loadSessionEnd",
+      "ok": true
+    },
+    {
+      "type": "state",
+      "contractVersion": 2,
+      "activeSessionId": "eb4d7d56-b0b4-40d4-998f-2cf1fa3fd890",
+      "session": {
+        "sessionId": "sessionId#1",
+        "agentName": "Claude Agent",
+        "modes": {
+          "currentModeId": "default",
+          "availableModes": [
+            {
+              "id": "default",
+              "name": "Manual",
+              "description": "Always ask before making changes"
+            },
+            {
+              "id": "acceptEdits",
+              "name": "Accept edits",
+              "description": "Automatically accept all file edits"
+            },
+            {
+              "id": "plan",
+              "name": "Plan",
+              "description": "Create a plan before making changes"
+            },
+            {
+              "id": "auto",
+              "name": "Auto",
+              "description": "Claude handles permission decisions"
+            },
+            {
+              "id": "bypassPermissions",
+              "name": "Bypass permissions",
+              "description": "Accepts all permissions"
+            }
+          ]
+        },
+        "models": null,
+        "configOptions": [
+          {
+            "id": "mode",
+            "name": "Mode",
+            "description": "Session permission mode",
+            "category": "mode",
+            "type": "select",
+            "currentValue": "default",
+            "options": [
+              {
+                "value": "default",
+                "name": "Manual",
+                "description": "Always ask before making changes"
+              },
+              {
+                "value": "acceptEdits",
+                "name": "Accept edits",
+                "description": "Automatically accept all file edits"
+              },
+              {
+                "value": "plan",
+                "name": "Plan",
+                "description": "Create a plan before making changes"
+              },
+              {
+                "value": "auto",
+                "name": "Auto",
+                "description": "Claude handles permission decisions"
+              },
+              {
+                "value": "bypassPermissions",
+                "name": "Bypass permissions",
+                "description": "Accepts all permissions"
+              }
+            ]
+          },
+          {
+            "id": "model",
+            "name": "Model",
+            "description": "AI model to use",
+            "category": "model",
+            "type": "select",
+            "currentValue": "sonnet",
+            "options": [
+              {
+                "value": "default",
+                "name": "Default (recommended)",
+                "description": "Opus 5.5"
+              },
+              {
+                "value": "opus",
+                "name": "Opus 5.5",
+                "description": "For complex work and everyday tasks"
+              },
+              {
+                "value": "fable",
+                "name": "Fable 5.1",
+                "description": "For your toughest challenges"
+              },
+              {
+                "value": "sonnet",
+                "name": "Sonnet 5.5",
+                "description": "Most efficient for simpler tasks"
+              },
+              {
+                "value": "haiku",
+                "name": "Haiku 5.5",
+                "description": "Fastest for quick answers"
+              },
+              {
+                "value": "claude-haiku-4-5-20251001",
+                "name": "Haiku 4.5",
+                "description": "Fastest for quick answers"
+              },
+              {
+                "value": "claude-sonnet-5",
+                "name": "Sonnet 5",
+                "description": "Efficient for routine tasks"
+              },
+              {
+                "value": "claude-opus-5",
+                "name": "Opus 5",
+                "description": "Best for everyday, complex tasks"
+              },
+              {
+                "value": "claude-fable-5",
+                "name": "Fable 5",
+                "description": "Most capable for your hardest and longest-running tasks"
+              },
+              {
+                "value": "claude-opus-4-8",
+                "name": "Opus 4.8",
+                "description": "Best for everyday, complex tasks"
+              },
+              {
+                "value": "claude-opus-4-7",
+                "name": "Opus 4.7",
+                "description": "Best for everyday, complex tasks"
+              },
+              {
+                "value": "claude-opus-4-6",
+                "name": "Opus 4.6",
+                "description": "Best for everyday, complex tasks"
+              },
+              {
+                "value": "claude-sonnet-4-6",
+                "name": "Sonnet 4.6",
+                "description": "Efficient for routine tasks"
+              }
+            ]
+          },
+          {
+            "id": "effort",
+            "name": "Effort",
+            "description": "Available effort levels for this model",
+            "category": "thought_level",
+            "type": "select",
+            "currentValue": "high",
+            "options": [
+              {
+                "value": "default",
+                "name": "Default"
+              },
+              {
+                "value": "low",
+                "name": "Low"
+              },
+              {
+                "value": "medium",
+                "name": "Medium"
+              },
+              {
+                "value": "high",
+                "name": "High"
+              },
+              {
+                "value": "xhigh",
+                "name": "Xhigh"
+              },
+              {
+                "value": "max",
+                "name": "Max"
+              }
+            ]
+          },
+          {
+            "id": "agent",
+            "name": "Agent",
+            "description": "Main-thread agent persona",
+            "type": "select",
+            "currentValue": "default",
+            "options": [
+              {
+                "value": "default",
+                "name": "Default",
+                "description": "Standard Claude Code agent"
+              },
+              {
+                "value": "autocontinue",
+                "name": "autocontinue",
+                "description": "Judges an agent's attempt to stop under a granted autocontinue against the plan — showstopper or redesign halts, anything within the agent's own design limits is fixed, a signed-off checkpoint proceeds unless it is a release gate. Fired by the stop gate, never by the agent."
+              },
+              {
+                "value": "claude-code-guide",
+                "name": "claude-code-guide",
+                "description": "Use this agent when the user asks questions (\"Can Claude...\", \"Does Claude...\", \"How do I...\") about: (1) Claude Code (the CLI tool) - features, hooks, slash commands, MCP servers, settings, IDE integrations, keyboard shortcuts; (2) Claude Agent SDK - building custom agents; (3) Claude API (formerly Anthropic API) - Messages API for directly passing messages to Claude, Tool Runner (`client.beta.messages.tool_runner`) for running an agentic loop over your own tools, manual tool-use loops, Managed Agents for server-hosted agents with a managed sandbox, prompt caching, and general Anthropic SDK usage; (4) Claude Tag (Claude in Slack) - what it is, setting it up for a Slack workspace, `/install-slack-app`; (5) `claude plugin eval` (writing and running plugin eval suites, its JSON/report, sandbox, CI) and the `/skill-doctor` report. **IMPORTANT:** Before spawning a new agent, check if there is already a running or recently completed claude-code-guide agent that you can continue via SendMessage."
+              },
+              {
+                "value": "communicator",
+                "name": "communicator",
+                "description": "Rephrases an outgoing message into what a reader with no session context actually understands, and returns that readback in plain words — not a verdict. Runs on EVERY message the agent sends, replies included."
+              }
+            ]
+          }
+        ],
+        "availableCommands": {
+          "digest": "09612b07b5ecb5a5",
+          "count": 0
+        }
+      }
+    },
+    {
+      "type": "sessionUpdate",
+      "update": {
+        "availableCommands": {
+          "digest": "b414de0a6d26d632",
+          "count": 86
+        },
+        "sessionUpdate": "available_commands_update"
+      },
+      "sessionId": "sessionId#1"
+    }
+  ]
+}

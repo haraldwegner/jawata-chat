@@ -1,0 +1,17 @@
+{
+  "name": "jawata-chat",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "jawata's own chat: one ACP client and one view for every host",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "sh scripts/test-commit-hook.sh && npm run knip && node --test \"test/**/*.test.mjs\" && npm test --workspaces --if-present",
+    "prepare": "sh scripts/install-hooks.sh",
+    "knip": "knip --production"
+  },
+  "devDependencies": {
+    "knip": "6.42.0"
+  }
+}

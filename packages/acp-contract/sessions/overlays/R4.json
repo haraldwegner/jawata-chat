@@ -1,0 +1,184 @@
+{
+  "base": "bases/hires.jsonl",
+  "ops": [
+    {
+      "op": "set",
+      "at": 8,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "kind": "execute",
+        "title": "architect \u00b7 claude \u00b7 sonnet \u2014 running",
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-architect",
+            "seat": "architect",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "running",
+            "elapsedMs": 0,
+            "tokens": 0,
+            "costUsd": 0
+          }
+        }
+      }
+    },
+    {
+      "op": "set",
+      "at": 13,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "kind": "execute",
+        "title": "test-writer \u00b7 claude \u00b7 sonnet \u2014 running",
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-test-writer",
+            "seat": "test-writer",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "running",
+            "elapsedMs": 1200,
+            "tokens": 800,
+            "costUsd": 0.002
+          }
+        }
+      }
+    },
+    {
+      "op": "set",
+      "at": 15,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-test-writer",
+            "seat": "test-writer",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "compacting",
+            "elapsedMs": 4000,
+            "tokens": 12000,
+            "costUsd": 0.01
+          }
+        }
+      }
+    },
+    {
+      "op": "set",
+      "at": 20,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-architect",
+            "seat": "architect",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "done",
+            "elapsedMs": 9000,
+            "tokens": 15000,
+            "costUsd": 0.03,
+            "brainSessionId": "brain-session-1"
+          }
+        }
+      }
+    },
+    {
+      "op": "set",
+      "at": 22,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-test-writer",
+            "seat": "test-writer",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "done",
+            "elapsedMs": 11000,
+            "tokens": 21000,
+            "costUsd": 0.04,
+            "brainSessionId": "brain-session-2"
+          }
+        }
+      }
+    },
+    {
+      "op": "insertAfter",
+      "at": 27,
+      "lines": [
+        {
+          "dir": "send",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 100,
+            "method": "_jawata/hire/stop",
+            "params": {
+              "planId": "p-test-writer"
+            }
+          }
+        },
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 100,
+            "result": {
+              "ok": true
+            }
+          }
+        },
+        {
+          "dir": "send",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 101,
+            "method": "_jawata/hire/transcript",
+            "params": {
+              "planId": "p-architect"
+            }
+          }
+        },
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 101,
+            "result": {
+              "planId": "p-architect",
+              "turns": [
+                {
+                  "role": "user",
+                  "text": "Reply done"
+                },
+                {
+                  "role": "assistant",
+                  "text": "done"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

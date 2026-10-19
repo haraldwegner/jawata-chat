@@ -1,0 +1,36 @@
+{
+  "name": "@jawata/chat-core",
+  "private": true,
+  "version": "0.0.0",
+  "license": "AGPL-3.0-only",
+  "description": "The chat's one ACP client and its view-model: knows no host and no UI framework",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test \"test/**/*.test.mjs\""
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./test-support": {
+      "types": "./dist/test-support.d.ts",
+      "default": "./dist/test-support.js"
+    },
+    "./goldens/*": "./goldens/*"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "@jawata/acp-contract": "*"
+  },
+  "files": [
+    "dist",
+    "goldens"
+  ],
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.9.0"
+  }
+}

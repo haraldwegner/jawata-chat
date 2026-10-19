@@ -1,0 +1,47 @@
+{
+  "base": "R1.jsonl",
+  "ops": [
+    {
+      "op": "insertAfter",
+      "at": 7,
+      "lines": [
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {
+              "sessionId": "12649565-f024-4047-adde-8b98f65efa98",
+              "update": {
+                "sessionUpdate": "agent_thought_chunk",
+                "content": {
+                  "type": "text",
+                  "text": "The user wants one word. "
+                },
+                "messageId": "msg_thought_1"
+              }
+            }
+          }
+        },
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {
+              "sessionId": "12649565-f024-4047-adde-8b98f65efa98",
+              "update": {
+                "sessionUpdate": "agent_thought_chunk",
+                "content": {
+                  "type": "text",
+                  "text": "I will reply with it and nothing else."
+                },
+                "messageId": "msg_thought_1"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

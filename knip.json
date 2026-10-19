@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "includeEntryExports": true,
+  "ignoreWorkspaces": ["packages/acp-contract"],
+  "ignore": ["scripts/**"],
+  "paths": {
+    "@jawata/chat-core": ["packages/chat-core/src/index.ts"],
+    "@jawata/chat-view": ["packages/chat-view/src/index.ts"]
+  },
+  "workspaces": {
+    "packages/vscode": {
+      "entry": ["src/extension.ts!", "src/webview/main.ts!"],
+      "project": ["src/**/*.ts!", "!src/test/**", "!src/test-live/**", "!src/test-visual/**"]
+    },
+    "packages/chat-core": {
+      "project": ["src/**/*.ts!"],
+      "ignoreIssues": { "src/test-support.ts": ["exports", "types"] }
+    },
+    "packages/chat-view": {
+      "project": ["src/**/*.{ts,tsx}!"]
+    }
+  }
+}

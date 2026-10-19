@@ -1,0 +1,27 @@
+{
+  "R10.jsonl": {
+    "source": "R1.jsonl",
+    "overlay": "overlays/R10.json",
+    "overlaySha256": "5b03379cabcc75a9319583c311aab14f870f10aa15330836406cc5abf97ef17f"
+  },
+  "R3.jsonl": {
+    "source": "R1.jsonl",
+    "overlay": "overlays/R3.json",
+    "overlaySha256": "0c99b37916e523ad31df3f08f64fd6d09ebb10baf7c0ef9a0595ab698dc3a4dd"
+  },
+  "R4.jsonl": {
+    "source": "bases/hires.jsonl",
+    "overlay": "overlays/R4.json",
+    "overlaySha256": "374b5ef049d8b33e0759c97cb2cfe26d8910a8d89cce2be76fd39775f6f60f10"
+  },
+  "R5.jsonl": {
+    "source": "bases/model.jsonl",
+    "overlay": "overlays/R5.json",
+    "overlaySha256": "f09861bd2430d2634e5ed4949e487f41740a4f22f16bce308e885d98e06d7db8"
+  },
+  "R9.jsonl": {
+    "source": "R1.jsonl",
+    "overlay": "overlays/R9.json",
+    "overlaySha256": "bc5d063f2fbf11662fd7c21acf5dd79426087f0749aebd9c026398a2f84e297e"
+  }
+}

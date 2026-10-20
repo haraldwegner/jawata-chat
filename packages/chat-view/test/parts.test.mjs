@@ -145,7 +145,7 @@ test('a message of another version of the contract is refused with a notice that
     const notice = v.$('.mismatch');
     assert.ok(notice, 'a notice');
     assert.match(notice.textContent, /version 2 .* version 1/);
-    assert.match(notice.textContent, /Update the extension/);
+    assert.match(notice.textContent, /Update the chat and reload it/);
     assert.equal(notice.getAttribute('role'), 'alert');
   } finally { v.dispose(); }
 });
@@ -162,7 +162,7 @@ test('a tool call whose output is a terminal says so in words and shows no inter
     });
     const call = v.$('.tool-call-inline');
     call.open = true;
-    assert.equal(call.querySelector('.tc-content').textContent, "Its output is in the editor's terminal.");
+    assert.equal(call.querySelector('.tc-content').textContent, 'Its output is in a terminal of its own.');
     assert.ok(!call.textContent.includes('term-7f3a'));
   } finally { v.dispose(); }
 });

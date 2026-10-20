@@ -61,7 +61,7 @@ test('with no agent set the person is offered the setting; taking the offer open
     c.host.settings.agents = () => ({});
     c.host.chooser.answer = false;
     await c.chat.flow.connect();
-    assert.match(c.host.chooser.questions[0], /^No agent is set\. Name its program/);
+    assert.match(c.host.chooser.questions[0], /^No agent is set\. Name its program in the fake settings\./);
     assert.deepEqual(c.host.asked, [], 'declined: the setting is not opened');
     c.host.chooser.answer = true;
     await c.chat.flow.connect();

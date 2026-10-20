@@ -72,3 +72,14 @@ test('the sources import only the SDK and their own files', () => {
   }
   assert.deepEqual([...bare].sort(), ['@agentclientprotocol/sdk']);
 });
+
+// The words the person reads carry no host (ledger C17-2): the host supplies where the agent is set up, and the rest is said without
+// naming an editor, a setting key or a window. Comments may name a host; the code and its strings may not.
+test('no string of the core or the view names a host or a host setting', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const words = /jawataChat|VS ?Code|Theia|Eclipse|\bCursor\b|the editor|the extension|reload the window/;
+  const files = ['chat-core', 'chat-view'].flatMap(pkg => readdirSync(new URL(`../../${pkg}/src/`, import.meta.url), { recursive: true })
+    .filter(f => /\.(ts|tsx)$/.test(String(f)) && !String(f).endsWith('.d.ts') && String(f) !== 'test-support.ts')
+    .map(f => ({ name: `${pkg}/${f}`, text: readFileSync(new URL(`../../${pkg}/src/${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '') })));
+  assert.deepEqual(files.filter(f => words.test(f.text)).map(f => f.name), []);
+});

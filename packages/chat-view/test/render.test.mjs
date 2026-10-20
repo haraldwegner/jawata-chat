@@ -290,9 +290,9 @@ test('what a control does is in its mouseover: connect, configure, send, stop, t
   const v = await viewOn('R2');
   try {
     const say = (el) => el.getAttribute('title');
-    assert.match(say(v.$('.action-btn.primary')), /jawataChat\.agent/);
+    assert.match(say(v.$('.action-btn.primary')), /agent that is set up/);
     assert.match(say(v.$('.action-btn.primary')), /opens a session/);
-    assert.match(say(v.$('.action-btn.secondary')), /jawataChat\.agent setting/);
+    assert.match(say(v.$('.action-btn.secondary')), /where the agent is set up/);
     await v.connect();
     await v.settle();
     assert.equal(say(v.$('.send-stop-btn.send')), 'Send (Enter)');

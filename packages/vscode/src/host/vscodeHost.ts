@@ -14,6 +14,7 @@ export function createVscodeHost(extensionVersion: string): HostPorts & { agents
     agents: new AgentProcesses(),
     settings: {
       agents: agentMap,
+      agentSetup: 'the jawataChat.agent setting',
       workspaceCwd: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
     },
     chooser: new VscodeChooser(),

@@ -143,9 +143,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
     try {
       const answer = (await live.connection.connection.loadSession({ sessionId, cwd: session.cwd, mcpServers: [] })) as SessionAnswer;
       // the answer is the latest snapshot of the session's modes, models and options
-      session.modes = answer.modes ?? null;
-      session.models = answer.models ?? null;
-      session.configOptions = answer.configOptions ?? null;
+      this.table.noteAnswer(sessionId, answer);
     } catch (e) {
       this.table.drop(sessionId);
       this.emit('session-load-end', sessionId, agentName, false);
@@ -226,11 +224,11 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
 
     if (what === 'mode') {
       await link.setSessionMode({ sessionId, modeId: value });
-      if (session.modes) { session.modes = { ...session.modes, currentModeId: value }; }
+      this.table.noteChosen(sessionId, 'mode', value);
       this.emit('mode-changed', sessionId, value);
     } else {
       await link.setSessionModel({ sessionId, modelId: value });
-      if (session.models) { session.models = { ...session.models, currentModelId: value }; }
+      this.table.noteChosen(sessionId, 'model', value);
       this.emit('model-changed', sessionId, value);
     }
   }
@@ -287,7 +285,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
   };
 
   private noteOptions(sessionId: string, options: SessionConfigOption[] | null): void {
-    const session = this.table.setOptions(sessionId, options);
+    const session = this.table.noteOptions(sessionId, options);
     if (session) { this.emit('config-options-changed', sessionId, session.configOptions); }
   }
 

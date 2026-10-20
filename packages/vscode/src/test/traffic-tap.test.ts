@@ -30,7 +30,7 @@ suite('Traffic tap on the production path', function () {
 		const host = {
 			...real,
 			agents: new InMemoryAgents((input, output) => replayAgent(session, output, input)),
-			settings: { agents: () => ({ agent: { command: 'in-memory' } }), workspaceCwd: () => '/workspace' },
+			settings: { ...real.settings, agents: () => ({ agent: { command: 'in-memory' } }), workspaceCwd: () => '/workspace' },
 			sinks: () => [(dir: TrafficDirection, msg: unknown) => seen.push({ dir, msg }), recording.sink],
 		};
 		const chat = createChat(host);

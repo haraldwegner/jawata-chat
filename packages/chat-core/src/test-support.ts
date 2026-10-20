@@ -170,7 +170,7 @@ export function fakeHost(run: AgentRunner, cwd = '/workspace'): FakeHost {
   const sink: TrafficSink = (direction, message) => { traffic.push({ direction, message }); };
   return {
     agents: new InMemoryAgents(run),
-    settings: { agents: () => ({ [AGENT_KEY]: agent }), workspaceCwd: () => cwd },
+    settings: { agents: () => ({ [AGENT_KEY]: agent }), workspaceCwd: () => cwd, agentSetup: 'the fake settings' },
     chooser: new FakeChooser(),
     notifier: new FakeNotifier(),
     log: { log: (m) => { logged.push(m); }, logError: (m, e) => { logged.push(`ERROR ${m} ${e instanceof Error ? e.message : String(e ?? '')}`); } },

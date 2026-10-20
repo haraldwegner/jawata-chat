@@ -32,8 +32,8 @@ export function ChatView({ transport }: { transport: PageTransport }) {
           onClick={() => transport.send({ type: 'disconnectAgent' })}>Disconnect</button>
       </div>
       {state.mismatch !== undefined ? (
-        <div className="mismatch" role="alert" title="The view and the extension that serves it were built for different versions of the chat's contract.">
-          This chat view speaks version {state.contractVersion} of the contract and the extension speaks version {state.mismatch}. Update the extension and reload the window.
+        <div className="mismatch" role="alert" title="The view and the host that serves it were built for different versions of the chat's contract.">
+          This chat view speaks version {state.contractVersion} of the contract and the host speaks version {state.mismatch}. Update the chat and reload it.
         </div>
       ) : null}
       {state.plan && state.plan.length > 0 ? <PlanBar plan={state.plan} /> : null}

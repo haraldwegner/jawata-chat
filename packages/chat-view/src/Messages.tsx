@@ -52,7 +52,7 @@ function ToolBody({ tool }: { tool: ToolCallView }) {
       {tool.content.map((c, i) => {
         if (c.type === 'diff') { return <Diff key={i} path={c.path} oldText={c.oldText} newText={c.newText} />; }
         if (c.type === 'content' && c.content.type === 'text') { return <pre className="tc-content" key={i}>{c.content.text}</pre>; }
-        if (c.type === 'terminal') { return <div className="tc-content" key={i}>Its output is in the editor's terminal.</div>; }
+        if (c.type === 'terminal') { return <div className="tc-content" key={i}>Its output is in a terminal of its own.</div>; }
         return null;
       })}
       {tool.output !== undefined ? <><div className="tc-label">Output</div><pre className="tc-output">{shown(tool.output)}</pre></> : null}
@@ -122,8 +122,8 @@ function EmptyState({ onConnect, onConfigure, onHistory }: { onConnect: () => vo
     <div className="empty-state">
       <div className="sentence">No agent is connected.</div>
       <div className="actions">
-        <button className="action-btn primary" title="Starts the program set in the jawataChat.agent setting and opens a session." onClick={onConnect}>Connect</button>
-        <button className="action-btn secondary" title="Opens the jawataChat.agent setting, where the program is set." onClick={onConfigure}>Configure</button>
+        <button className="action-btn primary" title="Starts the agent that is set up for this chat and opens a session." onClick={onConnect}>Connect</button>
+        <button className="action-btn secondary" title="Opens where the agent is set up." onClick={onConfigure}>Configure</button>
         <button className="action-btn secondary history-open" title="Shows the sessions the agent has, to open one without starting a new conversation." onClick={onHistory}>History</button>
       </div>
     </div>

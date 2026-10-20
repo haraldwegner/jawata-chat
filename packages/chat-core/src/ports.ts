@@ -65,6 +65,8 @@ export interface Settings {
   agents(): Record<string, AgentConfigEntry>;
   /** The folder the agent works in. */
   workspaceCwd(): string;
+  /** Where the person sets the agent up, in the host's own words, as a noun phrase: "the jawataChat.agent setting". */
+  readonly agentSetup: string;
 }
 
 /** The choices that need a person and are the host's to put: an authentication method, a yes to something that loses messages. A proposal is not one of them: it is shown in the chat. */

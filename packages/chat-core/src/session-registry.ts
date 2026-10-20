@@ -86,7 +86,7 @@ export class SessionRegistry {
         return this.setCommands(id, commands) ? { kind: 'commands', commands } : undefined;
       }
       case 'config_option_update':
-        return this.setOptions(id, update.configOptions as SessionConfigOption[]) ? { kind: 'options', options: update.configOptions as SessionConfigOption[] } : undefined;
+        return this.noteOptions(id, update.configOptions as SessionConfigOption[]) ? { kind: 'options', options: update.configOptions as SessionConfigOption[] } : undefined;
       case 'session_info_update':
         this.setTitle(id, update.title);
         return { kind: 'title', title: update.title, updatedAt: update.updatedAt };
@@ -97,8 +97,26 @@ export class SessionRegistry {
     }
   }
 
+  /** The answer to `session/load`: the latest snapshot of the session's modes, models and options, which replaces what was held. */
+  noteAnswer(sessionId: string, answer: { modes?: SessionInfo['modes']; models?: SessionInfo['models']; configOptions?: SessionInfo['configOptions'] }): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) { return; }
+    session.modes = answer.modes ?? null;
+    session.models = answer.models ?? null;
+    session.configOptions = answer.configOptions ?? null;
+  }
+
+  /** The mode or the model the chat itself has just asked the agent for, on an agent that has the older lists: the session's current one. */
+  noteChosen(sessionId: string, what: 'mode' | 'model', value: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) { return; }
+    if (what === 'mode') {
+      if (session.modes) { session.modes = { ...session.modes, currentModeId: value }; }
+    } else if (session.models) { session.models = { ...session.models, currentModelId: value }; }
+  }
+
   /** Set the mode the agent is in, or hold it until the session exists. Returns the session when it took it. */
-  setMode(sessionId: string, modeId: string): SessionInfo | undefined {
+  private setMode(sessionId: string, modeId: string): SessionInfo | undefined {
     const session = this.sessions.get(sessionId);
     if (!session) { this.holdFor(sessionId).modeId = modeId; return undefined; }
     if (session.modes) { session.modes = { ...session.modes, currentModeId: modeId }; }
@@ -112,8 +130,8 @@ export class SessionRegistry {
     return session;
   }
 
-  /** Set a session's options, or hold them until it exists. Returns the session when it took them. */
-  setOptions(sessionId: string, options: SessionConfigOption[] | null): SessionInfo | undefined {
+  /** Set a session's options, from the agent's update or from its answer to a change the chat asked for, or hold them until the session exists. Returns the session when it took them. */
+  noteOptions(sessionId: string, options: SessionConfigOption[] | null): SessionInfo | undefined {
     const session = this.sessions.get(sessionId);
     if (session) { session.configOptions = options; } else { this.holdFor(sessionId).options = options ?? []; }
     return session;

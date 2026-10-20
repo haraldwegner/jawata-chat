@@ -67,9 +67,10 @@ test('a mode announced before the session is in the table is held like the other
 
 test('a fact that arrives before the session is in the table is held and becomes part of the session when it is added', () => {
   const table = new SessionRegistry();
-  assert.equal(table.setCommands('later', [{ name: 'early', description: '' }]), undefined, 'no session yet, so nothing took it');
-  table.setTitle('later', 'Early title');
-  table.setOptions('later', null);
+  const say = (update) => table.note({ sessionId: 'later', update });
+  assert.equal(say({ sessionUpdate: 'available_commands_update', availableCommands: [{ name: 'early', description: '' }] }), undefined, 'no session yet, so nothing took it');
+  say({ sessionUpdate: 'session_info_update', title: 'Early title' });
+  say({ sessionUpdate: 'config_option_update', configOptions: [] });
   const session = { sessionId: 'later', agentId: 'a', agentName: 'agent', agentDisplayName: 'A', cwd: '/', createdAt: '', initResponse: {}, modes: null, models: null, configOptions: null, availableCommands: [] };
   table.add(session);
   assert.deepEqual(session.availableCommands.map(x => x.name), ['early']);

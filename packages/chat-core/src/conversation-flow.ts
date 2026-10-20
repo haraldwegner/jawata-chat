@@ -23,7 +23,7 @@ export class ConversationFlow {
   /** Connect to the agent and open the principal session. The one open already is kept: no second `session/new` is sent. */
   async connect(): Promise<void> {
     if (!this.host.settings.agents()[AGENT_KEY]) {
-      if (await this.host.chooser.confirm('No agent is set. Name its program in the jawataChat.agent setting.', 'Configure Agent')) {
+      if (await this.host.chooser.confirm(`No agent is set. Name its program in ${this.host.settings.agentSetup}.`, 'Configure Agent')) {
         await this.host.actions.configureAgent();
       }
       return;

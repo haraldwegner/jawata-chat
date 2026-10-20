@@ -102,7 +102,7 @@ export class AgentSupply {
   }
 
   /** End every agent this supply started. */
-  stopAll(): void {
+  private stopAll(): void {
     for (const id of [...this.live.keys()]) { this.stop(id); }
     this.links.dispose();
   }

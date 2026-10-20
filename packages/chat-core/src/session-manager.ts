@@ -171,7 +171,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
   }
 
   /** Open a session the agent has without replaying it (`session/resume`). */
-  async resumeSession(agentName: string, sessionId: string): Promise<SessionInfo> {
+  private async resumeSession(agentName: string, sessionId: string): Promise<SessionInfo> {
     const live = await this.makeRoomFor(agentName, sessionId, 'resume');
     const cwd = this.host.settings.workspaceCwd();
     const answer = (await live.connection.connection.resumeSession({ sessionId, cwd, mcpServers: [] })) as SessionAnswer;

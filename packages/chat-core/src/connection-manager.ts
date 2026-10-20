@@ -49,10 +49,6 @@ export class ConnectionManager {
     return info;
   }
 
-  getConnection(agentId: string): ConnectionInfo | undefined {
-    return this.open.get(agentId);
-  }
-
   removeConnection(agentId: string): void {
     this.open.delete(agentId);
   }

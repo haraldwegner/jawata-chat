@@ -106,7 +106,7 @@ export class SessionRegistry {
   }
 
   /** Set a session's commands, or hold them until it exists. Returns the session when it took them. */
-  setCommands(sessionId: string, commands: AvailableCommand[]): SessionInfo | undefined {
+  private setCommands(sessionId: string, commands: AvailableCommand[]): SessionInfo | undefined {
     const session = this.sessions.get(sessionId);
     if (session) { session.availableCommands = commands; } else { this.holdFor(sessionId).commands = commands; }
     return session;
@@ -120,7 +120,7 @@ export class SessionRegistry {
   }
 
   /** Set a session's title (null removes it), or hold a title until the session exists. */
-  setTitle(sessionId: string, title: string | null | undefined): void {
+  private setTitle(sessionId: string, title: string | null | undefined): void {
     const session = this.sessions.get(sessionId);
     if (!session) {
       if (typeof title === 'string') { this.holdFor(sessionId).title = title; }

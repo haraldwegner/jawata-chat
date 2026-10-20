@@ -197,3 +197,14 @@ test('an empty thought, or one of only spaces, begins no thought; a space inside
   const going = [chunk('agent_thought_chunk', 'one'), chunk('agent_thought_chunk', ' '), chunk('agent_thought_chunk', 'two')].reduce(reduce, none);
   assert.deepEqual(parts(going, 0), ['thought:one two']);
 });
+
+test('a clear takes the draft and counts; another session keeps it; a snapshot brings it back', () => {
+  const typed = reduce(initialViewState(), { type: 'draft', text: 'half a thought' });
+  const cleared = reduce(typed, { type: 'clearChat' });
+  assert.equal(cleared.draft, '');
+  assert.equal(cleared.draftResets, typed.draftResets + 1);
+  const other = reduce(typed, { type: 'state', contractVersion: 2, activeSessionId: 'other', session: { ...session, sessionId: 'other' } });
+  assert.equal(other.draft, 'half a thought', 'opening another session leaves what is typed');
+  assert.equal(other.draftResets, typed.draftResets);
+  assert.equal(reduce(initialViewState(), { type: 'snapshot', state: typed }).draft, 'half a thought', 'a reloaded page is given it');
+});

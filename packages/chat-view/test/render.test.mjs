@@ -410,3 +410,29 @@ test('a typed draft is kept by the core, and is in the field again after the pag
     assert.equal(v.chat.snapshot().draft, '', 'sent, it is not a draft any more');
   } finally { v.dispose(); }
 });
+
+test('a new conversation or a clear empties the field; reloading or opening the chat in another place leaves it', async () => {
+  const v = await viewOn('R1');
+  try {
+    await v.connect();
+    await v.settle();
+    await v.type('half a thought');
+    await v.settle(() => v.chat.snapshot().draft === 'half a thought');
+    // the same chat shown by a second page (another place): the field there has the text too
+    const second = document.createElement('div');
+    document.body.appendChild(second);
+    let other;
+    await act(async () => { other = mountChatView(second, v.port.page); });
+    await v.settle();
+    assert.equal(second.querySelector('textarea').value, 'half a thought');
+    act(() => other.dispose());
+    second.remove();
+    assert.equal(v.$('textarea').value, 'half a thought', 'the first page keeps its text while another is opened');
+    await act(async () => { v.chat.clearChat(); });
+    await v.settle(() => v.chat.snapshot().draft === '');
+    assert.equal(v.$('textarea').value, '', 'a cleared chat leaves no draft in the field');
+    await v.type('after the clear');
+    await v.settle(() => v.chat.snapshot().draft === 'after the clear');
+    assert.equal(v.chat.snapshot().draft, 'after the clear', 'typing goes on being kept after a clear');
+  } finally { v.dispose(); }
+});

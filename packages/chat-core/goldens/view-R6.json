@@ -75,7 +75,8 @@
         "transcripts": {},
         "proposals": [],
         "history": null,
-        "draft": ""
+        "draft": "",
+        "draftResets": 0
       }
     },
     {

@@ -136,13 +136,15 @@ export interface ViewState {
   history: HistoryView | null;
   /** What the person has typed and not sent: kept here so a page that reloads has it back. */
   draft: string;
+  /** How many times the chat was cleared or a new conversation begun, which takes the draft: a page that sees this change empties its field. */
+  draftResets: number;
 }
 
 /** What the agents added to the state, as it is when there is no conversation. */
 const noAgents = () => ({ hires: [] as HireView[], transcripts: {} as Record<string, TranscriptTurn[]>, proposals: [] as ProposalView[] });
 
 export function initialViewState(): ViewState {
-  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '' };
+  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0 };
 }
 
 /**
@@ -338,7 +340,7 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
       if (message.contractVersion !== VIEW_CONTRACT_VERSION) { return { ...state, mismatch: message.contractVersion }; }
       // the state of the same session changes what is shown about it; another session, or none, begins a conversation afresh
       const same = (message.session?.sessionId ?? null) === (state.session?.sessionId ?? null);
-      return { ...(same ? state : { ...initialViewState(), history: state.history, draft: state.draft }), contractVersion: message.contractVersion, session: message.session };
+      return { ...(same ? state : { ...initialViewState(), history: state.history, draft: state.draft, draftResets: state.draftResets }), contractVersion: message.contractVersion, session: message.session };
     }
     case 'snapshot':
       return message.state.contractVersion === VIEW_CONTRACT_VERSION ? message.state : { ...state, mismatch: message.state.contractVersion };
@@ -372,7 +374,7 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
     case 'loadSessionEnd':
       return { ...withTurnEnded(state), loading: false };
     case 'clearChat':
-      return { ...state, entries: [], plan: null, processing: false, attachments: [], queued: [], ...noAgents() };
+      return { ...state, entries: [], plan: null, processing: false, attachments: [], queued: [], ...noAgents(), draft: '', draftResets: state.draftResets + 1 };
     case 'draft':
       return { ...state, draft: message.text };
     case 'sessionList': {

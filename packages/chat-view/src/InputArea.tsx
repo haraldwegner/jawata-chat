@@ -35,6 +35,14 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   useEffect(() => {
     if (!touched.current && state.draft && text === '') { setText(state.draft); }
   }, [state.draft]);
+  // a cleared chat or a new conversation takes the draft with it; moving the chat to another place, or reloading it, does not
+  const resets = useRef(state.draftResets);
+  useEffect(() => {
+    if (state.draftResets === resets.current) { return; }
+    resets.current = state.draftResets;
+    touched.current = false;
+    setText('');
+  }, [state.draftResets]);
   // the core keeps what is typed, a moment after the person stops, so a reloaded page has it back
   useEffect(() => {
     if (!touched.current) { return; }

@@ -83,6 +83,20 @@ test('a connect that fails is logged and told to the person, and does not throw'
   } finally { c.dispose(); }
 });
 
+test('the log says that a prompt was sent and how long it is, never what it says (the editor keeps its log in a file)', async () => {
+  const c = chatWith((input, output) => { new AgentSideConnection(() => ({
+    async initialize() { return { protocolVersion: 1, agentCapabilities: {} }; },
+    async newSession() { return { sessionId: 's1' }; },
+    async prompt() { return { stopReason: 'end_turn' }; },
+  }), ndJsonStream(output, input)); });
+  try {
+    await c.chat.flow.connect();
+    await c.chat.sendPrompt('a secret sentence the log must not hold');
+    assert.ok(c.host.logged.some(l => /sendPrompt: session=s1, 39 characters/.test(l)), c.host.logged.join(' | '));
+    assert.ok(!c.host.logged.some(l => l.includes('secret')), 'the log holds words of the prompt');
+  } finally { c.dispose(); }
+});
+
 test('a disconnect that fails is logged and told to the person, and does not throw', async () => {
   const c = chatWith((input, output) => { new AgentSideConnection(() => ({
     async initialize() { return { protocolVersion: 1, agentCapabilities: {} }; },

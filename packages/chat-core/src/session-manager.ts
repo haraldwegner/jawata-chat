@@ -192,7 +192,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
     const link = this.supply.linkOf(session.agentId);
     if (!link) { throw new Error(`No connection for agent: ${session.agentId}`); }
 
-    this.host.log.log(`sendPrompt: session=${sessionId}, text="${text.substring(0, 50)}..."`);
+    this.host.log.log(`sendPrompt: session=${sessionId}, ${text.length} characters, ${files.length} file(s)`);
     const prompt: ContentBlock[] = [{ type: 'text', text }, ...files.map(fileLink)];
     const answer = await link.prompt({ sessionId, prompt });
     this.host.log.log(`Prompt response: stopReason=${answer.stopReason}`);

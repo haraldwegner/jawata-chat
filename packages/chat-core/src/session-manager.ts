@@ -8,7 +8,6 @@ import type {
 } from '@agentclientprotocol/sdk';
 
 import { AgentSupply, type LiveAgent } from './agent-supply.js';
-import type { ConnectionManager } from './connection-manager.js';
 import { Emitter } from './emitter.js';
 import { logIn, needsLogin } from './login.js';
 import type { HostPorts } from './ports.js';
@@ -36,14 +35,13 @@ interface SessionAnswer {
  */
 export class SessionManager extends Emitter<SessionEvents> implements ChatSessions, SessionLifecycle {
   private readonly table = new SessionRegistry();
-  private readonly supply: AgentSupply;
   private readonly hearing: Disposable[];
   /** The connects under way, by agent: a second ask for the same agent shares the first. */
   private readonly connecting = new Map<string, Promise<SessionInfo>>();
 
-  constructor(private readonly host: Needs, links: ConnectionManager) {
+  /** @param supply where the agents come from; built and disposed by the root, not here */
+  constructor(private readonly host: Needs, private readonly supply: AgentSupply) {
     super();
-    this.supply = new AgentSupply(host, links);
     this.hearing = [
       this.supply.onUpdate(this.hear),
       this.supply.onEnded(this.processEnded),
@@ -272,7 +270,6 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
 
   dispose(): void {
     this.hearing.forEach(h => h.dispose());
-    this.supply.dispose();
     this.table.clear();
   }
 

@@ -1,7 +1,8 @@
 {
   "ignored": [
     "cwd",
-    "updatedAt"
+    "updatedAt",
+    "draftResets"
   ],
   "idsByFirstSeenOrdinal": [
     "sessionId",

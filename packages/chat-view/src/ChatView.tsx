@@ -1,11 +1,10 @@
 import { useEffect, useReducer, useState } from 'react';
-import { initialViewState, reduce } from '@jawata/chat-core';
+import { initialViewState, reduce, type PageTransport } from '@jawata/chat-core';
 import { AgentsBar } from './Agents.js';
 import { History } from './History.js';
 import { InputArea } from './InputArea.js';
 import { Proposals } from './Proposals.js';
 import { Messages, PlanBar } from './Messages.js';
-import type { PageTransport } from './transport.js';
 
 /** The chat: a fold of the messages the core tells it, and the intents it sends back. It keeps no other state of the conversation. */
 export function ChatView({ transport }: { transport: PageTransport }) {

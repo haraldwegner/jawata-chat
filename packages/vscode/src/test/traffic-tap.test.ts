@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { ndJsonStream } from '@agentclientprotocol/sdk';
-import { ConnectionManager, AgentUpdates, type TrafficDirection } from '@jawata/chat-core';
+import { createChat, type TrafficDirection } from '@jawata/chat-core';
+import { InMemoryAgents } from '@jawata/chat-core/test-support';
 import { createVscodeHost } from '../host/vscodeHost';
 import { sessionRecordingSink, setRecordingDir } from '../utils/Logger';
 import type { RecordedLine } from '../utils/SessionRecorder';
@@ -23,15 +23,18 @@ suite('Traffic tap on the production path', function () {
 		const recording = sessionRecordingSink('test agent');
 		assert.ok(recording, 'the recording is on');
 		const seen: RecordedLine[] = [];
-		const host = { ...createVscodeHost('test'), sinks: () => [(dir: TrafficDirection, msg: unknown) => seen.push({ dir, msg }), recording.sink] };
-
-		// the agent is the replay of R1 over in-memory streams; connecting makes the first exchange (initialize)
+		// the agent is the replay of R1 over in-memory streams, started through the chat's own supply; connecting makes the first exchange (initialize)
 		const { replayAgent, readSession } = await import('@jawata/acp-contract');
-		const toAgent = new TransformStream<Uint8Array, Uint8Array>();
-		const fromAgent = new TransformStream<Uint8Array, Uint8Array>();
-		replayAgent(readSession(require.resolve('@jawata/acp-contract/sessions/R1.jsonl')), fromAgent.writable, toAgent.readable);
-		const manager = new ConnectionManager(new AgentUpdates(), host);
-		await manager.connect('test agent', ndJsonStream(toAgent.writable, fromAgent.readable));
+		const session = readSession(require.resolve('@jawata/acp-contract/sessions/R1.jsonl'));
+		const real = createVscodeHost('test');
+		const host = {
+			...real,
+			agents: new InMemoryAgents((input, output) => replayAgent(session, output, input)),
+			settings: { agents: () => ({ agent: { command: 'in-memory' } }), workspaceCwd: () => '/workspace' },
+			sinks: () => [(dir: TrafficDirection, msg: unknown) => seen.push({ dir, msg }), recording.sink],
+		};
+		const chat = createChat(host);
+		try { await chat.flow.connect(); } finally { chat.dispose(); }
 
 		const recorded: RecordedLine[] = fs.readFileSync(recording.filePath, 'utf8').trimEnd().split('\n').map(l => JSON.parse(l));
 		assert.ok(recorded.length >= 2, 'the handshake passed the tap');

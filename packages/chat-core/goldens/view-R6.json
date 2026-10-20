@@ -1,7 +1,8 @@
 {
   "ignored": [
     "cwd",
-    "updatedAt"
+    "updatedAt",
+    "draftResets"
   ],
   "idsByFirstSeenOrdinal": [
     "sessionId",
@@ -75,8 +76,7 @@
         "transcripts": {},
         "proposals": [],
         "history": null,
-        "draft": "",
-        "draftResets": 0
+        "draft": ""
       }
     },
     {

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { ChatController, ConnectionManager, ConversationFlow, SessionManager, AgentUpdates, type HostPorts } from '@jawata/chat-core';
+import { createChat, type ChatController, type HostPorts, type SessionManager } from '@jawata/chat-core';
 import { chatCommands } from './commands';
 import { createVscodeHost } from './host/vscodeHost';
 import { version as extensionVersion } from '../package.json';
@@ -32,11 +32,10 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   const recordingsDir = vscode.Uri.joinPath(context.globalStorageUri, 'recordings').fsPath;
   setRecordingDir(recordingsDir);
 
-  const updates = new AgentUpdates();
   const host = createVscodeHost(extensionVersion);
-  const sessionManager = new SessionManager(host, new ConnectionManager(updates, host));
-  const flow: ConversationFlow = new ConversationFlow(sessionManager, host, () => chat.hasChatContent);
-  const chat: ChatController = new ChatController(sessionManager, updates, host, flow);
+  const built = createChat(host);
+  const sessionManager = built.sessions;
+  const chat = built.controller;
   const readyPlaces: Place[] = [];
   const pages = new PageSwitch(chat, place => { readyPlaces.push(place); });
   const panel = new ChatPanel(context.extensionUri, host => pages.mount('center', host));
@@ -54,10 +53,8 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
       .map(([name, run]) => vscode.commands.registerCommand(`jawataChat.${name}`, run)),
     {
       dispose: () => {
-        sessionManager.dispose();
+        built.dispose();
         host.terminal.dispose();
-        updates.dispose();
-        chat.dispose();
         disposeChannels();
       },
     },

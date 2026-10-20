@@ -1,12 +1,11 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { Disposable } from '@jawata/chat-core';
+import type { Disposable, PageTransport } from '@jawata/chat-core';
 
 import { ChatView } from './ChatView.js';
 import { CHAT_CSS } from './styles.js';
-import type { PageTransport } from './transport.js';
 
-export type { PageTransport } from './transport.js';
+export type { PageTransport } from '@jawata/chat-core';
 
 /** Show the chat in `container`, talking to the core over `transport`. Dispose the result to take it down. */
 export function mountChatView(container: HTMLElement, transport: PageTransport): Disposable {

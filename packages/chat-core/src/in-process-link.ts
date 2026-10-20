@@ -1,15 +1,4 @@
-import type { Disposable, ViewIntent, ViewMessage, ViewPort } from './view.js';
-
-/**
- * The page's end of an in-process link: what a view takes as its transport.
- * @public part of the link hosts outside this workspace use
- */
-export interface PageEnd {
-  /** Hear what the core tells the page. */
-  onMessage(handler: (message: ViewMessage) => void): Disposable;
-  /** Send the core an intent. */
-  send(intent: ViewIntent): void;
-}
+import type { PageTransport, ViewMessage, ViewPort } from './view.js';
 
 /**
  * Both ends of a line between the core and a page that run in the same process.
@@ -19,7 +8,7 @@ export interface InProcessLink {
   /** The core's end: attach it to the chat controller. */
   port: ViewPort;
   /** The page's end: give it to the view. */
-  page: PageEnd;
+  page: PageTransport;
   /** What the page would send, whatever it is: the core checks that it is an intent. */
   deliver(message: unknown): Promise<void>;
 }

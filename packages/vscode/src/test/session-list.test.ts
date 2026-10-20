@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { AGENT_KEY, ConnectionManager, SessionManager, AgentUpdates } from '@jawata/chat-core';
+import { AGENT_KEY, createChat } from '@jawata/chat-core';
 import { createVscodeHost } from '../host/vscodeHost';
 
 /**
@@ -17,16 +17,15 @@ suite('Session list', function () {
 	test('the agent lists one session, titled Pong, and the chat adds none of its own', async () => {
 		const config = vscode.workspace.getConfiguration('jawataChat');
 		await config.update('agent', { command: node, args: [require.resolve('@jawata/acp-contract/replay'), require.resolve('@jawata/acp-contract/sessions/R6.jsonl')] }, vscode.ConfigurationTarget.Global);
-		const handler = new AgentUpdates();
 		const host = createVscodeHost('test');
-		const sessions = new SessionManager(host, new ConnectionManager(handler, host));
+		const chat = createChat(host);
+		const sessions = chat.sessions;
 		try {
 			const { sessions: listed } = await sessions.listSessions(AGENT_KEY);
 			assert.strictEqual(listed.length, 1, 'the one session R6 lists');
 			assert.strictEqual(listed[0].title, 'Pong');
 		} finally {
-			sessions.dispose();
-			handler.dispose();
+			chat.dispose();
 		}
 	});
 

@@ -102,13 +102,12 @@ export class AgentSupply {
     this.host.agents.killAgent(agentId);
   }
 
-  /** End every agent this supply started. */
+  /** End every agent this supply started. The links are the root's, which disposes them; each ended agent's link is let go of here. */
   private stopAll(): void {
     for (const id of [...this.live.keys()]) { this.stop(id); }
-    this.links.dispose();
   }
 
-  /** Let go of the host and the listeners. */
+  /** Let go of the host and the listeners, and end the agents. */
   dispose(): void {
     this.hearing.forEach(h => h.dispose());
     this.stopAll();

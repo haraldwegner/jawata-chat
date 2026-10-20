@@ -2,11 +2,8 @@ import { ndJsonStream } from '@agentclientprotocol/sdk';
 import type { AuthMethod } from '@agentclientprotocol/sdk';
 
 import { ChatController } from './chat-controller.js';
-import { ConversationFlow } from './conversation-flow.js';
-import { ConnectionManager } from './connection-manager.js';
 import { Emitter } from './emitter.js';
-import { SessionManager } from './session-manager.js';
-import { AgentUpdates } from './agent-updates.js';
+import { createChat } from './create-chat.js';
 import { createInProcessLink } from './in-process-link.js';
 import { AGENT_KEY, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Chooser, type HostPorts, type Notifier, type TrafficSink } from './ports.js';
 import type { Disposable, ViewIntent, ViewMessage, ViewPort } from './view.js';
@@ -33,8 +30,8 @@ export class RecordingPort implements ViewPort {
   async deliver(message: unknown): Promise<void> { await this.handler?.(message); }
 }
 
-/** Left out of a golden: they differ between runs or carry the machine. */
-export const IGNORED = ['cwd', 'updatedAt'];
+/** Left out of a golden: they differ between runs or carry the machine (draftResets counts the clears a run made before the one a golden is about). */
+export const IGNORED = ['cwd', 'updatedAt', 'draftResets'];
 /** Replaced by the order they first appear in: stable, and the pairing of a tool call with its updates stays checked. */
 export const IDS = ['sessionId', 'messageId', 'toolCallId', 'requestId'];
 /** Replaced by a digest of the payload and its length: a command list is about 60 KB and is the agent's, not ours. */
@@ -199,12 +196,9 @@ export class LoopbackPort extends RecordingPort {
 /** A whole chat on an in-memory host whose agent is `run`: the sessions, the controller, and the port attached to it. */
 export function chatWith(run: AgentRunner, port: RecordingPort = new RecordingPort()) {
   const host = fakeHost(run);
-  const updates = new AgentUpdates(host.log);
-  const sessions = new SessionManager(host, new ConnectionManager(updates, host));
-  const flow = new ConversationFlow(sessions, host, () => chat.hasChatContent);
-  const chat = new ChatController(sessions, updates, host, flow);
-  chat.attach(port);
-  return { host, updates, sessions, chat, port, dispose() { chat.dispose(); sessions.dispose(); updates.dispose(); } };
+  const built = createChat(host);
+  built.controller.attach(port);
+  return { host, updates: built.updates, sessions: built.sessions, chat: built.controller, port, dispose: () => built.dispose() };
 }
 
 /** Wait, up to `ms`, for `done()` to hold; `sleep` is the caller's (this package has no timers of its own). */

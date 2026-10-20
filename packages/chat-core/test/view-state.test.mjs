@@ -1,6 +1,7 @@
 // The reducer is a pure function: its rules one by one, and the one property that makes a snapshot trustworthy —
 // folding every message the page was told, from nothing, gives exactly the state the core hands a page that comes late.
 import { test } from 'node:test';
+import { VIEW_CONTRACT_VERSION } from '../dist/view.js';
 import assert from 'node:assert/strict';
 import { initialViewState, reduce, waitingLine } from '../dist/view-state.js';
 import { chatOn } from './play.mjs';
@@ -12,7 +13,7 @@ const chunk = (kind, text) => update({ sessionUpdate: kind, content: { type: 'te
 const session = { sessionId: 's', agentName: 'A', title: null, cwd: '/w', modes: { currentModeId: 'a', availableModes: [] }, models: null, configOptions: [], availableCommands: [] };
 const fold = (messages, from = initialViewState()) => messages.reduce(reduce, from);
 
-const open = { type: 'state', contractVersion: 2, activeSessionId: 's', session };
+const open = { type: 'state', contractVersion: VIEW_CONTRACT_VERSION, activeSessionId: 's', session };
 const parts = (s, i = 0) => s.entries[i].turn.parts.map(p => p.kind === 'tool' ? `tool:${p.tool.toolCallId}` : `${p.kind}:${p.text}`);
 
 test('it does not change the state it is given', () => {
@@ -183,7 +184,7 @@ test('the state of another session, or of none, begins the conversation afresh; 
   const again = reduce(talked, { ...open, session: { ...session, title: 'Named' } });
   assert.equal(again.entries.length, 2, 'the same session: what is shown about it changes, the conversation stays');
   assert.equal(again.session.title, 'Named');
-  const none = reduce(talked, { type: 'state', contractVersion: 2, activeSessionId: null, session: null });
+  const none = reduce(talked, { type: 'state', contractVersion: VIEW_CONTRACT_VERSION, activeSessionId: null, session: null });
   assert.deepEqual([none.entries.length, none.attachments.length, none.plan, none.session], [0, 0, null, null], 'no session: nothing of the last conversation is left on screen');
   const other = reduce(talked, { ...open, activeSessionId: 't', session: { ...session, sessionId: 't' } });
   assert.deepEqual([other.entries.length, other.attachments.length, other.plan], [0, 0, null], 'another session: it starts afresh');
@@ -203,7 +204,7 @@ test('a clear takes the draft and counts; another session keeps it; a snapshot b
   const cleared = reduce(typed, { type: 'clearChat' });
   assert.equal(cleared.draft, '');
   assert.equal(cleared.draftResets, typed.draftResets + 1);
-  const other = reduce(typed, { type: 'state', contractVersion: 2, activeSessionId: 'other', session: { ...session, sessionId: 'other' } });
+  const other = reduce(typed, { type: 'state', contractVersion: VIEW_CONTRACT_VERSION, activeSessionId: 'other', session: { ...session, sessionId: 'other' } });
   assert.equal(other.draft, 'half a thought', 'opening another session leaves what is typed');
   assert.equal(other.draftResets, typed.draftResets);
   assert.equal(reduce(initialViewState(), { type: 'snapshot', state: typed }).draft, 'half a thought', 'a reloaded page is given it');

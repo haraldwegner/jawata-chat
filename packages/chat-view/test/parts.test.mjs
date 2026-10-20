@@ -2,6 +2,7 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { VIEW_CONTRACT_VERSION } from '@jawata/chat-core/view';
 import { act, closeDom, viewOn, sessionFile } from './dom.mjs';
 
 after(closeDom);
@@ -144,7 +145,7 @@ test('a message of another version of the contract is refused with a notice that
     await act(async () => { v.port.post({ type: 'state', contractVersion: 1, activeSessionId: null, session: null }); });
     const notice = v.$('.mismatch');
     assert.ok(notice, 'a notice');
-    assert.match(notice.textContent, /version 2 .* version 1/);
+    assert.match(notice.textContent, new RegExp(`version ${VIEW_CONTRACT_VERSION} .* version 1`));
     assert.match(notice.textContent, /Update the chat and reload it/);
     assert.equal(notice.getAttribute('role'), 'alert');
   } finally { v.dispose(); }

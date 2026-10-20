@@ -1,6 +1,7 @@
 // Every intent the page can send is delivered through the port to the core, on the in-memory host, and its effect is asserted
 // on the stream the page is told or on what the agent was sent. A member of the intent union that no test delivers fails the last test.
 import { test } from 'node:test';
+import { VIEW_CONTRACT_VERSION } from '../dist/view.js';
 import assert from 'node:assert/strict';
 import { VIEW_INTENT_TYPES, isViewIntent } from '../dist/index.js';
 import { chatOn } from './play.mjs';
@@ -30,7 +31,7 @@ test('ready: the page is told the state, and then the snapshot of the conversati
   try {
     await c.port.deliver({ type: 'ready' });
     assert.deepEqual(types(c.port), ['state', 'snapshot'], 'a first page is given the state, and the snapshot of an empty conversation');
-    assert.equal(c.port.toView[0].contractVersion, 2);
+    assert.equal(c.port.toView[0].contractVersion, VIEW_CONTRACT_VERSION);
     assert.equal(c.port.toView[0].session.agentName, 'Claude Agent');
     await c.port.deliver({ type: 'sendPrompt', text: 'hello' });
     c.port.toView.length = 0;

@@ -10,6 +10,11 @@ export class ChatPanel {
     private readonly mount: (host: PageHost) => void,
   ) {}
 
+  /** Close the tab, if it is open: the chat has been moved to a place that is a view. */
+  close(): void {
+    this.panel?.dispose();
+  }
+
   open(): void {
     if (this.panel) { this.panel.reveal(); return; }
     const panel = vscode.window.createWebviewPanel('jawata-chat-center', 'jawata chat', vscode.ViewColumn.Active, {

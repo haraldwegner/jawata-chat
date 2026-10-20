@@ -78,4 +78,25 @@ suite('Switching the place of the chat', () => {
 			assert.ok(right.told.length > rightBefore, 'and shown again it takes the chat back');
 		} finally { c.dispose(); }
 	});
+	test('a page shown while a port that is not a page has the chat does not take it, and a page that has the chat is not seated again when shown', async () => {
+		const c = chatOf();
+		try {
+			const pages = new PageSwitch(c.chat as ChatController, () => undefined);
+			const left = page();
+			pages.mount('left', left.host);
+			const holder = left.told.length;
+			left.show(); // shown while it already holds the chat: nothing is sent
+			await new Promise(r => setTimeout(r, 100));
+			assert.strictEqual(left.told.length, holder, 'a page that has the chat is not given the state again');
+			const test = new RecordingPort();
+			c.chat.attach(test); // a port that is not a page takes the chat
+			const right = page();
+			pages.mount('right', right.host);
+			right.show();
+			await new Promise(r => setTimeout(r, 100));
+			c.chat.clearChat();
+			assert.ok(test.toView.length > 0, 'the port that is not a page is served');
+			assert.strictEqual(right.told.length, 0, 'the page did not take the chat from it');
+		} finally { c.dispose(); }
+	});
 });

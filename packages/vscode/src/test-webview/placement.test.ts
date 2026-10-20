@@ -57,5 +57,6 @@ suite('Placement', function () {
 		await config().update('placement', 'left', vscode.ConfigurationTarget.Global); // no command: the change itself moves the chat
 		for (let i = 0; i < 100 && snapshots === 0; i++) { await new Promise(r => setTimeout(r, 100)); }
 		assert.ok(snapshots >= 1, 'the left place was shown again and given the chat\'s state without running the open command');
+		assert.strictEqual(webviewTabs().length, 0, 'the tab of the place the chat left is closed, not left frozen in the editor area');
 	});
 });

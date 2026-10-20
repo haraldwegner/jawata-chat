@@ -18,6 +18,10 @@ export class ChatController {
   private port?: ViewPort;
   /** Whether the port in use is a page a person opened (see {@link attachPage}). */
   private portIsPage = false;
+  /** Whether the page in use has said ready, so that what is told it now will be heard. */
+  private portReady = false;
+  /** A command asked for the sessions before the page was ready to show them. */
+  private historyWanted = false;
   private portSubscriptions: Disposable[] = [];
   /** What the page shows, folded as the core posts: a page that comes later is given it. */
   private view: ViewState = initialViewState();
@@ -115,15 +119,16 @@ export class ChatController {
     this.portSubscriptions.forEach(s => s.dispose());
     this.port = port;
     this.portIsPage = page;
+    this.portReady = false;
     const subscriptions = [
       port.onMessage((message) => this.hear(message)),
-      port.onDispose(() => { if (this.port === port) { this.port = undefined; this.portIsPage = false; } }),
+      port.onDispose(() => { if (this.port === port) { this.port = undefined; this.portIsPage = false; this.portReady = false; } }),
     ];
     this.portSubscriptions = subscriptions;
     return {
       dispose: () => {
         subscriptions.forEach(s => s.dispose());
-        if (this.port === port) { this.port = undefined; this.portIsPage = false; this.portSubscriptions = []; }
+        if (this.port === port) { this.port = undefined; this.portIsPage = false; this.portReady = false; this.portSubscriptions = []; }
       },
     };
   }
@@ -135,6 +140,8 @@ export class ChatController {
       case 'ready':
         this.sendCurrentState();
         this.port?.post({ type: 'snapshot', state: this.snapshot() });
+        this.portReady = true;
+        if (this.historyWanted) { this.historyWanted = false; await this.listSessions(undefined, true); }
         break;
       case 'sendPrompt':
         await this.sendOrQueue(intent.text, intent.files ?? []);
@@ -369,7 +376,14 @@ export class ChatController {
 
   /** For a command that opens the sessions without the button: the list is asked for and the page is told to show it. */
   showHistory(): Promise<void> {
-    return this.listSessions(undefined, true);
+    if (this.portReady) { return this.listSessions(undefined, true); }
+    this.historyWanted = true; // the page is not there yet, or has not said ready: it is shown when it does
+    return Promise.resolve();
+  }
+
+  /** Whether a page a person opened has the chat now (a port that is not a page, a test's, does not count). */
+  get hasPage(): boolean {
+    return this.port !== undefined && this.portIsPage;
   }
 
   /** Ask the agent which sessions it has and tell the page; the chat keeps no list of its own. */

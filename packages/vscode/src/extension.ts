@@ -11,6 +11,9 @@ import { PageSwitch } from './ui/PageSwitch';
 import { VIEW_OF, chosenPlace, type Place } from './ui/places';
 import { log, disposeChannels, setRecordingDir } from './utils/Logger';
 
+/** How long the editor needs, after the placement setting changes, to bring the views of the chosen place into being. */
+const PLACEMENT_SETTLE_MS = 300;
+
 /**
  * What the extension hands to the editor tests: the chat's controller, to which a recording port can be attached. Only in test mode: production hands out nothing.
  * @public read by the editor tests
@@ -44,12 +47,17 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   /** Show the chat where the setting says: focus its view, or open its tab in the editor area. */
   const showChat = async (): Promise<void> => {
     const place = chosenPlace();
-    if (place === 'center') { panel.open(); } else { await vscode.commands.executeCommand(`${VIEW_OF[place]}.focus`); }
+    if (place === 'center') { panel.open(); return; }
+    panel.close(); // the tab is a place of its own: leaving it closes it, so that no frozen copy stays in the editor area
+    await vscode.commands.executeCommand(`${VIEW_OF[place]}.focus`);
   };
 
   context.subscriptions.push(
-    // choosing another place moves the chat that is open: the old place's view goes (its when clause), and the new one opens and takes the seat
-    vscode.workspace.onDidChangeConfiguration(change => { if (change.affectsConfiguration('jawataChat.placement')) { void showChat(); } }),
+    // choosing another place moves the chat that is open (not one that is not: the setting alone opens nothing): the old place's view goes
+    // (its when clause) or its tab closes, and the new place opens and takes the seat. The editor takes the setting into the places that exist a moment later.
+    vscode.workspace.onDidChangeConfiguration(change => {
+      if (change.affectsConfiguration('jawataChat.placement') && chat.hasPage) { setTimeout(() => { void showChat(); }, PLACEMENT_SETTLE_MS); }
+    }),
     ...(['left', 'right', 'bottom'] as const).map(place => vscode.window.registerWebviewViewProvider(
       VIEW_OF[place], new ChatWebviewProvider(context.extensionUri, host => pages.mount(place, host)), { webviewOptions: { retainContextWhenHidden: true } })),
     new StatusBar(sessionManager),

@@ -22,6 +22,7 @@ suite('Open Session', function () {
 		const port = new RecordingPort();
 		chat.attach(port);
 		await vscode.commands.executeCommand('jawataChat.openSession');
+		await port.deliver({ type: 'ready' }); // the page of this test says ready, as a real page does once it has loaded
 		const lists = port.toView.filter(m => m.type === 'sessionList') as { type: 'sessionList'; show?: boolean; sessions: { title?: string | null }[] }[];
 		assert.strictEqual(lists.length, 1, `the chat was told the agent's sessions; it was told: ${JSON.stringify(port.toView.map(m => m.type === 'error' ? m : m.type))}`);
 		assert.strictEqual(lists[0].show, true, 'and asked to show it');

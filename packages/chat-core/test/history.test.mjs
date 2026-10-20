@@ -53,3 +53,35 @@ test('a page of the list is appended to the one before it, or replaces it; a fai
     assert.ok(c.port.toView.some(m => m.type === 'error' && /Could not list the sessions/.test(m.message)));
   } finally { c.dispose(); }
 });
+
+test('showHistory: asked before the page has said ready, the list waits and is shown when it does', async () => {
+  const c = chatOn('R6');
+  try {
+    await c.chat.showHistory();
+    assert.deepEqual(c.port.toView.filter(m => m.type === 'sessionList'), [], 'no page has said ready: nothing is told yet');
+    await c.port.deliver({ type: 'ready' });
+    const lists = c.port.toView.filter(m => m.type === 'sessionList');
+    assert.equal(lists.length, 1, 'the list comes with ready');
+    assert.equal(lists[0].show, true, 'and asks to be shown');
+  } finally { c.dispose(); }
+});
+
+test('showHistory: asked after the page said ready, the list is told at once and asks to be shown; the page\'s own request does not', async () => {
+  const c = chatOn('R6');
+  try {
+    await c.port.deliver({ type: 'ready' });
+    c.port.toView.length = 0;
+    await c.chat.showHistory();
+    const lists = c.port.toView.filter(m => m.type === 'sessionList');
+    assert.equal(lists.length, 1, 'a page that is ready is told at once');
+    assert.equal(lists[0].show, true);
+  } finally { c.dispose(); }
+});
+
+test('the page\'s own listSessions request is not a request to show the list', async () => {
+  const c = chatOn('R6');
+  try {
+    await c.port.deliver({ type: 'listSessions' });
+    assert.equal(c.port.toView.filter(m => m.type === 'sessionList')[0].show, undefined);
+  } finally { c.dispose(); }
+});

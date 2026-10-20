@@ -36,27 +36,46 @@ test('a port that is replaced is not told, and the log says a page was replaced 
   } finally { c.dispose(); }
 });
 
-test('attachIfFree: a page that resolves late does not take the place of a port in use', async () => {
+test('attachPage: a page that resolves late does not take the place of a port that is not a page', async () => {
   const c = chatOn('R1');
   try {
     const late = new RecordingPort();
-    assert.equal(c.chat.attachIfFree(late), undefined);
+    assert.equal(c.chat.attachPage(late), undefined);
     c.chat.clearChat();
     assert.deepEqual(types(c.port), ['clearChat'], 'the port in use is still told');
     assert.deepEqual(late.toView, []);
   } finally { c.dispose(); }
 });
 
-test('attachIfFree attaches when no port is, and again when the one in use is gone', () => {
+test('attachPage attaches when no port is, and again when the one in use is gone', () => {
   const c = chatOn('R1');
   try {
     const first = new RecordingPort();
     c.chat.attach(first).dispose();
     const late = new RecordingPort();
-    const handle = c.chat.attachIfFree(late);
+    const handle = c.chat.attachPage(late);
     assert.ok(handle);
     c.chat.clearChat();
     assert.deepEqual(types(late), ['clearChat']);
+  } finally { c.dispose(); }
+});
+
+test('attachPage: a page takes over from the page in use, which is then told nothing, and a port that is not a page takes over from either', () => {
+  const c = chatOn('R1');
+  try {
+    c.chat.attach(new RecordingPort()).dispose();
+    const first = new RecordingPort();
+    const second = new RecordingPort();
+    assert.ok(c.chat.attachPage(first));
+    assert.ok(c.chat.attachPage(second), 'the page shown last has the seat');
+    c.chat.clearChat();
+    assert.deepEqual(types(second), ['clearChat']);
+    assert.deepEqual(first.toView, [], 'the page that was replaced is told nothing');
+    const test = new RecordingPort();
+    c.chat.attach(test);
+    c.chat.clearChat();
+    assert.deepEqual(types(test), ['clearChat'], 'a port that is not a page is attached explicitly and has the seat');
+    assert.equal(c.chat.attachPage(new RecordingPort()), undefined, 'and a page then does not take it');
   } finally { c.dispose(); }
 });
 
@@ -70,7 +89,7 @@ test('a port that says it is gone is let go of', () => {
     gone();
     c.chat.clearChat();
     assert.deepEqual(port.toView, []);
-    assert.ok(c.chat.attachIfFree(new RecordingPort()), 'free again');
+    assert.ok(c.chat.attachPage(new RecordingPort()), 'free again');
   } finally { c.dispose(); }
 });
 

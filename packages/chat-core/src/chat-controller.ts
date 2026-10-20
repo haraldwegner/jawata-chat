@@ -16,6 +16,8 @@ import { initialViewState, reduce, reduceAll, type ViewState } from './view-stat
  */
 export class ChatController {
   private port?: ViewPort;
+  /** Whether the port in use is a page a person opened (see {@link attachPage}). */
+  private portIsPage = false;
   private portSubscriptions: Disposable[] = [];
   /** What the page shows, folded as the core posts: a page that comes later is given it. */
   private view: ViewState = initialViewState();
@@ -93,28 +95,39 @@ export class ChatController {
    * so); a host that shows more than one page needs a fan-out of its own (28k, 32).
    */
   attach(port: ViewPort): Disposable {
+    return this.seat(port, false);
+  }
+
+  /**
+   * The seat policy for pages, one place for every host: a page a person has opened takes over from the page that is in use (the chat
+   * moves where it was last shown), and never from a port that is not a page (a test's, a relay's), which a page that resolves late
+   * must not take. Undefined when it did not take the seat.
+   */
+  attachPage(port: ViewPort): Disposable | undefined {
+    if (this.port && !this.portIsPage) { return undefined; }
+    return this.seat(port, true);
+  }
+
+  private seat(port: ViewPort, page: boolean): Disposable {
     if (this.port && this.port !== port) {
       this.host.log.log('ChatController: a port was replaced by another; the earlier page is no longer told anything');
     }
     this.portSubscriptions.forEach(s => s.dispose());
     this.port = port;
+    this.portIsPage = page;
     const subscriptions = [
       port.onMessage((message) => this.hear(message)),
-      port.onDispose(() => { if (this.port === port) { this.port = undefined; } }),
+      port.onDispose(() => { if (this.port === port) { this.port = undefined; this.portIsPage = false; } }),
     ];
     this.portSubscriptions = subscriptions;
     return {
       dispose: () => {
         subscriptions.forEach(s => s.dispose());
-        if (this.port === port) { this.port = undefined; this.portSubscriptions = []; }
+        if (this.port === port) { this.port = undefined; this.portIsPage = false; this.portSubscriptions = []; }
       },
     };
   }
 
-  /** Attach this port only if no port is attached: a page that resolves late must not take over from one already in use. */
-  attachIfFree(port: ViewPort): Disposable | undefined {
-    return this.port ? undefined : this.attach(port);
-  }
 
   /** What the page asked of the core. One entry for every route a prompt or a request can take. */
   async handle(intent: ViewIntent): Promise<void> {

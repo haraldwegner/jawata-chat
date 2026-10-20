@@ -37,7 +37,9 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   const sessionManager = built.sessions;
   const chat = built.controller;
   const readyPlaces: Place[] = [];
-  const pages = new PageSwitch(chat, place => { readyPlaces.push(place); });
+  // only a test asks which places said ready; production keeps no list
+  const testMode = context.extensionMode === vscode.ExtensionMode.Test;
+  const pages = new PageSwitch(chat, testMode ? place => { readyPlaces.push(place); } : undefined);
   const panel = new ChatPanel(context.extensionUri, host => pages.mount('center', host));
   /** Show the chat where the setting says: focus its view, or open its tab in the editor area. */
   const showChat = async (): Promise<void> => {
@@ -61,7 +63,7 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   );
 
   log('jawata chat extension activated.');
-  return context.extensionMode === vscode.ExtensionMode.Test ? { chat, sessionManager, host, recordingsDir, readyPlaces } : undefined;
+  return testMode ? { chat, sessionManager, host, recordingsDir, readyPlaces } : undefined;
 }
 
 /** @public called by the editor */

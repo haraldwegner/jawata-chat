@@ -89,4 +89,10 @@ suite('Extension shape', () => {
 			assert.ok(!bundle.includes(marker), `bundle contains ${marker}`);
 		}
 	});
+	test('production keeps no test instrumentation: the list of ready places and the api are built for the editor tests only', () => {
+		const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'extension.ts'), 'utf8');
+		assert.strictEqual((source.match(/readyPlaces\.push/g) ?? []).length, 1, 'readyPlaces is written in one place');
+		assert.match(source, /testMode \? place => \{ readyPlaces\.push\(place\); \} : undefined/, 'and only in test mode');
+		assert.match(source, /return testMode \? \{ chat/, 'the api is handed out in test mode only');
+	});
 });

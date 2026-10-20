@@ -1,15 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { TrafficDirection } from '@jawata/chat-core';
-
-/**
- * One line of a recorded session — the format the replay agent and the checker read.
- * @public read by the editor tests
- */
-export interface RecordedLine {
-  dir: TrafficDirection;
-  msg: unknown;
-}
+import { formatLine, type RecordedLine } from '@jawata/acp-contract/recording';
 
 /**
  * How many recordings are kept: the newest, this one included.
@@ -38,7 +30,7 @@ export class SessionRecorder {
   }
 
   record(direction: TrafficDirection, message: unknown): void {
-    const line: RecordedLine = { dir: direction, msg: message };
-    fs.appendFileSync(this.filePath, JSON.stringify(line) + '\n');
+    // the line is written in the contract's own format: the replay agent and the checker read exactly this
+    fs.appendFileSync(this.filePath, formatLine(direction, message as RecordedLine['msg']) + '\n');
   }
 }

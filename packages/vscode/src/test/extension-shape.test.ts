@@ -80,10 +80,13 @@ suite('Extension shape', () => {
 		}
 	});
 
-	test('the contract package is a test-time dependency only, and not in the bundle', () => {
+	test('the contract package is a runtime dependency for its recording format only: the bundle holds none of its replay, derive or promote machinery', () => {
 		const p = pkg();
-		assert.strictEqual(p.dependencies['@jawata/acp-contract'], undefined, 'not a runtime dependency');
-		assert.ok(p.devDependencies['@jawata/acp-contract'], 'a development dependency');
+		assert.ok(p.dependencies['@jawata/acp-contract'], 'a runtime dependency');
+		assert.strictEqual(p.devDependencies['@jawata/acp-contract'], undefined, 'no longer a development dependency');
+		const recorder = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'utils', 'SessionRecorder.ts'), 'utf8');
+		assert.match(recorder, /formatLine\(/, 'the recorder writes through the contract\'s format');
+		assert.doesNotMatch(recorder.replace(/\/\/.*$/gm, ''), /JSON\.stringify/, 'and has no format of its own');
 		const bundle = fs.readFileSync(path.join(vscode.extensions.getExtension(ID)!.extensionPath, 'dist', 'extension.js'), 'utf8');
 		for (const marker of ['segmentsOf', 'promoteRecording', 'jawata-acp-replay']) {
 			assert.ok(!bundle.includes(marker), `bundle contains ${marker}`);

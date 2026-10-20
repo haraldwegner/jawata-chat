@@ -12,12 +12,17 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "1.9.0"
   },
+  "sideEffects": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./recording": {
+      "types": "./dist/recording.d.ts",
+      "default": "./dist/recording.js"
     },
     "./replay": "./dist/bin/replay.js",
     "./sessions/*": "./sessions/*",

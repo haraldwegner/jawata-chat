@@ -7,7 +7,8 @@ import { createChat, type TrafficDirection } from '@jawata/chat-core';
 import { InMemoryAgents } from '@jawata/chat-core/test-support';
 import { createVscodeHost } from '../host/vscodeHost';
 import { sessionRecordingSink, setRecordingDir } from '../utils/Logger';
-import type { RecordedLine } from '../utils/SessionRecorder';
+/** One line as the test sees it: the direction and the message. */
+type RecordedLine = { dir: TrafficDirection; msg: unknown };
 
 /**
  * The tap is the one recorder: through the real connection the chat opens, whatever passes reaches
@@ -41,7 +42,7 @@ suite('Traffic tap on the production path', function () {
 		assert.deepStrictEqual(recorded[0].dir, 'send');
 		assert.strictEqual((recorded[0].msg as { method?: string }).method, 'initialize');
 		assert.deepStrictEqual(recorded, seen, 'the recording holds what the other sink saw');
-		// the recorder writes the line format by hand (the contract package is test-time only), so the contract's own parser must read what it wrote
+		// the recorder writes through the contract's own format, and the contract's own parser must read what it wrote
 		const { parseSession } = await import('@jawata/acp-contract');
 		assert.deepStrictEqual(parseSession(fs.readFileSync(recording.filePath, 'utf8')), recorded);
 	});

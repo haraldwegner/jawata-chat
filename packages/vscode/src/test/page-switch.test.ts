@@ -78,7 +78,7 @@ suite('Switching the place of the chat', () => {
 			assert.ok(right.told.length > rightBefore, 'and shown again it takes the chat back');
 		} finally { c.dispose(); }
 	});
-	test('a page shown while a port that is not a page has the chat does not take it, and a page that has the chat is not seated again when shown', async () => {
+	test('a page that already has the chat is not seated again when shown', async () => {
 		const c = chatOf();
 		try {
 			const pages = new PageSwitch(c.chat as ChatController, () => undefined);
@@ -88,15 +88,24 @@ suite('Switching the place of the chat', () => {
 			left.show(); // shown while it already holds the chat: nothing is sent
 			await new Promise(r => setTimeout(r, 100));
 			assert.strictEqual(left.told.length, holder, 'a page that has the chat is not given the state again');
+		} finally { c.dispose(); }
+	});
+	test('a page shown, through its own show event, while a port that is not a page has the chat does not take it', async () => {
+		const c = chatOf();
+		try {
+			const pages = new PageSwitch(c.chat as ChatController, () => undefined);
+			const left = page();
+			const right = page();
+			pages.mount('left', left.host);
+			pages.mount('right', right.host); // both pages are mounted and listening for their show event; the right one holds the chat
 			const test = new RecordingPort();
 			c.chat.attach(test); // a port that is not a page takes the chat
-			const right = page();
-			pages.mount('right', right.host);
-			right.show();
+			const before = left.told.length;
+			left.show(); // the left place is shown: the show path, not the mount, is what is asked
 			await new Promise(r => setTimeout(r, 100));
 			c.chat.clearChat();
 			assert.ok(test.toView.length > 0, 'the port that is not a page is served');
-			assert.strictEqual(right.told.length, 0, 'the page did not take the chat from it');
+			assert.strictEqual(left.told.length, before, 'the page did not take the chat from it');
 		} finally { c.dispose(); }
 	});
 });

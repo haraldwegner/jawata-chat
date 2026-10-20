@@ -20,7 +20,7 @@ export interface Disposable {
  * state added, removed or given another meaning. An older page that is not told it is older ignores a message it does not know, and the
  * agent waits on an answer nobody gives; a page or core that is told another version says so and folds nothing more. The number is
  * pinned by `test/contract-shape.test.mjs`, which records the names for each number (messages, intents, state fields): a change to
- * the names without a new number is red. (What the names do not hold, a field inside a message, is held by the goldens.)
+ * the names without a new number is red. (What the names do not hold, a field inside a message, is held only for the messages the recorded sessions play, by the goldens; the rest by review: ledger C20-3.)
  *
  * 2: turns hold ordered parts, the plan is its own part of the state, prompts carry files and can be queued, a prompt can be sent now.
  * 3: hires and their transcripts, proposals to answer, the agent's session list, the typed draft and its resets.

@@ -117,6 +117,9 @@ export class FakeNotifier implements Notifier {
 /** Runs an agent over the given streams: `input` is what the chat sends, `output` is where the agent writes. */
 export type AgentRunner = (input: ReadableStream<Uint8Array>, output: WritableStream<Uint8Array>) => void;
 
+/** The command a conformance run gives an agent host to start a program that cannot start; the in-memory host takes it as such. */
+export const CANNOT_START = 'cannot-start';
+
 /** An agent host with no processes: "starting" an agent runs the given function over a pair of in-memory streams. */
 export class InMemoryAgents extends Emitter implements AgentHost {
   private readonly running = new Map<string, AgentHandle>();
@@ -124,9 +127,11 @@ export class InMemoryAgents extends Emitter implements AgentHost {
   /** How many agent programs were started. */
   spawned = 0;
   constructor(private readonly run: AgentRunner) { super(); }
-  spawnAgent(name: string): AgentHandle {
+  spawnAgent(name: string, config?: AgentConfigEntry): AgentHandle {
     const id = `fake_${this.next++}`;
     this.spawned++;
+    // a program that cannot start reports an error, as a real one does
+    if (config?.command === CANNOT_START) { void Promise.resolve().then(() => this.emit('agent-error', { agentId: id, error: new Error('cannot start') } satisfies AgentFailed)); }
     const toAgent = new TransformStream<Uint8Array, Uint8Array>();
     const fromAgent = new TransformStream<Uint8Array, Uint8Array>();
     this.run(toAgent.readable, fromAgent.writable);
@@ -217,8 +222,9 @@ async function until(done: () => boolean, sleep: (ms: number) => Promise<void>, 
  * @param host the agent host under test
  * @param config how to start a program that stays running until it is ended
  * @param sleep waits for the given milliseconds (a real host needs real time to end a program)
+ * @param cannotStart how to start a program that cannot start (the in-memory host takes {@link CANNOT_START}); its failure must reach onError or onClosed
  */
-export async function agentHostFailures(host: AgentHost, config: AgentConfigEntry, sleep: (ms: number) => Promise<void>): Promise<string[]> {
+export async function agentHostFailures(host: AgentHost, config: AgentConfigEntry, sleep: (ms: number) => Promise<void>, cannotStart: AgentConfigEntry): Promise<string[]> {
   const failures: string[] = [];
   const closed: AgentClosed[] = [];
   const dropped: AgentClosed[] = [];
@@ -231,6 +237,14 @@ export async function agentHostFailures(host: AgentHost, config: AgentConfigEntr
   if (!await until(() => closed.some(e => e.agentId === handle.id), sleep)) { failures.push('onClosed is told when an agent is ended by killAgent'); }
   if (closed.filter(e => e.agentId === handle.id).length > 1) { failures.push('onClosed is told once for one ending'); }
   if (host.killAgent(handle.id) !== false) { failures.push('killAgent of an agent already ended answers false'); }
+
+  // a program that cannot start is told, as an error or as an ending (a shell reports a missing program as an exit): never silently
+  const told: string[] = [];
+  const watching = [host.onError(event => told.push(event.agentId)), host.onClosed(event => told.push(event.agentId))];
+  const broken = host.spawnAgent('conformance', cannotStart);
+  if (!await until(() => told.includes(broken.id), sleep)) { failures.push('onError or onClosed is told when an agent\'s program cannot start'); }
+  watching.forEach(w => w.dispose());
+  host.killAgent(broken.id);
 
   hearing.dispose();
   const second = host.onClosed(event => dropped.push(event));

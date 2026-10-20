@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { HostPorts, TrafficSink } from '@jawata/chat-core';
+import type { HostActions, HostPorts, Settings, TrafficSink } from '@jawata/chat-core';
 import { AgentProcesses } from './AgentProcesses';
 import { agentMap } from '../config/AgentConfig';
 import { WorkspaceFiles } from './WorkspaceFiles';
@@ -10,21 +10,23 @@ import { VscodeNotifier } from './VscodeNotifier';
 
 /** The ports VS Code gives the chat core: settings, processes, quick picks, files, terminals, the output channels. */
 export function createVscodeHost(extensionVersion: string): HostPorts & { agents: AgentProcesses; terminal: TerminalHost } {
+  const settings: Settings = {
+    agents: agentMap,
+    agentSetup: 'the jawataChat.agent setting',
+    workspaceCwd: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
+  };
+  const actions: HostActions = {
+    configureAgent: async () => { await vscode.commands.executeCommand('jawataChat.configureAgent'); },
+  };
   return {
     agents: new AgentProcesses(),
-    settings: {
-      agents: agentMap,
-      agentSetup: 'the jawataChat.agent setting',
-      workspaceCwd: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
-    },
+    settings,
     chooser: new VscodeChooser(),
     fs: new WorkspaceFiles(),
     terminal: new TerminalHost(),
     log: { log: (message) => log(message), logError },
     notifier: new VscodeNotifier(),
-    actions: {
-      configureAgent: async () => { await vscode.commands.executeCommand('jawataChat.configureAgent'); },
-    },
+    actions,
     sinks: (agentId: string): TrafficSink[] => {
       const sinks: TrafficSink[] = [logTraffic];
       const recording = sessionRecordingSink(agentId);

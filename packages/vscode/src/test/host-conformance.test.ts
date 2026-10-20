@@ -1,4 +1,6 @@
 import * as assert from 'assert';
+import * as os from 'os';
+import * as path from 'path';
 import { agentHostFailures, notifierFailures } from '@jawata/chat-core/test-support';
 import { AgentProcesses } from '../host/AgentProcesses';
 import { VscodeNotifier } from '../host/VscodeNotifier';
@@ -12,7 +14,7 @@ suite('The extension\'s host conforms to the ports\' contract', function () {
 		const processes = new AgentProcesses();
 		try {
 			const staysRunning = { command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'] };
-			assert.deepStrictEqual(await agentHostFailures(processes, staysRunning, sleep), []);
+			assert.deepStrictEqual(await agentHostFailures(processes, staysRunning, sleep, { command: path.join(os.tmpdir(), 'no-such-program-for-jawata') }), []);
 		} finally { processes.dispose(); }
 	});
 

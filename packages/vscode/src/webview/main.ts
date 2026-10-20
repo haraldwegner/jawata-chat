@@ -1,5 +1,5 @@
 import { mountChatView } from '@jawata/chat-view';
-import type { ViewMessage } from '@jawata/chat-core';
+import type { ViewMessage } from '@jawata/chat-core/view';
 
 /**
  * The chat's page in a VS Code webview: the view from `chat-view`, talking to the core through the

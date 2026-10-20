@@ -117,7 +117,6 @@ export class AgentSupply {
 
   private forget(agentId: string): void {
     this.live.delete(agentId);
-    this.links.removeConnection(agentId);
   }
 
   private readonly closed = (event: AgentClosed): void => {

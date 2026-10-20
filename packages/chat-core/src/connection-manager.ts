@@ -17,12 +17,10 @@ type Needs = Pick<HostPorts, 'chooser' | 'fs' | 'terminal' | 'log' | 'sinks' | '
 
 /**
  * Opens the links to the agents the host has started: the traffic is tapped for the host's sinks,
- * the agent is answered by a {@link ClientEndpoint}, and `initialize` is exchanged. Every link that
- * is open stays here until it is removed.
+ * the agent is answered by a {@link ClientEndpoint}, and `initialize` is exchanged. It keeps no
+ * register: the supply holds the links it is given, for as long as it holds the agent.
  */
 export class ConnectionManager {
-  private readonly open = new Map<string, ConnectionInfo>();
-
   /** @param updates where the agents' `session/update` notifications go */
   constructor(readonly updates: AgentUpdates, private readonly host: Needs) {}
 
@@ -44,16 +42,6 @@ export class ConnectionManager {
     const who = initResponse.agentInfo;
     host.log.log(`Initialized: ${who?.name ?? 'unknown agent'} ${who?.version ? `v${who.version}` : ''}`.trim());
 
-    const info: ConnectionInfo = { connection, initResponse };
-    this.open.set(agentId, info);
-    return info;
-  }
-
-  removeConnection(agentId: string): void {
-    this.open.delete(agentId);
-  }
-
-  dispose(): void {
-    this.open.clear();
+    return { connection, initResponse };
   }
 }

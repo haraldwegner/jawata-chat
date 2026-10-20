@@ -8,7 +8,7 @@ const sources = readdirSync(new URL('../src/', import.meta.url)).filter(f => f.e
   .map(f => ({ name: f, text: readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '') }));
 
 test('only the registry assigns what a session knows about its modes, models, options, commands and title', () => {
-  const writers = sources.filter(f => /\b(session|info|held|s)\.(modes|models|configOptions|availableCommands|title)\s*=[^=]/.test(f.text)).map(f => f.name);
+  const writers = sources.filter(f => /\b[A-Za-z_]\w*\.(modes|models|configOptions|availableCommands|title)\s*=[^=]/.test(f.text)).map(f => f.name);
   assert.deepEqual(writers, ['session-registry.ts']);
 });
 

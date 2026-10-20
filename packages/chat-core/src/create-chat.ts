@@ -22,7 +22,7 @@ export interface Chat {
 
 /**
  * Build the chat on a host. The root owns what lives longest: the links to the agents, the supply that starts the agents and keeps
- * their register, and the updates; the sessions and the controller are built on them and let go of first.
+ * their register, and the updates; the sessions and the controller are built on them and let go of first. (The links keep no register of their own.)
  */
 export function createChat(host: HostPorts): Chat {
   const updates = new AgentUpdates(host.log);
@@ -37,7 +37,6 @@ export function createChat(host: HostPorts): Chat {
       controller.dispose();
       sessions.dispose();
       supply.dispose();
-      links.dispose();
       updates.dispose();
     },
   };

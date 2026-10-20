@@ -21,7 +21,7 @@ export type Noted =
  *
  * An agent may announce a session's commands or title in the very moment its answer to `session/new`
  * is on the way, before the chat has registered the session. Such a fact is held and becomes part of
- * the session when it is added, so none is lost. This is a plain table: it speaks to no agent.
+ * the session when it is added, so none is lost. This is a plain table: it speaks to no agent. It reads the notifications the agent sends (`note`) because it is the one writer of what they say about a session; it never sends one.
  */
 export class SessionRegistry {
   private readonly sessions = new Map<string, SessionInfo>();

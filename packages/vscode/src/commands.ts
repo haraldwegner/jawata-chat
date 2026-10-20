@@ -40,6 +40,12 @@ export function chatCommands(parts: Parts): Record<string, Command> {
 
     openChat: () => showChat(),
 
+    /** Open the chat and show the sessions the agent has: History, without a session being open first (the chat connects to the agent to ask). */
+    openSession: async () => {
+      await showChat();
+      await chat.showHistory();
+    },
+
     sendPrompt: async (text?: unknown) => {
       if (typeof text === 'string' && text.length > 0) {
         await chat.sendPrompt(text);

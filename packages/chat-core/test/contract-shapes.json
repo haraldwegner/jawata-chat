@@ -59,5 +59,66 @@
       "session",
       "transcripts"
     ]
+  },
+  "4": {
+    "messages": [
+      "clearChat",
+      "configOptionsUpdate",
+      "draft",
+      "error",
+      "file-attached",
+      "file-detached",
+      "hireTranscript",
+      "loadSessionEnd",
+      "loadSessionStart",
+      "modelsUpdate",
+      "modesUpdate",
+      "permissionRequest",
+      "permissionResolved",
+      "promptEnd",
+      "promptQueued",
+      "promptStart",
+      "sessionInfoUpdate",
+      "sessionList",
+      "sessionUpdate",
+      "snapshot",
+      "state",
+      "userPrompt"
+    ],
+    "intents": [
+      "answerPermission",
+      "cancelTurn",
+      "configureAgent",
+      "connectAgent",
+      "detachFile",
+      "disconnectAgent",
+      "keepDraft",
+      "listSessions",
+      "openSession",
+      "openTranscript",
+      "ready",
+      "sendNow",
+      "sendPrompt",
+      "setConfigOption",
+      "setMode",
+      "setModel",
+      "stopHire"
+    ],
+    "state": [
+      "attachments",
+      "contractVersion",
+      "draft",
+      "draftResets",
+      "entries",
+      "hires",
+      "history",
+      "loading",
+      "plan",
+      "processing",
+      "proposals",
+      "queued",
+      "session",
+      "transcripts"
+    ]
   }
 }

@@ -24,8 +24,9 @@ export interface Disposable {
  *
  * 2: turns hold ordered parts, the plan is its own part of the state, prompts carry files and can be queued, a prompt can be sent now.
  * 3: hires and their transcripts, proposals to answer, the agent's session list, the typed draft and its resets.
+ * 4: the session list can ask the page to show it (`show`), for a command that opens the sessions without the button.
  */
-export const VIEW_CONTRACT_VERSION = 3;
+export const VIEW_CONTRACT_VERSION = 4;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -77,7 +78,7 @@ export type ViewMessage =
   /** What the person has typed and not sent, as the core keeps it for them. */
   | { type: 'draft'; text: string }
   /** A page of the sessions the agent lists; `append` adds it to the list the page has, otherwise it replaces it. */
-  | { type: 'sessionList'; sessions: PastSession[]; nextCursor: string | null; append: boolean }
+  | { type: 'sessionList'; sessions: PastSession[]; nextCursor: string | null; append: boolean; /** The list was asked for from outside the page (a command): the page shows it. */ show?: boolean }
   /** The agent proposes a change and waits: the page shows the diff with the choices, and answers with `answerPermission`. */
   | ({ type: 'permissionRequest' } & ProposalView)
   /** The proposal has been answered, or is withdrawn (the turn was cancelled, the chat cleared). */

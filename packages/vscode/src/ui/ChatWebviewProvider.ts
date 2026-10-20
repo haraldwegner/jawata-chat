@@ -14,6 +14,11 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     webviewView.webview.options = { enableScripts: true, localResourceRoots: [this.extensionUri] };
     webviewView.webview.html = pageHtml(webviewView.webview, this.extensionUri);
-    this.mount(webviewView);
+    this.mount({
+      webview: webviewView.webview,
+      onDidDispose: webviewView.onDidDispose,
+      show: preserveFocus => webviewView.show(preserveFocus),
+      onDidShow: listener => webviewView.onDidChangeVisibility(() => { if (webviewView.visible) { listener(); } }),
+    });
   }
 }

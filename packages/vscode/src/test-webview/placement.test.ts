@@ -49,4 +49,13 @@ suite('Placement', function () {
 		await vscode.commands.executeCommand('jawataChat.openChat');
 		assert.strictEqual(webviewTabs().length, 1, 'opening it again shows the one tab, not another');
 	});
+	test('moving the chat: choosing another place with the chat open moves it, and choosing the first again brings it back with its state', async () => {
+		const { chat } = await api();
+		let snapshots = 0;
+		const snapshot = chat.snapshot.bind(chat);
+		chat.snapshot = () => { snapshots++; return snapshot(); };
+		await config().update('placement', 'left', vscode.ConfigurationTarget.Global); // no command: the change itself moves the chat
+		for (let i = 0; i < 100 && snapshots === 0; i++) { await new Promise(r => setTimeout(r, 100)); }
+		assert.ok(snapshots >= 1, 'the left place was shown again and given the chat\'s state without running the open command');
+	});
 });

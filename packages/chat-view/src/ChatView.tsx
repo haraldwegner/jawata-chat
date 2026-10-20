@@ -10,7 +10,11 @@ import { Messages, PlanBar } from './Messages.js';
 export function ChatView({ transport }: { transport: PageTransport }) {
   const [state, dispatch] = useReducer(reduce, undefined, initialViewState);
   useEffect(() => {
-    const heard = transport.onMessage(dispatch);
+    const heard = transport.onMessage(message => {
+      dispatch(message);
+      // a list the core sends because it was asked for from outside the page (a command) is shown, not only kept
+      if (message.type === 'sessionList' && message.show) { setHistory(true); }
+    });
     transport.send({ type: 'ready' });
     return () => heard.dispose();
   }, [transport]);

@@ -18,6 +18,11 @@ export class ChatPanel {
     panel.webview.html = pageHtml(panel.webview, this.extensionUri);
     panel.onDidDispose(() => { if (this.panel === panel) { this.panel = undefined; } });
     this.panel = panel;
-    this.mount({ webview: panel.webview, onDidDispose: panel.onDidDispose, show: () => panel.reveal() });
+    this.mount({
+      webview: panel.webview,
+      onDidDispose: panel.onDidDispose,
+      show: () => panel.reveal(),
+      onDidShow: listener => panel.onDidChangeViewState(() => { if (panel.visible) { listener(); } }),
+    });
   }
 }

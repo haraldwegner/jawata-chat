@@ -367,13 +367,19 @@ export class ChatController {
     }
   }
 
+  /** For a command that opens the sessions without the button: the list is asked for and the page is told to show it. */
+  showHistory(): Promise<void> {
+    return this.listSessions(undefined, true);
+  }
+
   /** Ask the agent which sessions it has and tell the page; the chat keeps no list of its own. */
-  private async listSessions(cursor?: string): Promise<void> {
+  private async listSessions(cursor?: string, show = false): Promise<void> {
     try {
       const page = await this.sessions.listSessions(AGENT_KEY, cursor ? { cursor } : {});
       this.post({
         type: 'sessionList', append: cursor !== undefined, nextCursor: page.nextCursor ?? null,
         sessions: page.sessions.map(s => ({ sessionId: s.sessionId, title: s.title, updatedAt: s.updatedAt })),
+        ...(show ? { show: true } : {}),
       });
     } catch (e) {
       this.host.log.logError('Failed to list the sessions', e);

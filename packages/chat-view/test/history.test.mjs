@@ -2,7 +2,7 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { closeDom, viewOn, sessionFile } from './dom.mjs';
+import { act, closeDom, viewOn, sessionFile } from './dom.mjs';
 
 after(closeDom);
 
@@ -68,3 +68,15 @@ async function act_post(v, message) {
   const { act } = await import('./dom.mjs');
   await act(async () => { v.port.post(message); });
 }
+
+test('a list the core sends on its own, because a command asked for it, is shown without the button being pressed', async () => {
+  const v = await viewOn('R6');
+  try {
+    assert.ok(!v.$('.history'), 'closed until asked for');
+    await act(async () => { await v.chat.showHistory(); });
+    await v.settle(() => v.$('.history-item'));
+    assert.ok(v.$('.history'), 'the list is open');
+    assert.equal(v.$$('.history-item').length, listed.length);
+  } finally { v.dispose(); }
+});
+

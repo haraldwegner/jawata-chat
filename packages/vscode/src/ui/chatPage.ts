@@ -7,6 +7,8 @@ export interface PageHost {
   webview: vscode.Webview;
   onDidDispose: vscode.Event<void>;
   show?(preserveFocus?: boolean): void;
+  /** Told whenever the page is shown again after it was hidden (another place was chosen and then this one again); the chat then serves it again. */
+  onDidShow?(listener: () => void): { dispose(): void };
 }
 
 /** The page: an empty root and the one script of the built view, allowed to run by a nonce and nothing else. */

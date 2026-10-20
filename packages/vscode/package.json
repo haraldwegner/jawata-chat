@@ -76,6 +76,10 @@
     },
     "commands": [
       {
+        "command": "jawataChat.openSession",
+        "title": "jawata chat: Open Session…"
+      },
+      {
         "command": "jawataChat.connectAgent",
         "title": "jawata chat: Connect to Agent",
         "icon": "$(plug)"

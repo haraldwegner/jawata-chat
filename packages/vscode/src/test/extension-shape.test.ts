@@ -41,7 +41,7 @@ suite('Extension shape', () => {
 		for (const gone of ['refreshAgents', 'refreshSessions', 'loadMoreSessions', 'copySessionId']) {
 			assert.ok(!registered.includes(PREFIX + gone), `${PREFIX + gone} is still registered`);
 		}
-		assert.ok(!registered.includes(PREFIX + 'openSession'), 'past sessions are opened from the chat\'s History, not by a command');
+		assert.ok(registered.includes(PREFIX + 'openSession'), 'past sessions are shown by the chat\'s History, from the button or from this command');
 		assert.strictEqual(pkg().contributes.viewsWelcome, undefined, 'a welcome text belongs to a tree, and there is none');
 	});
 

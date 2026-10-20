@@ -11,14 +11,16 @@ suite('Switching the place of the chat', () => {
 		const told: unknown[] = [];
 		let heard: ((m: unknown) => void) | undefined;
 		const gone: (() => void)[] = [];
+		const shown: (() => void)[] = [];
 		const host: PageHost = {
 			webview: {
 				postMessage: (m: unknown) => { told.push(m); return Promise.resolve(true); },
 				onDidReceiveMessage: (h: (m: unknown) => void) => { heard = h; return { dispose() { heard = undefined; } }; },
 			} as unknown as PageHost['webview'],
 			onDidDispose: ((h: () => void) => { gone.push(h); return { dispose() { /* none */ } }; }) as PageHost['onDidDispose'],
+			onDidShow: (h: () => void) => { shown.push(h); return { dispose() { /* none */ } }; },
 		};
-		return { host, told, say: (m: unknown) => heard?.(m), close: () => gone.forEach(h => h()) };
+		return { host, told, say: (m: unknown) => heard?.(m), close: () => gone.forEach(h => h()), show: () => shown.forEach(h => h()) };
 	}
 	const chatOf = () => {
 		const c = chatWith(() => undefined, new RecordingPort());
@@ -55,6 +57,25 @@ suite('Switching the place of the chat', () => {
 			pages.mount('bottom', second.host);
 			c.chat.clearChat();
 			assert.ok(second.told.length > 0, 'the page that mounted after is served');
+		} finally { c.dispose(); }
+	});
+	test('a page shown again takes the chat back and is given its state; the page that had it hears nothing more', async () => {
+		const c = chatOf();
+		try {
+			const pages = new PageSwitch(c.chat as ChatController, () => undefined);
+			const left = page(), right = page();
+			pages.mount('left', left.host);
+			pages.mount('right', right.host);
+			const leftBefore = left.told.length, rightBefore = right.told.length;
+			left.show(); // the person chose the left place again
+			for (let i = 0; i < 50 && left.told.length === leftBefore; i++) { await new Promise(r => setTimeout(r, 20)); }
+			assert.deepStrictEqual(left.told.slice(leftBefore).map(m => (m as { type: string }).type), ['state', 'snapshot'], 'the page is given the state and the snapshot');
+			c.chat.clearChat();
+			assert.ok(left.told.length > leftBefore + 2, 'and is served from then on');
+			assert.strictEqual(right.told.length, rightBefore, 'the page that had the chat hears nothing more');
+			right.show();
+			await new Promise(r => setTimeout(r, 100));
+			assert.ok(right.told.length > rightBefore, 'and shown again it takes the chat back');
 		} finally { c.dispose(); }
 	});
 });

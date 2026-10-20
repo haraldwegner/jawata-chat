@@ -48,6 +48,8 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   };
 
   context.subscriptions.push(
+    // choosing another place moves the chat that is open: the old place's view goes (its when clause), and the new one opens and takes the seat
+    vscode.workspace.onDidChangeConfiguration(change => { if (change.affectsConfiguration('jawataChat.placement')) { void showChat(); } }),
     ...(['left', 'right', 'bottom'] as const).map(place => vscode.window.registerWebviewViewProvider(
       VIEW_OF[place], new ChatWebviewProvider(context.extensionUri, host => pages.mount(place, host)), { webviewOptions: { retainContextWhenHidden: true } })),
     new StatusBar(sessionManager),

@@ -231,7 +231,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
       if (session.modes) { session.modes = { ...session.modes, currentModeId: value }; }
       this.emit('mode-changed', sessionId, value);
     } else {
-      await (link as unknown as { unstable_setSessionModel(p: { sessionId: string; modelId: string }): Promise<unknown> }).unstable_setSessionModel({ sessionId, modelId: value });
+      await link.setSessionModel({ sessionId, modelId: value });
       if (session.models) { session.models = { ...session.models, currentModelId: value }; }
       this.emit('model-changed', sessionId, value);
     }

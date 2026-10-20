@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
 import { ndJsonStream } from '@agentclientprotocol/sdk';
-import { Emitter, type AgentConfigEntry, type AgentHandle, type AgentHost } from '@jawata/chat-core';
+import { Emitter, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Disposable } from '@jawata/chat-core';
 import { launchFor } from './launch';
 import { log, logError } from '../utils/Logger';
 
@@ -49,8 +49,8 @@ class ChildAgent {
 }
 
 /**
- * The agent programs this extension has started. Reports `agent-error` ({agentId, error}),
- * `agent-closed` ({agentId, code, signal}) and `agent-stderr` ({agentId, line}) to whoever listens.
+ * The agent programs this extension has started. Tells whoever listens, through `onClosed` and
+ * `onError`, when a program has ended and when it reports an error.
  */
 export class AgentProcesses extends Emitter implements AgentHost {
   private readonly agents = new Map<string, ChildAgent>();
@@ -60,16 +60,26 @@ export class AgentProcesses extends Emitter implements AgentHost {
     const id = `agent_${++this.count}`;
     log(`agent ${name} (${id}) is being started with: ${[config.command, ...(config.args ?? [])].join(' ')}`);
     const agent = new ChildAgent(id, name, config, cwd || undefined, {
-      stderr: line => { log(`agent ${name} wrote: ${line}`); this.emit('agent-stderr', { agentId: id, line }); },
-      failed: error => { logError(`agent ${name} reported an error`, error); this.emit('agent-error', { agentId: id, error }); },
+      stderr: line => { log(`agent ${name} wrote: ${line}`); },
+      failed: error => { logError(`agent ${name} reported an error`, error); this.emit('agent-error', { agentId: id, error } satisfies AgentFailed); },
       ended: (code, signal) => {
         log(`agent ${name} is gone: exit code ${code}, signal ${signal}`);
         this.agents.delete(id);
-        this.emit('agent-closed', { agentId: id, code, signal });
+        this.emit('agent-closed', { agentId: id, code } satisfies AgentClosed);
       },
     });
     this.agents.set(id, agent);
     return agent.handle;
+  }
+
+  onClosed(listener: (event: AgentClosed) => void): Disposable {
+    this.on('agent-closed', listener);
+    return { dispose: () => { this.off('agent-closed', listener); } };
+  }
+
+  onError(listener: (event: AgentFailed) => void): Disposable {
+    this.on('agent-error', listener);
+    return { dispose: () => { this.off('agent-error', listener); } };
   }
 
   killAgent(agentId: string): boolean {

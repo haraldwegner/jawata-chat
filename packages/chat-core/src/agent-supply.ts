@@ -2,7 +2,7 @@ import type { AgentCapabilities } from '@agentclientprotocol/sdk';
 import type { AgentLink } from './agent-link.js';
 import type { ConnectionInfo, ConnectionManager } from './connection-manager.js';
 import type { UpdateListener } from './agent-updates.js';
-import type { HostPorts } from './ports.js';
+import type { AgentClosed, AgentFailed, HostPorts } from './ports.js';
 import type { AgentCapabilitySummary } from './session-types.js';
 import type { Disposable } from './view.js';
 
@@ -36,9 +36,10 @@ export class AgentSupply {
   private readonly endedListeners = new Set<(event: { agentId: string; code: number | null }) => void>();
   private readonly failedListeners = new Set<(event: { agentId: string; error: Error }) => void>();
 
+  private readonly hearing: Disposable[];
+
   constructor(private readonly host: Needs, private readonly links: ConnectionManager) {
-    host.agents.on('agent-closed', this.closed);
-    host.agents.on('agent-error', this.failed);
+    this.hearing = [host.agents.onClosed(this.closed), host.agents.onError(this.failed)];
   }
 
   /** The agent by this name, running; started when it was not. */
@@ -109,8 +110,7 @@ export class AgentSupply {
 
   /** Let go of the host and the listeners. */
   dispose(): void {
-    this.host.agents.off('agent-closed', this.closed);
-    this.host.agents.off('agent-error', this.failed);
+    this.hearing.forEach(h => h.dispose());
     this.stopAll();
     this.endedListeners.clear();
     this.failedListeners.clear();
@@ -121,13 +121,13 @@ export class AgentSupply {
     this.links.removeConnection(agentId);
   }
 
-  private readonly closed = (event: { agentId: string; code: number | null }): void => {
+  private readonly closed = (event: AgentClosed): void => {
     this.host.log.log(`Agent ${event.agentId} closed with code ${event.code}`);
     this.forget(event.agentId);
     for (const listener of [...this.endedListeners]) { listener(event); }
   };
 
-  private readonly failed = (event: { agentId: string; error: Error }): void => {
+  private readonly failed = (event: AgentFailed): void => {
     this.host.log.logError(`Agent ${event.agentId} error`, event.error);
     for (const listener of [...this.failedListeners]) { listener(event); }
   };

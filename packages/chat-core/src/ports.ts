@@ -1,3 +1,4 @@
+import type { Disposable } from './view.js';
 import type {
   CreateTerminalRequest, CreateTerminalResponse, KillTerminalRequest, KillTerminalResponse,
   ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
@@ -36,13 +37,30 @@ export interface AgentHandle {
 export interface AgentHost {
   spawnAgent(name: string, config: AgentConfigEntry, cwd?: string): AgentHandle;
   killAgent(agentId: string): boolean;
-  /** `agent-error` ({agentId, error}) and `agent-closed` ({agentId, code}). */
-  on(event: string, listener: (evt: any) => void): unknown;
-  off(event: string, listener: (evt: any) => void): unknown;
+  /** Told when an agent's program has ended, by its own account or because it was killed. Stop being told with the returned handle. */
+  onClosed(listener: (event: AgentClosed) => void): Disposable;
+  /** Told when an agent's program reports an error. */
+  onError(listener: (event: AgentFailed) => void): Disposable;
 }
 
-/** The host's settings and workspace. */
-interface Settings {
+/** An agent's program has ended. */
+export interface AgentClosed {
+  agentId: string;
+  /** The exit code; null when the program was ended by a signal. */
+  code: number | null;
+}
+
+/** An agent's program reported an error. */
+export interface AgentFailed {
+  agentId: string;
+  error: Error;
+}
+
+/**
+ * The host's settings and workspace.
+ * @public named by hosts outside this repository, which implement it
+ */
+export interface Settings {
   /** The configured agents, by name; empty when none is set. */
   agents(): Record<string, AgentConfigEntry>;
   /** The folder the agent works in. */
@@ -74,8 +92,11 @@ export interface TerminalPort {
   releaseTerminal(request: ReleaseTerminalRequest): Promise<ReleaseTerminalResponse>;
 }
 
-/** What the page can ask of the host beyond the conversation: the one place the host decides what it is. */
-interface HostActions {
+/**
+ * What the page can ask of the host beyond the conversation: the one place the host decides what it is.
+ * @public named by hosts outside this repository, which implement it
+ */
+export interface HostActions {
   /** Open the place where the agent is configured. */
   configureAgent(): Promise<void>;
 }

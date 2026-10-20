@@ -8,7 +8,7 @@ import { Emitter } from './emitter.js';
 import { SessionManager } from './session-manager.js';
 import { AgentUpdates } from './agent-updates.js';
 import { createInProcessLink } from './in-process-link.js';
-import { AGENT_KEY, type AgentConfigEntry, type AgentHandle, type AgentHost, type Chooser, type HostPorts, type Notifier, type TrafficSink } from './ports.js';
+import { AGENT_KEY, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Chooser, type HostPorts, type Notifier, type TrafficSink } from './ports.js';
 import type { Disposable, ViewIntent, ViewMessage, ViewPort } from './view.js';
 
 /**
@@ -139,6 +139,14 @@ export class InMemoryAgents extends Emitter implements AgentHost {
   }
   /** The agents that have been started and not ended. */
   get alive(): number { return this.running.size; }
+  onClosed(listener: (event: AgentClosed) => void): Disposable {
+    this.on('agent-closed', listener);
+    return { dispose: () => { this.off('agent-closed', listener); } };
+  }
+  onError(listener: (event: AgentFailed) => void): Disposable {
+    this.on('agent-error', listener);
+    return { dispose: () => { this.off('agent-error', listener); } };
+  }
   killAgent(agentId: string): boolean {
     const existed = this.running.delete(agentId);
     if (existed) { this.emit('agent-closed', { agentId, code: 0 }); }
@@ -197,4 +205,55 @@ export function chatWith(run: AgentRunner, port: RecordingPort = new RecordingPo
   const chat = new ChatController(sessions, updates, host, flow);
   chat.attach(port);
   return { host, updates, sessions, chat, port, dispose() { chat.dispose(); sessions.dispose(); updates.dispose(); } };
+}
+
+/** Wait, up to `ms`, for `done()` to hold; `sleep` is the caller's (this package has no timers of its own). */
+async function until(done: () => boolean, sleep: (ms: number) => Promise<void>, ms = 5000): Promise<boolean> {
+  for (let waited = 0; waited < ms; waited += 20) {
+    if (done()) { return true; }
+    await sleep(20);
+  }
+  return done();
+}
+
+/**
+ * What an agent host must do, held against a real host and the in-memory one alike: the list of what it does not do, empty when it
+ * conforms. Every host (VS Code, Theia, Eclipse) is checked with this one function, so a misnamed or never-sent event is found in the
+ * host's own tests and not by an agent whose death goes unnoticed.
+ * @param host the agent host under test
+ * @param config how to start a program that stays running until it is ended
+ * @param sleep waits for the given milliseconds (a real host needs real time to end a program)
+ */
+export async function agentHostFailures(host: AgentHost, config: AgentConfigEntry, sleep: (ms: number) => Promise<void>): Promise<string[]> {
+  const failures: string[] = [];
+  const closed: AgentClosed[] = [];
+  const dropped: AgentClosed[] = [];
+  const hearing = host.onClosed(event => closed.push(event));
+  const handle = host.spawnAgent('conformance', config);
+  if (!handle.id || handle.name !== 'conformance' || !handle.stream) { failures.push('spawnAgent returns a handle with an id, the name it was given and a stream'); }
+
+  if (host.killAgent('nobody') !== false) { failures.push('killAgent of an unknown agent answers false'); }
+  if (host.killAgent(handle.id) !== true) { failures.push('killAgent of a running agent answers true'); }
+  if (!await until(() => closed.some(e => e.agentId === handle.id), sleep)) { failures.push('onClosed is told when an agent is ended by killAgent'); }
+  if (closed.filter(e => e.agentId === handle.id).length > 1) { failures.push('onClosed is told once for one ending'); }
+  if (host.killAgent(handle.id) !== false) { failures.push('killAgent of an agent already ended answers false'); }
+
+  hearing.dispose();
+  const second = host.onClosed(event => dropped.push(event));
+  second.dispose();
+  const again = host.spawnAgent('conformance', config);
+  host.killAgent(again.id);
+  await sleep(200);
+  if (dropped.length > 0) { failures.push('a registration that was disposed is told nothing'); }
+  return failures;
+}
+
+/** What a notifier must do, held against every host: the list of what it does not do. */
+export async function notifierFailures(notifier: Notifier): Promise<string[]> {
+  const failures: string[] = [];
+  if (await notifier.progress('conformance', async () => 42) !== 42) { failures.push('progress gives back what its job gives'); }
+  const refused = await notifier.progress('conformance', async () => { throw new Error('the job failed'); }).then(() => undefined, (e: Error) => e.message);
+  if (refused !== 'the job failed') { failures.push('progress passes on the error its job throws'); }
+  try { notifier.info('conformance'); notifier.error('conformance'); } catch { failures.push('info and error never throw'); }
+  return failures;
 }

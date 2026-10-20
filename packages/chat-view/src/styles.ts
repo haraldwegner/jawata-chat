@@ -1,29 +1,29 @@
 /**
  * The chat's own styles. Every rule is scoped to the element the view is mounted in (`.jc-chat`), so
  * the view can sit in any host's page without touching it. Colours and fonts come from the host's
- * theme variables (VS Code and Theia supply `--vscode-*`; an Eclipse widget supplies the same names
- * through a stylesheet), each with a fallback that follows the browser's own colour scheme. A handful
+ * theme inputs, `--jc-host-<name>`, which the host's adapter sets from its own theme (the extension maps
+ * them in `packages/vscode/src/ui/theme.ts`); each has a fallback that follows the browser's own colour scheme. A handful
  * of colours are ours, named once below: the accent, the two outcomes and the warning.
  */
 
 /** The tokens every rule below draws on. Nothing else in this file names a colour or a font. */
 const TOKENS = `
-  --jc-font: var(--vscode-font-family, system-ui, sans-serif);
-  --jc-size: var(--vscode-font-size, 13px);
-  --jc-text: var(--vscode-foreground, CanvasText);
-  --jc-ground: var(--vscode-sideBar-background, Canvas);
-  --jc-raised: var(--vscode-editorWidget-background, color-mix(in srgb, Canvas 90%, CanvasText));
-  --jc-edge: var(--vscode-panel-border, color-mix(in srgb, CanvasText 22%, transparent));
+  --jc-font: var(--jc-host-font, system-ui, sans-serif);
+  --jc-size: var(--jc-host-size, 13px);
+  --jc-text: var(--jc-host-text, CanvasText);
+  --jc-ground: var(--jc-host-ground, Canvas);
+  --jc-raised: var(--jc-host-raised, color-mix(in srgb, Canvas 90%, CanvasText));
+  --jc-edge: var(--jc-host-edge, color-mix(in srgb, CanvasText 22%, transparent));
   --jc-quiet: color-mix(in srgb, var(--jc-text) 62%, transparent);
-  --jc-field: var(--vscode-input-background, Canvas);
-  --jc-field-text: var(--vscode-input-foreground, CanvasText);
-  --jc-accent: var(--vscode-button-background, #2f6fdb);
-  --jc-on-accent: var(--vscode-button-foreground, #ffffff);
-  --jc-ok: var(--vscode-testing-iconPassed, #2e9d57);
-  --jc-bad: var(--vscode-errorForeground, #d94141);
-  --jc-warn: var(--vscode-editorWarning-foreground, #c98a1a);
-  --jc-mine: var(--vscode-button-secondaryBackground, color-mix(in srgb, var(--jc-accent) 25%, var(--jc-ground)));
-  --jc-mine-text: var(--vscode-button-secondaryForeground, var(--jc-text));
+  --jc-field: var(--jc-host-field, Canvas);
+  --jc-field-text: var(--jc-host-field-text, CanvasText);
+  --jc-accent: var(--jc-host-accent, #2f6fdb);
+  --jc-on-accent: var(--jc-host-on-accent, #ffffff);
+  --jc-ok: var(--jc-host-ok, #2e9d57);
+  --jc-bad: var(--jc-host-bad, #d94141);
+  --jc-warn: var(--jc-host-warn, #c98a1a);
+  --jc-mine: var(--jc-host-mine, color-mix(in srgb, var(--jc-accent) 25%, var(--jc-ground)));
+  --jc-mine-text: var(--jc-host-mine-text, var(--jc-text));
   --jc-gap: 8px;
   --jc-pad: 12px;
   --jc-round: 8px;
@@ -70,11 +70,11 @@ const RULES: Rule[] = [
   ['.md-rendered p, .md-rendered ul, .md-rendered ol, .md-rendered pre, .md-rendered blockquote, .md-rendered table', 'margin: 0 0 0.7em;'],
   ['.md-rendered ul, .md-rendered ol', 'padding-left: 1.5em;'],
   ['.md-rendered h1, .md-rendered h2, .md-rendered h3, .md-rendered h4', 'margin: 0.9em 0 0.4em; line-height: 1.25;'],
-  ['.md-rendered code', 'font-family: var(--vscode-editor-font-family, ui-monospace, monospace); font-size: 0.92em; padding: 0.1em 0.35em; border-radius: 4px; background: var(--jc-raised);'],
+  ['.md-rendered code', 'font-family: var(--jc-host-mono, ui-monospace, monospace); font-size: 0.92em; padding: 0.1em 0.35em; border-radius: 4px; background: var(--jc-raised);'],
   ['.md-rendered pre', 'overflow-x: auto; padding: 8px 10px; border-radius: 6px; background: var(--jc-raised);'],
   ['.md-rendered pre code', 'padding: 0; background: none;'],
   ['.md-rendered blockquote', 'padding-left: 10px; border-left: 3px solid var(--jc-edge); color: var(--jc-quiet);'],
-  ['.md-rendered a', 'color: var(--vscode-textLink-foreground, var(--jc-accent));'],
+  ['.md-rendered a', 'color: var(--jc-host-link, var(--jc-accent));'],
   ['.md-rendered table', 'border-collapse: collapse;'],
   ['.md-rendered th, .md-rendered td', 'padding: 3px 8px; border: 1px solid var(--jc-edge);'],
 
@@ -98,7 +98,7 @@ const RULES: Rule[] = [
   ['.tc-kind', 'flex: none; width: 1.2em; text-align: center; color: var(--jc-quiet);'],
   ['.tc-body', 'margin: 2px 0 6px 1.4em; display: flex; flex-direction: column; gap: 4px;'],
   ['.tc-label', 'font-size: 0.85em; text-transform: uppercase; color: var(--jc-quiet);'],
-  ['.tc-body pre', 'margin: 0; padding: 6px 8px; max-height: 240px; overflow: auto; border-radius: 6px; background: var(--jc-raised); font-family: var(--vscode-editor-font-family, ui-monospace, monospace); font-size: 0.92em;'],
+  ['.tc-body pre', 'margin: 0; padding: 6px 8px; max-height: 240px; overflow: auto; border-radius: 6px; background: var(--jc-raised); font-family: var(--jc-host-mono, ui-monospace, monospace); font-size: 0.92em;'],
   ['.tc-diff-path', 'font-size: 0.9em; color: var(--jc-quiet);'],
   ['.tc-diff .add', 'display: block; color: var(--jc-ok);'],
   ['.tc-diff .del', 'display: block; color: var(--jc-bad);'],

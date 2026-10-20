@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
+import { themeCss } from './theme';
 
 /** Where the chat's page lives: a webview, and what to do when it goes and when it is asked to show itself. A view and an editor panel both fit. */
 export interface PageHost {
@@ -16,7 +17,7 @@ export function pageHtml(webview: vscode.Webview, extensionUri: vscode.Uri): str
   return [
     '<!DOCTYPE html>',
     '<html lang="en">',
-    `<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="Content-Security-Policy" content="${policy};"><title>jawata chat</title></head>`,
+    `<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="Content-Security-Policy" content="${policy};"><title>jawata chat</title><style>${themeCss()}</style></head>`,
     `<body><div id="root"></div><script nonce="${nonce}" src="${script}"></script></body>`,
     '</html>',
   ].join('\n');

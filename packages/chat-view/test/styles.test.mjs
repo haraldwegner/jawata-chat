@@ -33,14 +33,14 @@ test('a colour literal appears only in the definition of a named token, never in
     assert.doesNotMatch(body, literal, `${selectors} names a colour`);
   }
   for (const line of CHAT_CSS.split('\n').filter(l => literal.test(l))) {
-    assert.match(line.trim(), /^--jc-[a-z-]+: var\(--vscode-[a-zA-Z-]+, [^)]*(#[0-9a-fA-F]{3,8})[^)]*\);$/, `a literal outside a token: ${line}`);
+    assert.match(line.trim(), /^--jc-[a-z-]+: var\(--jc-host-[a-z-]+, [^)]*(#[0-9a-fA-F]{3,8})[^)]*\);$/, `a literal outside a token: ${line}`);
   }
 });
 
 test('there is no font of its own: the family is the host\'s or the system\'s', () => {
   assert.doesNotMatch(CHAT_CSS, /@font-face|url\(/);
   for (const family of CHAT_CSS.match(/font-family:[^;]+;/g) ?? []) {
-    assert.match(family, /var\(--vscode-(editor-)?font-family/, family);
+    assert.match(family, /var\(--jc-(host-)?(font|mono)/, family);
   }
 });
 

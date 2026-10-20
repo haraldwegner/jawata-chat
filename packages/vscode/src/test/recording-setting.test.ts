@@ -12,6 +12,13 @@ suite('Recording follows recordSessions', () => {
 
 	teardown(async () => { await config().update('recordSessions', undefined, vscode.ConfigurationTarget.Global); });
 
+	test('the traffic channel is off as shipped: the editor keeps an output channel in a log file, and the conversation is not to be on disk', () => {
+		const traffic = config().inspect<boolean>('logTraffic');
+		assert.strictEqual(traffic?.defaultValue, false);
+		const manifest = vscode.extensions.getExtension('jawata.jawata-chat')!.packageJSON.contributes.configuration.properties['jawataChat.logTraffic'];
+		assert.ok(!/writes no file/i.test(manifest.description), 'the setting says it writes no file; the editor writes its output channels to its log folder');
+	});
+
 	test('off at connect: no recording', async () => {
 		setRecordingDir(fs.mkdtempSync(path.join(os.tmpdir(), 'jawata-rec-')));
 		await config().update('recordSessions', false, vscode.ConfigurationTarget.Global);

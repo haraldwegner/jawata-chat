@@ -47,7 +47,7 @@ export function logError(message: string, error?: unknown): void {
 }
 
 /** Whether traffic is shown in its output channel; read on every message, so the setting takes effect at once. */
-const trafficOn = (): boolean => vscode.workspace.getConfiguration('jawataChat').get<boolean>('logTraffic', true);
+const trafficOn = (): boolean => vscode.workspace.getConfiguration('jawataChat').get<boolean>('logTraffic', false);
 
 /** Whether sessions are kept as recordings; off as shipped, and read on every message so the setting takes effect at once. */
 const recordingOn = (): boolean => vscode.workspace.getConfiguration('jawataChat').get<boolean>('recordSessions', false);

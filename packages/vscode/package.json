@@ -217,8 +217,8 @@
         },
         "jawataChat.logTraffic": {
           "type": "boolean",
-          "default": true,
-          "description": "Write every ACP message, in both directions, to the 'jawata chat traffic' output channel. This writes no file."
+          "default": false,
+          "description": "Write every ACP message, in both directions, to the 'jawata chat traffic' output channel. The editor keeps an output channel in a log file in its own log folder, so with this on the conversation is on disk there; it is off as shipped."
         },
         "jawataChat.recordSessions": {
           "type": "boolean",

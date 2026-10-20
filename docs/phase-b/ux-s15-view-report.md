@@ -24,7 +24,7 @@ New: History button in the empty state and in the banner (2); the list's title, 
 1. **The time was the agent's raw text** (`2026-10-18T23:36:38.234Z`): fixed, a local date and minute, the exact value as the mouseover.
 2. **The extension now needs VS Code 1.101 or later** (was 1.85): the right side bar is a contribution only newer editors know. Cursor 3.24 and Theia 1.76 were checked at the protocol level in S6; **their base versions against 1.101 were not checked**. A host that does not know the right side bar simply has no right place. Owed to him as a decision (the engine range is a promise to every host).
 3. **The chat is in one place at a time** (the plan's decision: replace). Opening it in another place leaves the first with a page that is told nothing; its tab or view stays, stale. Owed to him only as a reading of "replace".
-4. **Recording is off as shipped**, so "jawata chat: Open Recording" says to turn on `recordSessions`; the traffic output channel still shows the messages with `logTraffic` on.
+4. **Recording is off as shipped**, so "jawata chat: Open Recording" says to turn on `recordSessions`; the traffic output channel shows the messages only with `logTraffic` on (off as shipped since the C19 audit: the editor keeps an output channel in a log file, so the conversation would be on disk).
 5. Not fixed: the list has no search or filter (no sentence asks for one).
 
 ## 5. Not reached

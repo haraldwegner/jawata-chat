@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from 'react';
-import { initialViewState, reduce, type PageTransport } from '@jawata/chat-core';
+import { initialViewState, reduce, type PageTransport } from '@jawata/chat-core/view';
 import { AgentsBar } from './Agents.js';
 import { History } from './History.js';
 import { InputArea } from './InputArea.js';

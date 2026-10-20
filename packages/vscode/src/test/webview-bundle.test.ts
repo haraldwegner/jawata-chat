@@ -80,4 +80,11 @@ suite('The chat page is the chat-view bundle', function () {
 		assert.ok(!/acquireVsCodeApi|<style>|addEventListener\('message'/.test(provider));
 		assert.ok(provider.split('\n').length < 80, 'the provider only holds the page');
 	});
+	test('the page holds none of the core\'s machinery: no agent link, no sessions, no process code (the view imports only the core\'s view entry)', () => {
+		const bundle = fs.readFileSync(path.join(root, 'dist', 'webview.js'), 'utf8');
+		// strings that live in the core's machinery and survive minification
+		for (const marker of ['_jawata/hire/stop', 'session/set_model', 'Failed to disconnect', 'sendPrompt: session=', 'Opening the link to agent']) {
+			assert.ok(!bundle.includes(marker), `the page bundle holds "${marker}", which belongs to the core's machinery`);
+		}
+	});
 });

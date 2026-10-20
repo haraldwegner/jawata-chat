@@ -1,4 +1,4 @@
-import type { ProposalView, ViewIntent, ViewState } from '@jawata/chat-core';
+import type { ProposalView, ViewIntent, ViewState } from '@jawata/chat-core/view';
 import { Diff } from './Messages.js';
 
 /** The choices a proposal is answered with: the one that allows once, the one that rejects once. If the agent offered neither, all it offered. */

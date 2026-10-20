@@ -29,8 +29,8 @@ test('control: the check names a file that imports vscode or asks for the webvie
   assert.deepEqual(reachHost(planted), ['a.ts', 'b.ts', 'd.ts']);
 });
 
-test('chat-view imports only React, DOMPurify, marked, the core and its own files', () => {
-  assert.deepEqual([...importsOf(sourcesOf('chat-view'))].sort(), ['@jawata/chat-core', 'dompurify', 'marked', 'react', 'react-dom/client']);
+test('chat-view imports only React, DOMPurify, marked, the core\'s view entry (never the whole core) and its own files', () => {
+  assert.deepEqual([...importsOf(sourcesOf('chat-view'))].sort(), ['@jawata/chat-core/view', 'dompurify', 'marked', 'react', 'react-dom/client']);
 });
 
 test('the package depends on no host', () => {

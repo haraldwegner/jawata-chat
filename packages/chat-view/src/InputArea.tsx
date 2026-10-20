@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { ViewIntent, ViewState } from '@jawata/chat-core';
+import type { ViewIntent, ViewState } from '@jawata/chat-core/view';
 import { Picker, pickersFor } from './Pickers.js';
 
 /** How long the person stops typing before the core is told what the draft is. */

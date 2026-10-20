@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
-import { waitingLine } from '@jawata/chat-core';
+import { waitingLine } from '@jawata/chat-core/view';
 import { renderMarkdown } from './markdown.js';
-import type { PartView, ToolCallView, ViewState } from '@jawata/chat-core';
+import type { PartView, ToolCallView, ViewState } from '@jawata/chat-core/view';
 
 type Entry = ViewState['entries'][number];
 type Turn = Extract<Entry, { kind: 'turn' }>['turn'];

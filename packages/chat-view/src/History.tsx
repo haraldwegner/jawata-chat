@@ -1,4 +1,4 @@
-import type { ViewIntent, ViewState } from '@jawata/chat-core';
+import type { ViewIntent, ViewState } from '@jawata/chat-core/view';
 
 /** A time the agent sent as the person reads it: a local date and minute; what the agent sent, if it is not a time. */
 const whenIs = (sent: string): string => {

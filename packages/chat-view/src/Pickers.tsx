@@ -1,4 +1,4 @@
-import type { ViewSession } from '@jawata/chat-core';
+import type { ViewSession } from '@jawata/chat-core/view';
 
 /** One choice in a picker. */
 interface Choice { value: string; name: string; description?: string | null }

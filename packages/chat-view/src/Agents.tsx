@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { isWorking } from '@jawata/chat-core';
-import type { HireView, ViewIntent, ViewState } from '@jawata/chat-core';
+import { isWorking } from '@jawata/chat-core/view';
+import type { HireView, ViewIntent, ViewState } from '@jawata/chat-core/view';
 
 /** Elapsed time as the person reads it: seconds under a minute, then minutes and seconds. */
 const elapsed = (ms: number): string => {

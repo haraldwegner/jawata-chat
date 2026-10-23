@@ -29,6 +29,9 @@ suite('Placement', function () {
 		await vscode.commands.executeCommand('jawataChat.openChat');
 		for (let i = 0; i < 200 && readyPlaces.length === expectedBefore.length; i++) { await new Promise(r => setTimeout(r, 100)); }
 		assert.deepStrictEqual([...readyPlaces], [...expectedBefore, place], `the chat did not open in the ${place}`);
+		// the extension binds its pages through the controller's attachPage (ledger 28i-C20-7): a page bound as a plain port would show
+		// the chat but could be displaced by a page resolving late and would not be moved when the place changes
+		assert.strictEqual((await api()).chat.hasPage, true, `the page in the ${place} holds the chat as a page`);
 	}
 
 	test('left: the side bar; the page is given the state it shows when it says ready', async () => {

@@ -20,4 +20,20 @@ suite('The editor supplies exactly the theme inputs the view reads', () => {
 		for (const input of THEME_INPUTS) { assert.match(themeCss(), new RegExp(`${input}: var\\(--vscode-[A-Za-z-]+\\);`), input); }
 		assert.ok(!/--vscode-/.test(bundle), 'the built view names an editor theme variable');
 	});
+
+	/** Which editor variable each input is, written down once more on purpose (ledger 28i-C19-6): a mapping changed is a decision, not a slip. */
+	const EXPECTED: Record<string, string> = {
+		font: '--vscode-font-family', size: '--vscode-font-size', mono: '--vscode-editor-font-family',
+		text: '--vscode-foreground', ground: '--vscode-sideBar-background', raised: '--vscode-editorWidget-background',
+		edge: '--vscode-panel-border', field: '--vscode-input-background', 'field-text': '--vscode-input-foreground',
+		accent: '--vscode-button-background', 'on-accent': '--vscode-button-foreground',
+		mine: '--vscode-button-secondaryBackground', 'mine-text': '--vscode-button-secondaryForeground',
+		ok: '--vscode-testing-iconPassed', bad: '--vscode-errorForeground', warn: '--vscode-editorWarning-foreground',
+		link: '--vscode-textLink-foreground',
+	};
+
+	test('each input is set from the editor variable of its meaning', () => {
+		const set = Object.fromEntries([...themeCss().matchAll(/--jc-host-([a-z-]+): var\((--vscode-[A-Za-z-]+)\);/g)].map(m => [m[1], m[2]]));
+		assert.deepStrictEqual(set, EXPECTED);
+	});
 });

@@ -8,8 +8,6 @@ import { SessionManager } from './session-manager.js';
 
 /** The chat, built once from a host's ports: the one wiring every host and every test uses. */
 export interface Chat {
-  /** What the agents say, in one place. */
-  readonly updates: AgentUpdates;
   /** The agents and the sessions held with them. */
   readonly sessions: SessionManager;
   /** Connect, new conversation, restart, disconnect and open: the one route for the page's intents. */
@@ -25,14 +23,23 @@ export interface Chat {
  * their register, and the updates; the sessions and the controller are built on them and let go of first. (The links keep no register of their own.)
  */
 export function createChat(host: HostPorts): Chat {
+  return assembleChat(host).chat;
+}
+
+/**
+ * The one composition, with what only the test support reaches beside the chat: the updates the agents send, which a test drives
+ * directly (ledger 28i-C20-4, folded at C12: production reads the chat, never the updates). Not exported from the package.
+ * @internal read by the test support only
+ */
+export function assembleChat(host: HostPorts): { chat: Chat; updates: AgentUpdates } {
   const updates = new AgentUpdates(host.log);
   const links = new ConnectionManager(updates, host);
   const supply = new AgentSupply(host, links);
   const sessions = new SessionManager(host, supply, updates);
   const flow = new ConversationFlow(sessions, host, () => controller.hasChatContent);
   const controller: ChatController = new ChatController(sessions, updates, host, flow);
-  return {
-    updates, sessions, flow, controller,
+  const chat: Chat = {
+    sessions, flow, controller,
     dispose() {
       controller.dispose();
       sessions.dispose();
@@ -40,4 +47,5 @@ export function createChat(host: HostPorts): Chat {
       updates.dispose();
     },
   };
+  return { chat, updates };
 }

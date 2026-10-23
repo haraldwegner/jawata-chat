@@ -123,12 +123,13 @@ export type TrafficSink = (direction: 'send' | 'recv', message: unknown) => void
 /**
  * Everything the core takes from its host, in one value.
  *
- * SYNCHRONOUS READS (ledger 28i-C11-5). The core calls these while it works and uses the answer at once, so they return the value,
- * never a promise: `settings.agents()`, `settings.workspaceCwd()`, `settings.agentSetup`, `sinks(agentId)` and `clientInfo`
- * ({@link SYNCHRONOUS_READS}). A host whose settings live across a line, such as Eclipse's Java side when the core runs in the page,
- * reads them before it builds the chat and keeps them current; everything else here returns a promise or tells a listener and may
- * cross the line as it is. The agent's stream ({@link AgentHandle.stream}) carries the protocol's messages, framed as the SDK frames
- * them, not raw bytes. `syncReadFailures` in the test support holds a host to this.
+ * HOW EACH CALL CROSSES A LINE (ledger 28i-C11-5, folded at C12). Every member is classified in {@link HOST_CALLS}, which the compiler
+ * holds to these interfaces: a member added here does not compile until it is classified. A host whose half lives across a line, as
+ * Eclipse's Java side does when the core runs in the page, reads that record: what ANSWERS AT ONCE (the settings, `sinks`,
+ * `clientInfo`, and `agents.spawnAgent`, whose handle and stream must exist when it returns, and `agents.killAgent`) needs a page-side
+ * stand-in or a value read before the chat is built; what returns a PROMISE or tells a LISTENER crosses as it is; a NOTICE (the log,
+ * `notifier.info` and `error`) needs no answer. The agent's stream carries the protocol's messages, framed as the SDK frames them, not
+ * raw bytes. `syncReadFailures` in the test support probes the reads that answer at once.
  */
 export interface HostPorts {
   agents: AgentHost;
@@ -145,8 +146,33 @@ export interface HostPorts {
   clientInfo: { name: string; version: string };
 }
 
+/** How a host call crosses a line: answered at once, a promise, a listener told later, or a notice that needs no answer. */
+type CallKind = 'at-once' | 'promise' | 'listener' | 'notice';
+/** Every member of a port, each classified. */
+type KindsOf<T> = { readonly [K in keyof Required<T>]: CallKind };
+
 /**
- * The reads of {@link HostPorts} that must answer at once, by name: the list a host that preloads its settings works through.
- * @public a host outside this repository (Eclipse's Java side) works through it
+ * Every member of {@link HostPorts}, classified by how it crosses a line. The type requires every member of every port, so a member
+ * added to a port and left out here, or classified under a name the port does not have, fails to compile.
+ * @public a host outside this repository (Eclipse's Java side) reads it to know what it must answer at once
  */
-export const SYNCHRONOUS_READS = ['settings.agents', 'settings.workspaceCwd', 'settings.agentSetup', 'sinks', 'clientInfo'] as const;
+export const HOST_CALLS: {
+  readonly agents: KindsOf<AgentHost>; readonly settings: KindsOf<Settings>; readonly chooser: KindsOf<Chooser>;
+  readonly fs: KindsOf<FsPort>; readonly terminal: KindsOf<TerminalPort>; readonly log: KindsOf<Log>; readonly notifier: KindsOf<Notifier>;
+  readonly actions: KindsOf<HostActions>; readonly sinks: CallKind; readonly clientInfo: CallKind;
+} = {
+  agents: { spawnAgent: 'at-once', killAgent: 'at-once', onClosed: 'listener', onError: 'listener' },
+  settings: { agents: 'at-once', workspaceCwd: 'at-once', agentSetup: 'at-once' },
+  chooser: { confirm: 'promise', chooseAuthMethod: 'promise', confirmAuthMethod: 'promise' },
+  fs: { readTextFile: 'promise', writeTextFile: 'promise' },
+  terminal: { createTerminal: 'promise', terminalOutput: 'promise', waitForTerminalExit: 'promise', killTerminal: 'promise', releaseTerminal: 'promise' },
+  log: { log: 'notice', logError: 'notice' },
+  notifier: { progress: 'promise', info: 'notice', error: 'notice' },
+  actions: { configureAgent: 'promise' },
+  sinks: 'at-once',
+  clientInfo: 'at-once',
+};
+type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+// every member of HostPorts has its entry above
+const hostCallsCoverHostPorts: SameKeys<keyof typeof HOST_CALLS, keyof HostPorts> = true;
+void hostCallsCoverHostPorts;

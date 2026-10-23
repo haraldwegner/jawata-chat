@@ -3,9 +3,9 @@ import type { AuthMethod } from '@agentclientprotocol/sdk';
 
 import { ChatController } from './chat-controller.js';
 import { Emitter } from './emitter.js';
-import { createChat } from './create-chat.js';
+import { assembleChat } from './create-chat.js';
 import { createInProcessLink } from './in-process-link.js';
-import { AGENT_KEY, SYNCHRONOUS_READS, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Chooser, type HostPorts, type Notifier, type TrafficSink } from './ports.js';
+import { AGENT_KEY, HOST_CALLS, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Chooser, type HostPorts, type Notifier, type Settings, type TrafficSink } from './ports.js';
 import type { Disposable, ViewIntent, ViewMessage, ViewPort } from './view.js';
 
 /**
@@ -199,9 +199,9 @@ export class LoopbackPort extends RecordingPort {
 /** A whole chat on an in-memory host whose agent is `run`: the sessions, the controller, and the port attached to it. */
 export function chatWith(run: AgentRunner, port: RecordingPort = new RecordingPort()) {
   const host = fakeHost(run);
-  const built = createChat(host);
+  const { chat: built, updates } = assembleChat(host);
   built.controller.attach(port);
-  return { host, updates: built.updates, sessions: built.sessions, chat: built.controller, port, dispose: () => built.dispose() };
+  return { host, updates, sessions: built.sessions, chat: built.controller, port, dispose: () => built.dispose() };
 }
 
 /** Wait, up to `ms`, for `done()` to hold; `sleep` is the caller's (this package has no timers of its own). */
@@ -254,24 +254,32 @@ export async function agentHostFailures(host: AgentHost, config: AgentConfigEntr
   return failures;
 }
 
-/** The synchronous reads a host answers with a promise, or that throw: the list of what does not answer at once (ledger 28i-C11-5). */
+/**
+ * The calls of {@link HOST_CALLS} classified as answering at once that a host answers with a promise, or that throw (ledger 28i-C11-5):
+ * the settings, the sinks and the client info are probed here; `agents.spawnAgent` and `killAgent` change the world, so
+ * {@link agentHostFailures} holds them (a handle with its stream, and a boolean, returned at once).
+ */
 export function syncReadFailures(host: HostPorts): string[] {
-  const reads: Record<(typeof SYNCHRONOUS_READS)[number], () => unknown> = {
-    'settings.agents': () => host.settings.agents(),
-    'settings.workspaceCwd': () => host.settings.workspaceCwd(),
-    'settings.agentSetup': () => host.settings.agentSetup,
-    sinks: () => host.sinks('conformance'),
-    clientInfo: () => host.clientInfo,
-  };
   const failures: string[] = [];
-  for (const name of SYNCHRONOUS_READS) {
+  const probe = (name: string, read: () => unknown): void => {
     try {
-      const value = reads[name]();
-      if (value instanceof Promise || (value !== null && typeof value === 'object' && typeof (value as { then?: unknown }).then === 'function')) {
+      const value = read();
+      if (value !== null && typeof value === 'object' && typeof (value as { then?: unknown }).then === 'function') {
         failures.push(`${name} answers at once, not with a promise`);
       }
     } catch { failures.push(`${name} answers without throwing`); }
+  };
+  // one read per member of Settings: the type requires all of them, so a setting added there is probed here too
+  const settingsReads: { [K in keyof Settings]: () => unknown } = {
+    agents: () => host.settings.agents(),
+    workspaceCwd: () => host.settings.workspaceCwd(),
+    agentSetup: () => host.settings.agentSetup,
+  };
+  for (const name of Object.keys(settingsReads) as (keyof Settings)[]) {
+    if (HOST_CALLS.settings[name] === 'at-once') { probe(`settings.${name}`, settingsReads[name]); }
   }
+  if (HOST_CALLS.sinks === 'at-once') { probe('sinks', () => host.sinks('conformance')); }
+  if (HOST_CALLS.clientInfo === 'at-once') { probe('clientInfo', () => host.clientInfo); }
   return failures;
 }
 

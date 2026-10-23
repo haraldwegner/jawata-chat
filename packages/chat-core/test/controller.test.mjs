@@ -210,3 +210,15 @@ test('a page that cannot be reached does not fail the conversation', async () =>
     assert.ok(c.host.logged.some(l => /could not be told/.test(l)), 'the failure is logged');
   } finally { c.dispose(); }
 });
+
+test('catchUp gives the page in use the state and the snapshot again, as its ready did; with no page it does nothing (ledger 28i-C13-8)', async () => {
+  const c = chatOn('R1');
+  try {
+    await c.port.deliver(READY_INTENT);
+    c.port.toView.length = 0;
+    c.chat.catchUp();
+    assert.deepEqual(types(c.port), ['state', 'snapshot']);
+    c.chat.attach(new RecordingPort()).dispose();
+    c.chat.catchUp(); // nothing is seated: nothing to tell, and no error
+  } finally { c.dispose(); }
+});

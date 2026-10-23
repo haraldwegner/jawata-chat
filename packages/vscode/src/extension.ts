@@ -53,6 +53,8 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   };
 
   context.subscriptions.push(
+    // the Escape key and the cancel button read whether a turn is running; the chat says so itself, whatever page is open (28i-C13-6)
+    chat.onTurnChanged(on => { void vscode.commands.executeCommand('setContext', 'jawataChat.turnInProgress', on); }),
     // choosing another place moves the chat that is open (not one that is not: the setting alone opens nothing): the old place's view goes
     // (its when clause) or its tab closes, and the new place opens and takes the seat. The editor takes the setting into the places that exist a moment later.
     vscode.workspace.onDidChangeConfiguration(change => {

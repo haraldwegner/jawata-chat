@@ -1,16 +1,9 @@
-// The controller says when a turn starts and ends (ledger 28i-C13-6): a host learns it from the port's turnChanged, never by folding the
-// message stream with the core's reduce, which a relay in another language (Eclipse's Java line) cannot call.
+// The chat says when a turn starts and ends (ledger 28i-C13-6, folded at C12): a host subscribes once at its root with onTurnChanged,
+// never by folding the message stream, and the report does not depend on which page is seated, or on any page at all.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AgentSideConnection, ndJsonStream } from '@agentclientprotocol/sdk';
 import { chatWith, RecordingPort } from '../dist/test-support.js';
-import { READY_INTENT } from '../dist/view.js';
-
-/** A port that also hears the turn reports. */
-class TurnPort extends RecordingPort {
-  turns = [];
-  turnChanged(inProgress) { this.turns.push(inProgress); }
-}
 
 /** An agent whose `session/prompt` does not answer until released. */
 function slowAgent() {
@@ -31,68 +24,72 @@ const tick = () => new Promise(r => setTimeout(r, 30));
 async function connected() {
   const agent = slowAgent();
   const c = chatWith(agent.run);
-  const port = new TurnPort();
-  c.chat.attach(port);
+  const turns = [];
+  c.chat.onTurnChanged(on => turns.push(on));
   await c.sessions.connectToAgent('agent');
-  return { agent, c, port };
+  return { agent, c, turns };
 }
 
 test('a turn starting is reported once, and its end once', async () => {
-  const { agent, c, port } = await connected();
+  const { agent, c, turns } = await connected();
   try {
     const turn = c.chat.sendPrompt('one');
     await tick();
-    assert.deepEqual(port.turns, [true]);
+    assert.deepEqual(turns, [true]);
     agent.release();
     await turn;
-    assert.deepEqual(port.turns, [true, false]);
+    assert.deepEqual(turns, [true, false]);
   } finally { c.dispose(); }
 });
 
 test('a prompt queued during a turn reports nothing new, and the next turn is reported when it starts', async () => {
-  const { agent, c, port } = await connected();
+  const { agent, c, turns } = await connected();
   try {
     const turn = c.chat.sendPrompt('one');
     await tick();
-    await port.deliver({ type: 'sendPrompt', text: 'two' });
-    assert.deepEqual(port.turns, [true], 'queueing is not a turn change');
+    await c.port.deliver({ type: 'sendPrompt', text: 'two' });
+    assert.deepEqual(turns, [true], 'queueing is not a turn change');
     agent.release();
     await tick();
     agent.release();
     await turn;
-    assert.deepEqual(port.turns, [true, false, true, false]);
+    assert.deepEqual(turns, [true, false, true, false]);
   } finally { c.dispose(); }
 });
 
 test('clearing the chat during a turn reports the end', async () => {
-  const { c, port } = await connected();
+  const { c, turns } = await connected();
   try {
     void c.chat.sendPrompt('one');
     await tick();
     c.chat.clearChat();
-    assert.deepEqual(port.turns, [true, false]);
+    assert.deepEqual(turns, [true, false]);
   } finally { c.dispose(); }
 });
 
-test('a port seated during a turn is told the turn is running when its page is ready', async () => {
-  const { c } = await connected();
+test('the report does not depend on a page: a page let go of during a turn still sees its end reported', async () => {
+  const { agent, c, turns } = await connected();
   try {
-    void c.chat.sendPrompt('one');
+    const page = new RecordingPort();
+    const seat = c.chat.attach(page);
+    const turn = c.chat.sendPrompt('one');
     await tick();
-    const late = new TurnPort();
-    c.chat.attach(late);
-    assert.deepEqual(late.turns, [], 'nothing before the page is ready');
-    await late.deliver(READY_INTENT);
-    assert.deepEqual(late.turns, [true]);
+    seat.dispose(); // the page goes away while the turn runs: nothing is seated now
+    agent.release();
+    await turn;
+    assert.deepEqual(turns, [true, false], 'the editor\'s key is not left on');
   } finally { c.dispose(); }
 });
 
-test('a port seated with no turn running is told nothing at ready', async () => {
-  const { c } = await connected();
+test('a listener let go of is told nothing more', async () => {
+  const { agent, c } = await connected();
   try {
-    const late = new TurnPort();
-    c.chat.attach(late);
-    await late.deliver(READY_INTENT);
-    assert.deepEqual(late.turns, []);
+    const heard = [];
+    c.chat.onTurnChanged(on => heard.push(on)).dispose();
+    const turn = c.chat.sendPrompt('one');
+    await tick();
+    agent.release();
+    await turn;
+    assert.deepEqual(heard, []);
   } finally { c.dispose(); }
 });

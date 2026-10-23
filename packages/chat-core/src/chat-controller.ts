@@ -25,8 +25,9 @@ export class ChatController {
   private portSubscriptions: Disposable[] = [];
   /** The page in use said ready for another contract number: it is told the core's state, so it can say so, and nothing it asks is done. */
   private portRefused = false;
-  /** What the port in use was last told about the turn (see {@link ViewPort.turnChanged}); a port is seated knowing of none. */
-  private portTurn = false;
+  /** What the host was last told about the turn (see {@link onTurnChanged}): the chat's, whatever page is seated or none. */
+  private reportedTurn = false;
+  private readonly turnListeners = new Set<(inProgress: boolean) => void>();
   /** What the page shows, folded as the core posts: a page that comes later is given it. */
   private view: ViewState = initialViewState();
   /** Prompts typed during a turn, with the paths of their files, in the order they were typed; the page is shown them as `queued`. */
@@ -124,7 +125,6 @@ export class ChatController {
     this.port = port;
     this.portIsPage = page;
     this.portReady = false;
-    this.portTurn = false;
     this.portRefused = false;
     const subscriptions = [
       port.onMessage((message) => this.hear(message)),
@@ -167,7 +167,6 @@ export class ChatController {
         this.portRefused = false;
         this.sendCurrentState();
         this.port?.post({ type: 'snapshot', state: this.snapshot() });
-        this.reportTurn();
         this.portReady = true;
         if (this.historyWanted) { this.historyWanted = false; await this.listSessions(undefined, true); }
         break;
@@ -250,6 +249,7 @@ export class ChatController {
   }
 
   dispose(): void {
+    this.turnListeners.clear();
     this.hearing.dispose();
     this.asking.dispose();
     this.withdrawProposals();
@@ -283,15 +283,25 @@ export class ChatController {
     this.reportTurn();
   }
 
-  /** Tell the port in use when the turn has started or ended since it was last told: the core's answer, so no host folds the stream. */
+  /**
+   * Hear when a turn starts (true) and ends (false), as the chat's own state says (ledger 28i-C13-6): a host that keys its editor on it
+   * (Escape, the cancel button) subscribes once at its root, whatever page is seated or none, and never folds the messages to find out.
+   */
+  onTurnChanged(listener: (inProgress: boolean) => void): Disposable {
+    this.turnListeners.add(listener);
+    return { dispose: () => { this.turnListeners.delete(listener); } };
+  }
+
+  /** Tell the host when the turn has started or ended since it was last told. */
   private reportTurn(): void {
-    const port = this.port;
-    if (!port || this.view.processing === this.portTurn) { return; }
-    this.portTurn = this.view.processing;
-    try {
-      port.turnChanged?.(this.portTurn);
-    } catch (e) {
-      this.host.log.logError('ChatController: the host could not be told the turn changed', e);
+    if (this.view.processing === this.reportedTurn) { return; }
+    this.reportedTurn = this.view.processing;
+    for (const listener of [...this.turnListeners]) {
+      try {
+        listener(this.reportedTurn);
+      } catch (e) {
+        this.host.log.logError('ChatController: the host could not be told the turn changed', e);
+      }
     }
   }
 
@@ -421,6 +431,18 @@ export class ChatController {
       waiting.resolve({ outcome: { outcome: 'cancelled' } });
       this.post({ type: 'permissionResolved', requestId });
     }
+  }
+
+  /**
+   * Give the page in use the state again, as on its ready: for a page that said ready when it loaded and is seated again when the host
+   * shows it (a hidden view keeps its page). The host asks for this instead of sending a ready of its own, so it never speaks for a
+   * page and its contract number (ledger 28i-C13-8, folded at C12).
+   */
+  catchUp(): void {
+    if (!this.port || this.portRefused) { return; }
+    this.sendCurrentState();
+    this.port.post({ type: 'snapshot', state: this.snapshot() });
+    this.portReady = true;
   }
 
   /** For a command that opens the sessions without the button: the list is asked for and the page is told to show it. */

@@ -1,4 +1,4 @@
-import { READY_INTENT, type ChatController } from '@jawata/chat-core';
+import type { ChatController } from '@jawata/chat-core';
 import type { PageHost } from './chatPage';
 import type { Place } from './places';
 import { WebviewViewPort } from './ViewPort';
@@ -20,12 +20,12 @@ export class PageSwitch {
     // a page refused its first seat (a port that is not a page has the chat) still listens: shown later, it can take the chat (ledger 28i-C21-7)
     this.seat(place, host);
     host.onDidShow?.(() => {
-      if (this.holder !== host && this.seat(place, host)) { void this.chat.handle(READY_INTENT); }
+      if (this.holder !== host && this.seat(place, host)) { this.chat.catchUp(); }
     });
   }
 
   private seat(place: Place, host: PageHost): boolean {
-    const taken = this.chat.attachPage(new WebviewViewPort(host, undefined, this.onReady && (() => this.onReady?.(place))));
+    const taken = this.chat.attachPage(new WebviewViewPort(host, this.onReady && (() => this.onReady?.(place))));
     if (taken) { this.holder = host; }
     return taken !== undefined;
   }

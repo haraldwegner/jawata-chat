@@ -90,6 +90,15 @@ test('there is no context meter and no compaction offer, though the agent sends 
       await v.key('Enter');
       await v.settle(() => turnEnded(v));
       assert.equal(v.$$('[class*="meter"], [class*="usage"], [class*="context"], [class*="compact"]').length, 0, `${name}: a meter element is rendered`);
+      // by role and by figure too (ledger 28i-C19-3): a meter drawn under a class of another name is still a meter, and it shows the agent's numbers
+      assert.equal(v.$$('meter, progress, [role="meter"], [role="progressbar"]').length, 0, `${name}: an element with a meter's role is rendered`);
+      const text = v.container.textContent ?? '';
+      for (const u of notifications(name, 'usage_update')) {
+        const figures = [u.used, u.size].flatMap(n => [String(n), n.toLocaleString('en-US')]);
+        const share = (100 * u.used) / u.size;
+        figures.push(`${Math.round(share)}%`, `${share.toFixed(1)}%`);
+        for (const figure of figures) { assert.ok(!text.includes(figure), `${name}: the view shows the usage figure ${figure}`); }
+      }
     } finally { v.dispose(); }
   }
 });

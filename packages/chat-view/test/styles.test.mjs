@@ -51,3 +51,12 @@ test('the things that can grow without bound are bounded and scroll: the plan, t
     assert.match(body(selector), /overflow-y: auto/, `${selector} does not scroll`);
   }
 });
+
+test('the waiting line\'s dots move: their rule runs an endless animation whose keyframes exist, and stand still when motion is reduced (ledger 28i-C19-3)', () => {
+  const [, body] = rulesOf(CHAT_CSS).find(([selectors]) => selectors.split(',').map(x => x.trim()).includes('.jc-chat .dots')) ?? [];
+  assert.ok(body, 'the dots have a rule');
+  const animation = /animation:\s*([\w-]+)\s[^;]*\binfinite\b/.exec(body);
+  assert.ok(animation, `the dots run an endless animation: ${body}`);
+  assert.match(CHAT_CSS, new RegExp(`@keyframes ${animation[1]}\\s*\\{`), `the keyframes ${animation[1]} exist`);
+  assert.match(CHAT_CSS.slice(CHAT_CSS.indexOf('@media (prefers-reduced-motion')), /\.jc-chat \.dots \{ animation: none;/);
+});

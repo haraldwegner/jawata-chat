@@ -7,6 +7,7 @@ import { initialViewState, reduce, waitingLine } from '../dist/view-state.js';
 import { chatOn } from './play.mjs';
 import { readFileSync } from 'node:fs';
 import { sessionFile } from './play.mjs';
+import { READY_INTENT } from '../dist/view.js';
 
 const update = (u) => ({ type: 'sessionUpdate', sessionId: 's', update: u });
 const chunk = (kind, text) => update({ sessionUpdate: kind, content: { type: 'text', text } });
@@ -170,7 +171,7 @@ for (const name of ['R1', 'R2', 'R3', 'R6', 'R7']) {
       // and what a late page is actually sent is the same state
       c.port.post = post;
       c.port.toView.length = 0;
-      await c.port.deliver({ type: 'ready' });
+      await c.port.deliver(READY_INTENT);
       const snapshot = c.port.toView.find(m => m.type === 'snapshot').state;
       assert.equal(JSON.stringify(snapshot), JSON.stringify(folded));
       assert.ok(snapshot.entries.length > 0);

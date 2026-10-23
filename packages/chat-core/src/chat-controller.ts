@@ -23,6 +23,8 @@ export class ChatController {
   /** A command asked for the sessions before the page was ready to show them. */
   private historyWanted = false;
   private portSubscriptions: Disposable[] = [];
+  /** The page in use said ready for another contract number: it is told the core's state, so it can say so, and nothing it asks is done. */
+  private portRefused = false;
   /** What the port in use was last told about the turn (see {@link ViewPort.turnChanged}); a port is seated knowing of none. */
   private portTurn = false;
   /** What the page shows, folded as the core posts: a page that comes later is given it. */
@@ -123,6 +125,7 @@ export class ChatController {
     this.portIsPage = page;
     this.portReady = false;
     this.portTurn = false;
+    this.portRefused = false;
     const subscriptions = [
       port.onMessage((message) => this.hear(message)),
       port.onDispose(() => { if (this.port === port) { this.letGo(); } }),
@@ -145,6 +148,7 @@ export class ChatController {
     this.port = undefined;
     this.portIsPage = false;
     this.portReady = false;
+    this.portRefused = false;
     this.historyWanted = false;
   }
 
@@ -152,6 +156,15 @@ export class ChatController {
   async handle(intent: ViewIntent): Promise<void> {
     switch (intent.type) {
       case 'ready':
+        if (intent.contractVersion !== VIEW_CONTRACT_VERSION) {
+          // the page refuses a core of another number from the state it is told; the core refuses the page the same way (ledger 28i-C13-8)
+          this.host.log.log(`ChatController: refused a page of contract ${intent.contractVersion ?? 'none'}; this core is ${VIEW_CONTRACT_VERSION}`);
+          this.portRefused = true;
+          this.portReady = false;
+          this.sendCurrentState();
+          break;
+        }
+        this.portRefused = false;
         this.sendCurrentState();
         this.port?.post({ type: 'snapshot', state: this.snapshot() });
         this.reportTurn();
@@ -246,6 +259,10 @@ export class ChatController {
   private async hear(message: unknown): Promise<void> {
     if (!isViewIntent(message)) {
       this.host.log.log(`ChatController: ignoring a message that is not an intent: ${JSON.stringify(message)?.slice(0, 200)}`);
+      return;
+    }
+    if (this.portRefused && message.type !== 'ready') {
+      this.host.log.log(`ChatController: ignoring ${message.type} from a page of another contract number`);
       return;
     }
     await this.handle(message);

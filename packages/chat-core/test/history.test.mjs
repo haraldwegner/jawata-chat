@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { initialViewState, reduce } from '../dist/view-state.js';
 import { chatOn, sessionFile } from './play.mjs';
 import { RecordingPort } from '../dist/test-support.js';
+import { READY_INTENT } from '../dist/view.js';
 
 const recorded = readFileSync(sessionFile('R6'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
 const listed = recorded.find(l => l.dir === 'recv' && l.msg.result?.sessions).msg.result.sessions;
@@ -60,7 +61,7 @@ test('showHistory: asked before the page has said ready, the list waits and is s
   try {
     await c.chat.showHistory();
     assert.deepEqual(c.port.toView.filter(m => m.type === 'sessionList'), [], 'no page has said ready: nothing is told yet');
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     const lists = c.port.toView.filter(m => m.type === 'sessionList');
     assert.equal(lists.length, 1, 'the list comes with ready');
     assert.equal(lists[0].show, true, 'and asks to be shown');
@@ -70,7 +71,7 @@ test('showHistory: asked before the page has said ready, the list waits and is s
 test('showHistory: asked after the page said ready, the list is told at once and asks to be shown; the page\'s own request does not', async () => {
   const c = chatOn('R6');
   try {
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     c.port.toView.length = 0;
     await c.chat.showHistory();
     const lists = c.port.toView.filter(m => m.type === 'sessionList');
@@ -105,7 +106,7 @@ test('showHistory: a request that waits for a page is forgotten when that page g
     first.close();
     const later = new ClosablePort();
     c.chat.attachPage(later);
-    await later.deliver({ type: 'ready' });
+    await later.deliver(READY_INTENT);
     assert.deepEqual(later.toView.filter(m => m.type === 'sessionList'), [], 'the page that came later asked for nothing');
   } finally { c.dispose(); }
 });
@@ -119,7 +120,7 @@ test('showHistory: a request that waits for a page is forgotten when the page is
     handle.dispose();
     const later = new ClosablePort();
     c.chat.attachPage(later);
-    await later.deliver({ type: 'ready' });
+    await later.deliver(READY_INTENT);
     assert.deepEqual(later.toView.filter(m => m.type === 'sessionList'), [], 'the page that came later asked for nothing');
   } finally { c.dispose(); }
 });
@@ -130,7 +131,7 @@ test('showHistory: asked with no page at all, the next page to say ready shows t
     await c.chat.showHistory();
     const later = new ClosablePort();
     c.chat.attachPage(later);
-    await later.deliver({ type: 'ready' });
+    await later.deliver(READY_INTENT);
     assert.equal(later.toView.filter(m => m.type === 'sessionList').length, 1);
   } finally { c.dispose(); }
 });

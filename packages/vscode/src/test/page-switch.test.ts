@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import type { ChatController } from '@jawata/chat-core';
+import { READY_INTENT, type ChatController } from '@jawata/chat-core';
 import { RecordingPort, chatWith } from '@jawata/chat-core/test-support';
 import type { PageHost } from '../ui/chatPage';
 import { PageSwitch } from '../ui/PageSwitch';
@@ -42,7 +42,7 @@ suite('Switching the place of the chat', () => {
 			c.chat.clearChat();
 			assert.ok(right.told.length > 0, 'the second page is told');
 			assert.strictEqual(left.told.length, leftHeard, 'the first page is told nothing more');
-			right.say({ type: 'ready' });
+			right.say(READY_INTENT);
 			assert.deepStrictEqual(ready, ['right'], 'a page says ready under its own place');
 		} finally { c.dispose(); }
 	});

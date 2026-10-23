@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AgentSideConnection, ndJsonStream } from '@agentclientprotocol/sdk';
 import { chatWith, RecordingPort } from '../dist/test-support.js';
+import { READY_INTENT } from '../dist/view.js';
 
 /** A port that also hears the turn reports. */
 class TurnPort extends RecordingPort {
@@ -81,7 +82,7 @@ test('a port seated during a turn is told the turn is running when its page is r
     const late = new TurnPort();
     c.chat.attach(late);
     assert.deepEqual(late.turns, [], 'nothing before the page is ready');
-    await late.deliver({ type: 'ready' });
+    await late.deliver(READY_INTENT);
     assert.deepEqual(late.turns, [true]);
   } finally { c.dispose(); }
 });
@@ -91,7 +92,7 @@ test('a port seated with no turn running is told nothing at ready', async () => 
   try {
     const late = new TurnPort();
     c.chat.attach(late);
-    await late.deliver({ type: 'ready' });
+    await late.deliver(READY_INTENT);
     assert.deepEqual(late.turns, []);
   } finally { c.dispose(); }
 });

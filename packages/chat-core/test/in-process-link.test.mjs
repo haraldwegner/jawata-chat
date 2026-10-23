@@ -6,6 +6,7 @@ import { ChatController } from '../dist/chat-controller.js';
 import { chatWith } from '../dist/test-support.js';
 import { replayAgent, readSession } from '@jawata/acp-contract';
 import { sessionFile } from './play.mjs';
+import { READY_INTENT } from '../dist/view.js';
 
 test('what the core posts reaches every handler of the page, in order, until it is disposed', () => {
   const link = createInProcessLink();
@@ -22,11 +23,11 @@ test('what the page sends reaches the core\'s handler, and a handler that went i
   const link = createInProcessLink();
   const got = [];
   const sub = link.port.onMessage(m => { got.push(m); });
-  link.page.send({ type: 'ready' });
+  link.page.send(READY_INTENT);
   await link.deliver({ not: 'an intent' });
   sub.dispose();
   link.page.send({ type: 'cancelTurn' });
-  assert.deepEqual(got, [{ type: 'ready' }, { not: 'an intent' }]);
+  assert.deepEqual(got, [READY_INTENT, { not: 'an intent' }]);
 });
 
 test('a whole chat runs over it: a page that says ready is told the state, and a prompt sent from the page is answered into the page', async () => {
@@ -39,7 +40,7 @@ test('a whole chat runs over it: a page that says ready is told the state, and a
     const seen = [];
     link.page.onMessage(m => seen.push(m.type));
     await c.sessions.connectToAgent('agent');
-    link.page.send({ type: 'ready' });
+    link.page.send(READY_INTENT);
     await link.deliver({ type: 'sendPrompt', text: 'hello' });
     assert.ok(['state', 'snapshot', 'userPrompt', 'promptStart', 'sessionUpdate', 'promptEnd'].every(t => seen.includes(t)), seen.join(','));
   } finally { chat.dispose(); c.dispose(); }

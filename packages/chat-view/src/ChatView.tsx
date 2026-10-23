@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from 'react';
-import { initialViewState, reduce, type PageTransport } from '@jawata/chat-core/view';
+import { READY_INTENT, initialViewState, reduce, type PageTransport } from '@jawata/chat-core/view';
 import { AgentsBar } from './Agents.js';
 import { History } from './History.js';
 import { InputArea } from './InputArea.js';
@@ -15,7 +15,7 @@ export function ChatView({ transport }: { transport: PageTransport }) {
       // a list the core sends because it was asked for from outside the page (a command) is shown, not only kept
       if (message.type === 'sessionList' && message.show) { setHistory(true); }
     });
-    transport.send({ type: 'ready' });
+    transport.send(READY_INTENT);
     return () => heard.dispose();
   }, [transport]);
   const session = state.session;

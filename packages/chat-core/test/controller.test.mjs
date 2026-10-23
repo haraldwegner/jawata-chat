@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { RecordingPort } from '../dist/test-support.js';
 import { chatOn, sessionFile } from './play.mjs';
+import { READY_INTENT } from '../dist/view.js';
 
 const types = (port) => port.toView.map(m => m.type);
 
@@ -12,13 +13,13 @@ test('attach replaces the port in use and returns a handle that lets go of it', 
   try {
     const second = new RecordingPort();
     const handle = c.chat.attach(second);
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     assert.deepEqual(c.port.toView, [], 'the first port is no longer heard');
-    await second.deliver({ type: 'ready' });
+    await second.deliver(READY_INTENT);
     assert.deepEqual(types(second), ['state', 'snapshot']);
     handle.dispose();
     second.toView.length = 0;
-    await second.deliver({ type: 'ready' });
+    await second.deliver(READY_INTENT);
     assert.deepEqual(second.toView, [], 'a port that was let go of is not heard');
     c.chat.clearChat();
     assert.deepEqual(second.toView, [], 'nor told anything');
@@ -101,7 +102,7 @@ test('the conversation is kept with no page attached, and a page that comes late
     await c.chat.sendPrompt('hello');
     const late = new RecordingPort();
     c.chat.attach(late);
-    await late.deliver({ type: 'ready' });
+    await late.deliver(READY_INTENT);
     assert.deepEqual(types(late).slice(0, 2), ['state', 'snapshot']);
     assert.deepEqual(late.toView[1].state.entries.map(e => e.kind), ['user', 'turn']);
   } finally { c.dispose(); }
@@ -115,7 +116,7 @@ test('clearing the chat clears what is kept of it', async () => {
     c.chat.clearChat();
     assert.equal(c.chat.hasChatContent, false);
     c.port.toView.length = 0;
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     assert.deepEqual(c.port.toView[1].state.entries, []);
   } finally { c.dispose(); }
 });
@@ -127,7 +128,7 @@ test('a session loaded replaces what was kept: the snapshot holds the replayed h
     await c.sessions.listSessions('agent');
     await c.sessions.loadSession('agent', sessionId);
     c.port.toView.length = 0;
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     const kept = c.port.toView.find(m => m.type === 'snapshot').state;
     assert.equal(kept.loading, false);
     assert.ok(kept.entries.length > 0 && kept.entries.some(e => e.kind === 'user'), 'the replayed history is in it');
@@ -184,7 +185,7 @@ test('another session starts the transcript afresh: a page that says ready is no
     await c.sessions.disconnectAgent('agent');
     await c.sessions.connectToAgent('agent'); // the replay hands out its recorded session id again, so the id alone does not tell the sessions apart
     c.port.toView.length = 0;
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     assert.deepEqual(c.port.toView[1].state.entries, [], 'nothing of the first conversation');
   } finally { c.dispose(); }
 });
@@ -194,7 +195,7 @@ test('an error in the conversation is kept in the state', async () => {
   try {
     await c.chat.sendPrompt('no session yet'); // answered with an error, and that belongs to the conversation
     c.port.toView.length = 0;
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     const kept = c.port.toView.find(m => m.type === 'snapshot');
     assert.deepEqual(kept.state.entries.map(e => e.kind), ['error']);
   } finally { c.dispose(); }

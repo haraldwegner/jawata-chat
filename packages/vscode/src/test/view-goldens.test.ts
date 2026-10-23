@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { JawataChatApi } from '../extension';
+import { READY_INTENT } from '@jawata/chat-core';
 import { RecordingPort, answerProposals, goldenBody } from '@jawata/chat-core/test-support';
 import { recordedAnswers } from './answering';
 
@@ -75,7 +76,7 @@ suite('View goldens', function () {
 	test('a page that says ready is told the state', async () => {
 		const port = new RecordingPort();
 		(await chatView()).attach(port);
-		await port.deliver({ type: 'ready' });
+		await port.deliver(READY_INTENT);
 		assert.ok(port.toView.some((m: any) => m.type === 'state'), 'a state message');
 	});
 

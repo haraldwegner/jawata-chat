@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import { VIEW_CONTRACT_VERSION } from '../dist/view.js';
 import assert from 'node:assert/strict';
-import { VIEW_INTENT_TYPES, isViewIntent } from '../dist/index.js';
+import { READY_INTENT, VIEW_INTENT_TYPES, isViewIntent } from '../dist/index.js';
 import { chatOn } from './play.mjs';
 
 const delivered = new Set();
@@ -29,13 +29,13 @@ const types = (port) => port.toView.map(m => m.type);
 test('ready: the page is told the state, and then the snapshot of the conversation it has missed', async () => {
   const c = await connected('R1');
   try {
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     assert.deepEqual(types(c.port), ['state', 'snapshot'], 'a first page is given the state, and the snapshot of an empty conversation');
     assert.equal(c.port.toView[0].contractVersion, VIEW_CONTRACT_VERSION);
     assert.equal(c.port.toView[0].session.agentName, 'Claude Agent');
     await c.port.deliver({ type: 'sendPrompt', text: 'hello' });
     c.port.toView.length = 0;
-    await c.port.deliver({ type: 'ready' });
+    await c.port.deliver(READY_INTENT);
     assert.deepEqual(types(c.port), ['state', 'snapshot'], 'a page that comes later is caught up');
     const caught = c.port.toView[1].state;
     assert.equal(caught.entries[0].kind, 'user');
@@ -238,3 +238,22 @@ test('every intent of the union was delivered by a test above', () => {
   const missing = VIEW_INTENT_TYPES.filter(t => !delivered.has(t));
   assert.deepEqual(missing, [], `no test delivers: ${missing.join(', ')}`);
 });
+
+// The core refuses a page of another contract number, as the page refuses a core (ledger 28i-C13-8): a page released apart from the
+// core (an Eclipse relay, a Theia mount) would otherwise misrender in silence.
+for (const [what, ready] of [['another contract number', { type: 'ready', contractVersion: VIEW_CONTRACT_VERSION + 1 }], ['no contract number (an older page)', { type: 'ready' }]]) {
+  test(`a page that says ready with ${what} is told the core's state, so it can show the mismatch, and is not served`, async () => {
+    const c = await connected('R1');
+    try {
+      c.port.toView.length = 0;
+      await c.port.deliver(ready);
+      assert.deepEqual(c.port.toView.map(m => m.type), ['state'], 'the state carries the core\'s number; no snapshot follows');
+      assert.equal(c.port.toView[0].contractVersion, VIEW_CONTRACT_VERSION);
+      await c.port.deliver({ type: 'sendPrompt', text: 'not from this page' });
+      assert.equal(c.chat.snapshot().entries.length, 0, 'what a refused page asks is not done');
+      assert.ok(c.host.logged.some(l => /refused a page of contract/.test(l)), 'the log says so');
+      await c.port.deliver(READY_INTENT);
+      assert.ok(c.port.toView.some(m => m.type === 'snapshot'), 'a page of this number is served');
+    } finally { c.dispose(); }
+  });
+}

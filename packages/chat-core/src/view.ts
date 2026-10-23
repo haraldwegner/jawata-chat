@@ -25,8 +25,9 @@ export interface Disposable {
  * 2: turns hold ordered parts, the plan is its own part of the state, prompts carry files and can be queued, a prompt can be sent now.
  * 3: hires and their transcripts, proposals to answer, the agent's session list, the typed draft and its resets.
  * 4: the session list can ask the page to show it (`show`), for a command that opens the sessions without the button.
+ * 5: the page says its number when it says ready, and the core serves only a page of its own number (ledger 28i-C13-8).
  */
-export const VIEW_CONTRACT_VERSION = 4;
+export const VIEW_CONTRACT_VERSION = 5;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -88,7 +89,8 @@ export type ViewMessage =
 
 /** Page to core. The page asks for things by name; it never names a host command (Theia and Eclipse have other ids). */
 export type ViewIntent =
-  | { type: 'ready' }
+  /** The page has loaded and can be told things; it names the contract it was built for, and a core of another number does not serve it. */
+  | { type: 'ready'; contractVersion?: number }
   /** `files` are paths; the core makes them part of the prompt as the agent expects. */
   | { type: 'sendPrompt'; text: string; files?: string[] }
   /** Stop the running turn and send what is queued now. */
@@ -158,7 +160,7 @@ export const VIEW_MESSAGE_FIELDS = {
  * @public a relay reads it to know which intents to pass on
  */
 export const VIEW_INTENT_FIELDS = {
-  ready: [],
+  ready: ['contractVersion'],
   sendPrompt: ['text', 'files'],
   sendNow: [],
   cancelTurn: [],
@@ -189,6 +191,9 @@ void intentFieldsMatchTheUnion;
  */
 export const VIEW_INTENT_TYPES = Object.keys(VIEW_INTENT_FIELDS) as ViewIntent['type'][];
 
+/** What a page of this build says when it is ready: the one spelling the page, a host and the tests use. */
+export const READY_INTENT: ViewIntent = { type: 'ready', contractVersion: VIEW_CONTRACT_VERSION };
+
 const isString = (v: unknown): v is string => typeof v === 'string';
 
 /** Whether a value that arrived from a page is an intent: one of ours, with the payload its type needs. */
@@ -196,7 +201,8 @@ export function isViewIntent(value: unknown): value is ViewIntent {
   if (typeof value !== 'object' || value === null) { return false; }
   const v = value as Record<string, unknown>;
   switch (v.type) {
-    case 'ready': case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': return true;
+    case 'ready': return v.contractVersion === undefined || typeof v.contractVersion === 'number';
+    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': return true;
     case 'detachFile': return isString(v.path);
     case 'stopHire': case 'openTranscript': return isString(v.planId);
     case 'keepDraft': return isString(v.text);

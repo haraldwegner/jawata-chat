@@ -142,12 +142,10 @@ export class InMemoryAgents extends Emitter implements AgentHost {
   /** The agents that have been started and not ended. */
   get alive(): number { return this.running.size; }
   onClosed(listener: (event: AgentClosed) => void): Disposable {
-    this.on('agent-closed', listener);
-    return { dispose: () => { this.off('agent-closed', listener); } };
+    return this.listen('agent-closed', listener);
   }
   onError(listener: (event: AgentFailed) => void): Disposable {
-    this.on('agent-error', listener);
-    return { dispose: () => { this.off('agent-error', listener); } };
+    return this.listen('agent-error', listener);
   }
   killAgent(agentId: string): boolean {
     const existed = this.running.delete(agentId);

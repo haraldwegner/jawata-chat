@@ -1,3 +1,5 @@
+import type { Disposable } from './view.js';
+
 type Listener = (...args: any[]) => void;
 
 /** The arguments each named event carries; an emitter that is given no map accepts any name. */
@@ -16,6 +18,12 @@ export class Emitter<E extends EventMap<E> = Record<string, any[]>> {
   once<K extends keyof E>(event: K, listener: (...args: E[K]) => void): this {
     const once: Listener = (...args) => { this.off(event, once); listener(...(args as E[K])); };
     return this.on(event, once);
+  }
+
+  /** Listen, and get the handle that stops listening: the one way a port's onSomething registration is written (ledger 28i-C20-4). */
+  listen<K extends keyof E>(event: K, listener: (...args: E[K]) => void): Disposable {
+    this.on(event, listener);
+    return { dispose: () => { this.off(event, listener); } };
   }
 
   off<K extends keyof E>(event: K, listener: (...args: E[K]) => void): this {

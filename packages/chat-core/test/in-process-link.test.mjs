@@ -2,7 +2,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createInProcessLink } from '../dist/in-process-link.js';
-import { ChatController } from '../dist/chat-controller.js';
 import { chatWith } from '../dist/test-support.js';
 import { replayAgent, readSession } from '@jawata/acp-contract';
 import { sessionFile } from './play.mjs';
@@ -34,7 +33,7 @@ test('a whole chat runs over it: a page that says ready is told the state, and a
   const session = readSession(sessionFile('R1'));
   const link = createInProcessLink();
   const c = chatWith((input, output) => replayAgent(session, output, input));
-  const chat = new ChatController(c.sessions, c.updates, c.host, c.chat.flow);
+  const chat = c.chat;
   chat.attach(link.port);
   try {
     const seen = [];
@@ -43,5 +42,5 @@ test('a whole chat runs over it: a page that says ready is told the state, and a
     link.page.send(READY_INTENT);
     await link.deliver({ type: 'sendPrompt', text: 'hello' });
     assert.ok(['state', 'snapshot', 'userPrompt', 'promptStart', 'sessionUpdate', 'promptEnd'].every(t => seen.includes(t)), seen.join(','));
-  } finally { chat.dispose(); c.dispose(); }
+  } finally { c.dispose(); }
 });

@@ -110,29 +110,23 @@ test('with no chat to put a question to, an agent\'s request is answered as canc
 });
 
 test('a request with no diff takes the first choice that allows, not the first choice', async () => {
-  const updates = new AgentUpdates();
   const c = chatWith(() => undefined);
+  const updates = c.updates;
   try {
-    const { ChatController } = await import('../dist/chat-controller.js');
-    const chat = new ChatController(c.sessions, updates, c.host, c.chat.flow);
     const answer = await updates.askPermission({
       sessionId: 's', toolCall: { toolCallId: 't', title: 'Run it' },
       options: [{ optionId: 'no', name: 'Reject', kind: 'reject_once' }, { optionId: 'yes', name: 'Allow', kind: 'allow_once' }],
     });
     assert.deepEqual(answer, { outcome: { outcome: 'selected', optionId: 'yes' } });
-    chat.dispose();
   } finally { c.dispose(); }
 });
 
 test('a request with no diff is allowed this once, never as a standing grant, whatever order the agent lists its choices in; with no choice that allows once it is cancelled', async () => {
-  const updates = new AgentUpdates();
   const c = chatWith(() => undefined);
+  const updates = c.updates;
   try {
-    const { ChatController } = await import('../dist/chat-controller.js');
-    const chat = new ChatController(c.sessions, updates, c.host, c.chat.flow);
     const ask = (opts) => updates.askPermission({ sessionId: 's', toolCall: { toolCallId: 't', title: 'Run it' }, options: opts });
     assert.deepEqual(await ask([{ optionId: 'always', name: 'Always', kind: 'allow_always' }, { optionId: 'once', name: 'Once', kind: 'allow_once' }]), { outcome: { outcome: 'selected', optionId: 'once' } });
     assert.deepEqual(await ask([{ optionId: 'always', name: 'Always', kind: 'allow_always' }, { optionId: 'no', name: 'No', kind: 'reject_once' }]), { outcome: { outcome: 'cancelled' } });
-    chat.dispose();
   } finally { c.dispose(); }
 });

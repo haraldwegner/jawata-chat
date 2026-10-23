@@ -28,7 +28,7 @@ export function createChat(host: HostPorts): Chat {
   const updates = new AgentUpdates(host.log);
   const links = new ConnectionManager(updates, host);
   const supply = new AgentSupply(host, links);
-  const sessions = new SessionManager(host, supply);
+  const sessions = new SessionManager(host, supply, updates);
   const flow = new ConversationFlow(sessions, host, () => controller.hasChatContent);
   const controller: ChatController = new ChatController(sessions, updates, host, flow);
   return {

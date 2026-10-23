@@ -8,6 +8,7 @@ import type {
 } from '@agentclientprotocol/sdk';
 
 import { AgentSupply, type LiveAgent } from './agent-supply.js';
+import type { AgentUpdates } from './agent-updates.js';
 import { Emitter } from './emitter.js';
 import { logIn, needsLogin } from './login.js';
 import type { HostPorts } from './ports.js';
@@ -39,11 +40,14 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
   /** The connects under way, by agent: a second ask for the same agent shares the first. */
   private readonly connecting = new Map<string, Promise<SessionInfo>>();
 
-  /** @param supply where the agents come from; built and disposed by the root, not here */
-  constructor(private readonly host: Needs, private readonly supply: AgentSupply) {
+  /**
+   * @param supply where the agents come from; built and disposed by the root, not here
+   * @param updates what the agents say, heard from the root that owns it, not through the supply's links (ledger 28i-C20-4)
+   */
+  constructor(private readonly host: Needs, private readonly supply: AgentSupply, updates: Pick<AgentUpdates, 'onUpdate'>) {
     super();
     this.hearing = [
-      this.supply.onUpdate(this.hear),
+      updates.onUpdate(this.hear),
       this.supply.onEnded(this.processEnded),
       this.supply.onFailed(this.processFailed),
     ];

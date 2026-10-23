@@ -1,7 +1,6 @@
 import type { AgentCapabilities } from '@agentclientprotocol/sdk';
 import type { AgentLink } from './agent-link.js';
 import type { ConnectionInfo, ConnectionManager } from './connection-manager.js';
-import type { UpdateListener } from './agent-updates.js';
 import type { AgentClosed, AgentFailed, HostPorts } from './ports.js';
 import type { AgentCapabilitySummary } from './session-types.js';
 import type { Disposable } from './view.js';
@@ -77,11 +76,6 @@ export class AgentSupply {
   /** What the agent by this name can do with sessions, once it has been obtained. */
   capabilitiesOf(name: string): AgentCapabilitySummary | undefined {
     return this.learned.get(name);
-  }
-
-  /** What the agents send about their sessions. */
-  onUpdate(listener: UpdateListener): Disposable {
-    return this.links.updates.onUpdate(listener);
   }
 
   /** An agent process ended; the register has forgotten it by the time this is told. */

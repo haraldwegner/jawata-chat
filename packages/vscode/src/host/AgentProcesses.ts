@@ -73,13 +73,11 @@ export class AgentProcesses extends Emitter implements AgentHost {
   }
 
   onClosed(listener: (event: AgentClosed) => void): Disposable {
-    this.on('agent-closed', listener);
-    return { dispose: () => { this.off('agent-closed', listener); } };
+    return this.listen('agent-closed', listener);
   }
 
   onError(listener: (event: AgentFailed) => void): Disposable {
-    this.on('agent-error', listener);
-    return { dispose: () => { this.off('agent-error', listener); } };
+    return this.listen('agent-error', listener);
   }
 
   killAgent(agentId: string): boolean {

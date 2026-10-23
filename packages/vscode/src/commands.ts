@@ -40,9 +40,13 @@ export function chatCommands(parts: Parts): Record<string, Command> {
 
     openChat: () => showChat(),
 
-    /** Open the chat and show the sessions the agent has: History, without a session being open first (the chat connects to the agent to ask). */
-    openSession: async () => {
+    /**
+     * Open the chat and show the sessions the agent has: History, without a session being open first (the chat connects to the agent to
+     * ask). Given a session's id (a keybinding, another extension), that session is opened without the list (ledger 28i-C56-3).
+     */
+    openSession: async (sessionId?: unknown) => {
       await showChat();
+      if (typeof sessionId === 'string' && sessionId.length > 0) { await flow.open(sessionId); return; }
       await chat.showHistory();
     },
 
@@ -61,7 +65,10 @@ export function chatCommands(parts: Parts): Record<string, Command> {
 
     configureAgent: () => vscode.commands.executeCommand('workbench.action.openSettings', 'jawataChat.agent'),
 
-    attachFile: async () => {
+    /** Given a path or a file (the explorer passes the one clicked), it is attached without asking; otherwise the person picks one. */
+    attachFile: async (file?: unknown) => {
+      if (typeof file === 'string' && file.length > 0) { chat.attachFile(file); return; }
+      if (file instanceof vscode.Uri) { chat.attachFile(file.fsPath); return; }
       const [chosen] = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: 'Attach', title: 'Attach a file to the next prompt' }) ?? [];
       if (chosen) { chat.attachFile(chosen.fsPath); }
     },

@@ -3,6 +3,7 @@ import * as cp from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { READY_INTENT } from '@jawata/chat-core';
 import { ChatWebviewProvider } from '../ui/ChatWebviewProvider';
 
 /**
@@ -71,7 +72,7 @@ suite('The chat page is the chat-view bundle', function () {
 		assert.deepStrictEqual(errors, []);
 		assert.ok(dom.window.document.querySelector('.session-banner'), 'the chat is mounted');
 		assert.ok(dom.window.document.querySelector('.empty-state'), 'with no session it offers to connect');
-		assert.strictEqual(JSON.stringify(sent), '[{"type":"ready"}]'); // objects made in the page's realm are not this realm's
+		assert.strictEqual(JSON.stringify(sent), JSON.stringify([READY_INTENT])); // objects made in the page's realm are not this realm's; the page names its contract number
 		dom.window.close();
 	});
 

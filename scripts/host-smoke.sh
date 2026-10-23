@@ -34,20 +34,11 @@ echo "== install"
 "$EDITOR_CMD" --user-data-dir "$X/data" --extensions-dir "$X/ext" --install-extension "$VSIX" 2>&1 | grep -v DeprecationWarning
 "$EDITOR_CMD" --user-data-dir "$X/data" --extensions-dir "$X/ext" --list-extensions --show-versions 2>/dev/null
 
-# a window left from an earlier run would be found instead of the new one
-if xdotool search --name "jawata-host-smoke" >/dev/null 2>&1; then echo "RESULT: a jawata-host-smoke window is already open; close it first"; exit 1; fi
+. "$(dirname "$0")/smoke-lib.sh"
+smoke_refuse_open "jawata-host-smoke"
 echo "== launch"
 "$EDITOR_CMD" --user-data-dir "$X/data" --extensions-dir "$X/ext" --new-window "$OUT/jawata-host-smoke" >/dev/null 2>&1 &
-WIN=""
-for i in $(seq 1 60); do
-  WIN=$(xdotool search --onlyvisible --name "jawata-host-smoke" 2>/dev/null | head -1)
-  [ -n "$WIN" ] && break
-  sleep 1
-done
-[ -z "$WIN" ] && { echo "RESULT: no window appeared"; exit 1; }
-echo "window $WIN"
-sleep 8
-import -window "$WIN" "$OUT/1-opened.png"
+smoke_wait_window "jawata-host-smoke" 60 8 || { echo "RESULT: no window appeared"; exit 1; }
 
 echo "== connect"
 xdotool windowactivate --sync "$WIN"; sleep 0.5
@@ -55,27 +46,16 @@ xdotool windowactivate --sync "$WIN"; sleep 0.5
 xdotool key --clearmodifiers Escape; sleep 1; xdotool key --clearmodifiers Escape; sleep 1
 import -window "$WIN" "$OUT/1b-dismissed.png"
 # connect through a keybinding: a command palette cannot always be driven by synthetic typing
-xdotool key --clearmodifiers ctrl+alt+8; sleep 6
-import -window "$WIN" "$OUT/2-connected.png"
-
+smoke_step ctrl+alt+8 6 2-connected
 # the chat view is opened by its own command (bound to ctrl+alt+j); a connected agent alone does not show the page
-xdotool windowactivate --sync "$WIN"; sleep 0.5
-xdotool key --clearmodifiers ctrl+alt+j; sleep 4
-import -window "$WIN" "$OUT/2b-chat-open.png"
+smoke_step ctrl+alt+j 4 2b-chat-open
 
 echo "== prompt"
-xdotool windowactivate --sync "$WIN"; sleep 0.5
-xdotool key --clearmodifiers ctrl+alt+9; sleep ${SMOKE_PROMPT_WAIT:-6}
-import -window "$WIN" "$OUT/3-prompted.png"
+smoke_step ctrl+alt+9 "${SMOKE_PROMPT_WAIT:-6}" 3-prompted
 
 echo "== recording"
 ls -la "$X/data/User/globalStorage/jawata.jawata-chat/recordings/" 2>&1
 cp "$X"/data/User/globalStorage/jawata.jawata-chat/recordings/*.jsonl "$OUT/" 2>/dev/null
 
-PID=$(xdotool getwindowpid "$WIN" 2>/dev/null)
-[ -n "$PID" ] && kill "$PID" 2>/dev/null
-
-echo "== verdict"
-REC=$(ls "$OUT"/*.jsonl 2>/dev/null | head -1)
-[ -z "$REC" ] && { echo "RESULT: no recording was written"; exit 1; }
-node "$CONTRACT/dist/bin/compare.js" "$REC" "$CONTRACT/sessions/R1.jsonl"
+smoke_close_window
+smoke_verdict

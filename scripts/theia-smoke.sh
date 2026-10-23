@@ -27,55 +27,32 @@ cat > "$H/.theia-ide/keymaps.json" <<EOF
 EOF
 
 # a window left from an earlier run would be found instead of the new one
-if xdotool search --name "jawata-theia-smoke" >/dev/null 2>&1; then echo "RESULT: a jawata-theia-smoke window is already open; close it first"; exit 1; fi
+. "$(dirname "$0")/smoke-lib.sh"
+smoke_refuse_open "jawata-theia-smoke"
 echo "== launch"
 # a caller running inside an Electron editor passes ELECTRON_RUN_AS_NODE=1, which makes Theia start as plain Node
 env -u ELECTRON_RUN_AS_NODE -u VSCODE_IPC_HOOK HOME="$H" "$APP" --appimage-extract-and-run --plugins=local-dir:"$OUT/plugins" "$OUT/jawata-theia-smoke" > "$OUT/theia.log" 2>&1 &
 APP_PID=$!
-WIN=""
-for i in $(seq 1 90); do
-  WIN=$(xdotool search --onlyvisible --name "jawata-theia-smoke" 2>/dev/null | head -1)
-  [ -n "$WIN" ] && break
-  sleep 1
-done
-[ -z "$WIN" ] && { echo "RESULT: no Theia window appeared"; tail -20 "$OUT/theia.log"; kill $APP_PID 2>/dev/null; exit 1; }
-echo "window $WIN"
-sleep 15
-import -window "$WIN" "$OUT/1-opened.png"
+smoke_wait_window "jawata-theia-smoke" 90 15 || { echo "RESULT: no Theia window appeared"; tail -20 "$OUT/theia.log"; kill $APP_PID 2>/dev/null; exit 1; }
 
 # Theia opens modal dialogs of its own (create a launcher, create a .desktop file) that take the
 # keyboard; Escape answers each "no"
-dismiss() { for i in 1 2 3; do xdotool key --clearmodifiers Escape; sleep 1; done; }
+smoke_dismiss() { for i in 1 2 3; do xdotool key --clearmodifiers Escape; sleep 1; done; }
 
 echo "== connect"
-xdotool windowactivate --sync "$WIN"; sleep 0.5
 # synthetic typing does not reach Theia's palette input, so connect through a keybinding
-dismiss
-xdotool key --clearmodifiers ctrl+alt+8; sleep 10
-import -window "$WIN" "$OUT/2-connected.png"
-
+smoke_step ctrl+alt+8 10 2-connected
 # the chat view is opened by its own command; a connected agent alone does not show the page
-xdotool windowactivate --sync "$WIN"; sleep 0.5
-dismiss
-xdotool key --clearmodifiers ctrl+alt+7; sleep 4
-import -window "$WIN" "$OUT/2b-chat-open.png"
+smoke_step ctrl+alt+7 4 2b-chat-open
 
 echo "== prompt"
-xdotool windowactivate --sync "$WIN"; sleep 0.5
-dismiss
-xdotool key --clearmodifiers ctrl+alt+9; sleep ${SMOKE_PROMPT_WAIT:-10}
-import -window "$WIN" "$OUT/3-prompted.png"
+smoke_step ctrl+alt+9 "${SMOKE_PROMPT_WAIT:-10}" 3-prompted
 
 echo "== recording"
 find "$H" -path '*jawata*recordings*' -name '*.jsonl' 2>/dev/null
 find "$H" -path '*jawata*recordings*' -name '*.jsonl' -exec cp {} "$OUT/" \; 2>/dev/null
 grep -iE "jawata|error" "$OUT/theia.log" | head -20
 
-PID=$(xdotool getwindowpid "$WIN" 2>/dev/null)
-[ -n "$PID" ] && kill "$PID" 2>/dev/null
+smoke_close_window
 kill $APP_PID 2>/dev/null
-
-echo "== verdict"
-REC=$(ls "$OUT"/*.jsonl 2>/dev/null | head -1)
-[ -z "$REC" ] && { echo "RESULT: no recording was written"; exit 1; }
-node "$CONTRACT/dist/bin/compare.js" "$REC" "$CONTRACT/sessions/R1.jsonl"
+smoke_verdict

@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "test": "sh scripts/test-commit-hook.sh && npm run knip && node --test \"test/**/*.test.mjs\" && npm test --workspaces --if-present",
+    "build": "node scripts/build.mjs",
+    "pack": "node scripts/build.mjs --pack",
     "prepare": "sh scripts/install-hooks.sh",
     "knip": "knip --production"
   },

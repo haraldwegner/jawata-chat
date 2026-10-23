@@ -251,6 +251,7 @@
   },
   "scripts": {
     "compile": "webpack",
+    "build": "npm run compile",
     "watch": "webpack --watch",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",

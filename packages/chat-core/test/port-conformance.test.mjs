@@ -2,7 +2,7 @@
 // in-memory host; the extension's own tests hold the real host to the same functions.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agentHostFailures, notifierFailures, CANNOT_START, FakeNotifier, InMemoryAgents } from '../dist/test-support.js';
+import { agentHostFailures, notifierFailures, syncReadFailures, fakeHost, CANNOT_START, FakeNotifier, InMemoryAgents } from '../dist/test-support.js';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const idle = () => new InMemoryAgents(() => { /* an agent that says nothing and stays */ });
@@ -33,4 +33,19 @@ test('control: a host that never says that a program could not start is found', 
 test('control: a notifier that swallows its job\'s error is found', async () => {
   const swallowing = { progress: async (_t, job) => { try { return await job(); } catch { return undefined; } }, info() {}, error() {} };
   assert.ok((await notifierFailures(swallowing)).some(f => /passes on the error/.test(f)));
+});
+
+// The reads the core makes while it works and that must answer at once (ledger 28i-C11-5): a host whose settings live across a line
+// (Eclipse's Java side, with the core in the page) reads them before the chat is built. A promise here is a host that did not.
+test('the in-memory host answers the core\'s synchronous reads at once', () => {
+  assert.deepEqual(syncReadFailures(fakeHost(() => undefined)), []);
+});
+
+test('control: a host that answers a synchronous read with a promise is found', () => {
+  const late = fakeHost(() => undefined);
+  late.settings = { ...late.settings, agents: async () => ({}) };
+  assert.ok(syncReadFailures(late).some(f => /settings\.agents/.test(f)));
+  const lateSinks = fakeHost(() => undefined);
+  lateSinks.sinks = async () => [];
+  assert.ok(syncReadFailures(lateSinks).some(f => /sinks/.test(f)));
 });

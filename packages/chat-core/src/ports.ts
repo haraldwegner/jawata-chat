@@ -120,7 +120,16 @@ export interface Log {
 /** Something that sees every message of a connection, in either direction. */
 export type TrafficSink = (direction: 'send' | 'recv', message: unknown) => void;
 
-/** Everything the core takes from its host, in one value. */
+/**
+ * Everything the core takes from its host, in one value.
+ *
+ * SYNCHRONOUS READS (ledger 28i-C11-5). The core calls these while it works and uses the answer at once, so they return the value,
+ * never a promise: `settings.agents()`, `settings.workspaceCwd()`, `settings.agentSetup`, `sinks(agentId)` and `clientInfo`
+ * ({@link SYNCHRONOUS_READS}). A host whose settings live across a line, such as Eclipse's Java side when the core runs in the page,
+ * reads them before it builds the chat and keeps them current; everything else here returns a promise or tells a listener and may
+ * cross the line as it is. The agent's stream ({@link AgentHandle.stream}) carries the protocol's messages, framed as the SDK frames
+ * them, not raw bytes. `syncReadFailures` in the test support holds a host to this.
+ */
 export interface HostPorts {
   agents: AgentHost;
   settings: Settings;
@@ -135,3 +144,9 @@ export interface HostPorts {
   /** What the core tells the agent it is. */
   clientInfo: { name: string; version: string };
 }
+
+/**
+ * The reads of {@link HostPorts} that must answer at once, by name: the list a host that preloads its settings works through.
+ * @public a host outside this repository (Eclipse's Java side) works through it
+ */
+export const SYNCHRONOUS_READS = ['settings.agents', 'settings.workspaceCwd', 'settings.agentSetup', 'sinks', 'clientInfo'] as const;

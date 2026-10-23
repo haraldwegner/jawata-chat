@@ -5,7 +5,7 @@ import { ChatController } from './chat-controller.js';
 import { Emitter } from './emitter.js';
 import { createChat } from './create-chat.js';
 import { createInProcessLink } from './in-process-link.js';
-import { AGENT_KEY, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Chooser, type HostPorts, type Notifier, type TrafficSink } from './ports.js';
+import { AGENT_KEY, SYNCHRONOUS_READS, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Chooser, type HostPorts, type Notifier, type TrafficSink } from './ports.js';
 import type { Disposable, ViewIntent, ViewMessage, ViewPort } from './view.js';
 
 /**
@@ -251,6 +251,27 @@ export async function agentHostFailures(host: AgentHost, config: AgentConfigEntr
   host.killAgent(again.id);
   await sleep(200);
   if (dropped.length > 0) { failures.push('a registration that was disposed is told nothing'); }
+  return failures;
+}
+
+/** The synchronous reads a host answers with a promise, or that throw: the list of what does not answer at once (ledger 28i-C11-5). */
+export function syncReadFailures(host: HostPorts): string[] {
+  const reads: Record<(typeof SYNCHRONOUS_READS)[number], () => unknown> = {
+    'settings.agents': () => host.settings.agents(),
+    'settings.workspaceCwd': () => host.settings.workspaceCwd(),
+    'settings.agentSetup': () => host.settings.agentSetup,
+    sinks: () => host.sinks('conformance'),
+    clientInfo: () => host.clientInfo,
+  };
+  const failures: string[] = [];
+  for (const name of SYNCHRONOUS_READS) {
+    try {
+      const value = reads[name]();
+      if (value instanceof Promise || (value !== null && typeof value === 'object' && typeof (value as { then?: unknown }).then === 'function')) {
+        failures.push(`${name} answers at once, not with a promise`);
+      }
+    } catch { failures.push(`${name} answers without throwing`); }
+  }
   return failures;
 }
 

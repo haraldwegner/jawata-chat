@@ -20,7 +20,7 @@ export class PageSwitch {
     // a page refused its first seat (a port that is not a page has the chat) still listens: shown later, it can take the chat (ledger 28i-C21-7)
     this.seat(place, host);
     host.onDidShow?.(() => {
-      if (this.holder !== host && this.seat(place, host)) { this.chat.catchUp(); }
+      if (this.holder !== host && this.seat(place, host)) { void this.chat.catchUp(); }
     });
   }
 

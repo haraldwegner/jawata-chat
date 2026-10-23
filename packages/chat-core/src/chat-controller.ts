@@ -25,6 +25,8 @@ export class ChatController {
   private portSubscriptions: Disposable[] = [];
   /** The page in use said ready for another contract number: it is told the core's state, so it can say so, and nothing it asks is done. */
   private portRefused = false;
+  /** The pages refused for their contract number: one seated again stays refused, since a page that is shown again does not reload. */
+  private readonly refusedPages = new WeakSet<ViewPort>();
   /** What the host was last told about the turn (see {@link onTurnChanged}): the chat's, whatever page is seated or none. */
   private reportedTurn = false;
   private readonly turnListeners = new Set<(inProgress: boolean) => void>();
@@ -125,7 +127,7 @@ export class ChatController {
     this.port = port;
     this.portIsPage = page;
     this.portReady = false;
-    this.portRefused = false;
+    this.portRefused = this.refusedPages.has(port);
     const subscriptions = [
       port.onMessage((message) => this.hear(message)),
       port.onDispose(() => { if (this.port === port) { this.letGo(); } }),
@@ -160,11 +162,13 @@ export class ChatController {
           // the page refuses a core of another number from the state it is told; the core refuses the page the same way (ledger 28i-C13-8)
           this.host.log.log(`ChatController: refused a page of contract ${intent.contractVersion ?? 'none'}; this core is ${VIEW_CONTRACT_VERSION}`);
           this.portRefused = true;
+          if (this.port) { this.refusedPages.add(this.port); }
           this.portReady = false;
           this.sendCurrentState();
           break;
         }
         this.portRefused = false;
+        if (this.port) { this.refusedPages.delete(this.port); } // a page that reloaded and names this number is served again
         this.sendCurrentState();
         this.port?.post({ type: 'snapshot', state: this.snapshot() });
         this.portReady = true;
@@ -438,11 +442,13 @@ export class ChatController {
    * shows it (a hidden view keeps its page). The host asks for this instead of sending a ready of its own, so it never speaks for a
    * page and its contract number (ledger 28i-C13-8, folded at C12).
    */
-  catchUp(): void {
+  async catchUp(): Promise<void> {
     if (!this.port || this.portRefused) { return; }
     this.sendCurrentState();
     this.port.post({ type: 'snapshot', state: this.snapshot() });
     this.portReady = true;
+    // a request to show the sessions that waited for a page is answered, as a ready answers it
+    if (this.historyWanted) { this.historyWanted = false; await this.listSessions(undefined, true); }
   }
 
   /** For a command that opens the sessions without the button: the list is asked for and the page is told to show it. */

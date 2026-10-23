@@ -222,3 +222,30 @@ test('catchUp gives the page in use the state and the snapshot again, as its rea
     c.chat.catchUp(); // nothing is seated: nothing to tell, and no error
   } finally { c.dispose(); }
 });
+
+test('catchUp answers a request to show the sessions that was waiting for the page, as its ready does (C12 re-check)', async () => {
+  const c = chatOn('R6');
+  try {
+    const page = new RecordingPort();
+    c.chat.attach(new RecordingPort()).dispose();
+    await c.chat.showHistory(); // no page seated: the request waits
+    c.chat.attachPage(page);
+    await c.chat.catchUp();
+    assert.equal(page.toView.filter(m => m.type === 'sessionList' && m.show).length, 1);
+  } finally { c.dispose(); }
+});
+
+test('a page refused for its contract number stays refused when it is seated again (C12 re-check)', async () => {
+  const c = chatOn('R1');
+  try {
+    const page = new RecordingPort();
+    c.chat.attach(new RecordingPort()).dispose();
+    c.chat.attachPage(page);
+    await page.deliver({ type: 'ready', contractVersion: 999 });
+    c.chat.attach(new RecordingPort()).dispose();
+    c.chat.attachPage(page);
+    page.toView.length = 0;
+    await c.chat.catchUp();
+    assert.deepEqual(page.toView, [], 'a refused page is not served by catchUp');
+  } finally { c.dispose(); }
+});

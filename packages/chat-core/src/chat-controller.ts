@@ -23,6 +23,8 @@ export class ChatController {
   /** A command asked for the sessions before the page was ready to show them. */
   private historyWanted = false;
   private portSubscriptions: Disposable[] = [];
+  /** What the port in use was last told about the turn (see {@link ViewPort.turnChanged}); a port is seated knowing of none. */
+  private portTurn = false;
   /** What the page shows, folded as the core posts: a page that comes later is given it. */
   private view: ViewState = initialViewState();
   /** Prompts typed during a turn, with the paths of their files, in the order they were typed; the page is shown them as `queued`. */
@@ -120,6 +122,7 @@ export class ChatController {
     this.port = port;
     this.portIsPage = page;
     this.portReady = false;
+    this.portTurn = false;
     const subscriptions = [
       port.onMessage((message) => this.hear(message)),
       port.onDispose(() => { if (this.port === port) { this.port = undefined; this.portIsPage = false; this.portReady = false; } }),
@@ -140,6 +143,7 @@ export class ChatController {
       case 'ready':
         this.sendCurrentState();
         this.port?.post({ type: 'snapshot', state: this.snapshot() });
+        this.reportTurn();
         this.portReady = true;
         if (this.historyWanted) { this.historyWanted = false; await this.listSessions(undefined, true); }
         break;
@@ -245,6 +249,19 @@ export class ChatController {
       // a page that cannot be reached must not fail the conversation it is only watching
       this.host.log.logError(`ChatController: the page could not be told ${message.type}`, e);
     }
+    this.reportTurn();
+  }
+
+  /** Tell the port in use when the turn has started or ended since it was last told: the core's answer, so no host folds the stream. */
+  private reportTurn(): void {
+    const port = this.port;
+    if (!port || this.view.processing === this.portTurn) { return; }
+    this.portTurn = this.view.processing;
+    try {
+      port.turnChanged?.(this.portTurn);
+    } catch (e) {
+      this.host.log.logError('ChatController: the host could not be told the turn changed', e);
+    }
   }
 
   private handleSessionUpdate(update: SessionNotification): void {
@@ -269,6 +286,7 @@ export class ChatController {
     } catch (e) {
       this.host.log.logError('ChatController: the page could not be told the replayed session', e);
     }
+    this.reportTurn();
   }
 
   /** A prompt typed while a turn runs waits behind it; otherwise it is sent, and then whatever waited is. */

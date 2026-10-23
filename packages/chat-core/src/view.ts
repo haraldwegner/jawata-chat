@@ -161,6 +161,11 @@ export interface ViewPort {
   onMessage(handler: (message: unknown) => void | Promise<void>): Disposable;
   /** Bring the page into view, if the host can. */
   reveal?(): void;
+  /**
+   * Hear that a turn started (true) or ended (false), as the core's own state says: a host that keys the editor on it (Escape, the
+   * cancel button) is told, and never folds the messages to find out, which a relay in another language could not do.
+   */
+  turnChanged?(inProgress: boolean): void;
   /** Hear that the page is gone. */
   onDispose(handler: () => void): Disposable;
 }

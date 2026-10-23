@@ -119,6 +119,126 @@
       "queued",
       "session",
       "transcripts"
-    ]
+    ],
+    "messageFields": {
+      "clearChat": [],
+      "configOptionsUpdate": [
+        "configOptions"
+      ],
+      "draft": [
+        "text"
+      ],
+      "error": [
+        "message"
+      ],
+      "file-attached": [
+        "name",
+        "path"
+      ],
+      "file-detached": [
+        "path"
+      ],
+      "hireTranscript": [
+        "planId",
+        "turns"
+      ],
+      "loadSessionEnd": [
+        "ok"
+      ],
+      "loadSessionStart": [],
+      "modelsUpdate": [
+        "models"
+      ],
+      "modesUpdate": [
+        "modes"
+      ],
+      "permissionRequest": [
+        "diffs",
+        "options",
+        "requestId",
+        "title"
+      ],
+      "permissionResolved": [
+        "requestId"
+      ],
+      "promptEnd": [
+        "stopReason",
+        "usage"
+      ],
+      "promptQueued": [
+        "files",
+        "text"
+      ],
+      "promptStart": [],
+      "sessionInfoUpdate": [
+        "title"
+      ],
+      "sessionList": [
+        "append",
+        "nextCursor",
+        "sessions",
+        "show"
+      ],
+      "sessionUpdate": [
+        "sessionId",
+        "update"
+      ],
+      "snapshot": [
+        "state"
+      ],
+      "state": [
+        "activeSessionId",
+        "contractVersion",
+        "session"
+      ],
+      "userPrompt": [
+        "files",
+        "text"
+      ]
+    },
+    "intentFields": {
+      "answerPermission": [
+        "optionId",
+        "requestId"
+      ],
+      "cancelTurn": [],
+      "configureAgent": [],
+      "connectAgent": [],
+      "detachFile": [
+        "path"
+      ],
+      "disconnectAgent": [],
+      "keepDraft": [
+        "text"
+      ],
+      "listSessions": [
+        "cursor"
+      ],
+      "openSession": [
+        "sessionId"
+      ],
+      "openTranscript": [
+        "planId"
+      ],
+      "ready": [],
+      "sendNow": [],
+      "sendPrompt": [
+        "files",
+        "text"
+      ],
+      "setConfigOption": [
+        "configId",
+        "value"
+      ],
+      "setMode": [
+        "modeId"
+      ],
+      "setModel": [
+        "modelId"
+      ],
+      "stopHire": [
+        "planId"
+      ]
+    }
   }
 }

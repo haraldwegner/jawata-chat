@@ -20,7 +20,7 @@ export interface Disposable {
  * state added, removed or given another meaning. An older page that is not told it is older ignores a message it does not know, and the
  * agent waits on an answer nobody gives; a page or core that is told another version says so and folds nothing more. The number is
  * pinned by `test/contract-shape.test.mjs`, which records the names for each number (messages, intents, state fields): a change to
- * the names without a new number is red. (What the names do not hold, a field inside a message, is held only for the messages the recorded sessions play, by the goldens; the rest by review: ledger C20-3.)
+ * the names without a new number is red. The fields inside each message and intent are recorded too, from VIEW_MESSAGE_FIELDS and VIEW_INTENT_FIELDS below (ledger C20-3).
  *
  * 2: turns hold ordered parts, the plan is its own part of the state, prompts carry files and can be queued, a prompt can be sent now.
  * 3: hires and their transcripts, proposals to answer, the agent's session list, the typed draft and its resets.
@@ -114,19 +114,80 @@ export type ViewIntent =
   /** Answer a proposal with one of the choices the agent offered. */
   | { type: 'answerPermission'; requestId: string; optionId: string };
 
+/** The names of a message's fields, `type` left out. */
+type FieldsOf<M> = Exclude<keyof M, 'type'>;
+/** True when A and B hold the same names, false otherwise (false, not never, so a failing entry can be named). */
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+/** The types of a union whose recorded fields differ from the union's: never when every entry matches. */
+type Mismatched<U extends { type: string }, R extends { readonly [T in U['type']]: readonly string[] }> =
+  { [T in U['type']]: Same<R[T][number], FieldsOf<Extract<U, { type: T }>>> extends true ? never : T }[U['type']];
+
 /**
- * Every intent type, once. A message from a page whose type is not in it is not an intent.
+ * Every message type with the names of its fields, once (ledger 28i-C20-3). The compiler holds it to the union above: a message added
+ * to one and not the other, or a field added inside a message and not here, fails to compile below. `test/contract-shape.test.mjs`
+ * records it for each contract number, so a field changed without a new number is red.
+ * @public a relay in another language (Eclipse's Java line) reads it to know what each message carries
+ */
+export const VIEW_MESSAGE_FIELDS = {
+  state: ['contractVersion', 'activeSessionId', 'session'],
+  sessionUpdate: ['update', 'sessionId'],
+  userPrompt: ['text', 'files'],
+  promptQueued: ['text', 'files'],
+  promptStart: [],
+  promptEnd: ['stopReason', 'usage'],
+  error: ['message'],
+  modesUpdate: ['modes'],
+  modelsUpdate: ['models'],
+  configOptionsUpdate: ['configOptions'],
+  loadSessionStart: [],
+  loadSessionEnd: ['ok'],
+  sessionInfoUpdate: ['title'],
+  clearChat: [],
+  'file-attached': ['path', 'name'],
+  'file-detached': ['path'],
+  hireTranscript: ['planId', 'turns'],
+  draft: ['text'],
+  sessionList: ['sessions', 'nextCursor', 'append', 'show'],
+  permissionRequest: ['requestId', 'title', 'diffs', 'options'],
+  permissionResolved: ['requestId'],
+  snapshot: ['state'],
+} as const satisfies { readonly [T in ViewMessage['type']]: readonly FieldsOf<Extract<ViewMessage, { type: T }>>[] };
+
+/**
+ * Every intent type with the names of its fields, once: the same rule as {@link VIEW_MESSAGE_FIELDS}, from page to core.
+ * @public a relay reads it to know which intents to pass on
+ */
+export const VIEW_INTENT_FIELDS = {
+  ready: [],
+  sendPrompt: ['text', 'files'],
+  sendNow: [],
+  cancelTurn: [],
+  setMode: ['modeId'],
+  setModel: ['modelId'],
+  setConfigOption: ['configId', 'value'],
+  connectAgent: [],
+  disconnectAgent: [],
+  configureAgent: [],
+  detachFile: ['path'],
+  stopHire: ['planId'],
+  openTranscript: ['planId'],
+  keepDraft: ['text'],
+  listSessions: ['cursor'],
+  openSession: ['sessionId'],
+  answerPermission: ['requestId', 'optionId'],
+} as const satisfies { readonly [T in ViewIntent['type']]: readonly FieldsOf<Extract<ViewIntent, { type: T }>>[] };
+
+// the records and the unions say the same thing: a field missing from a record names its message here and fails to compile
+const messageFieldsMatchTheUnion: [Mismatched<ViewMessage, typeof VIEW_MESSAGE_FIELDS>] extends [never] ? true : Mismatched<ViewMessage, typeof VIEW_MESSAGE_FIELDS> = true;
+const intentFieldsMatchTheUnion: [Mismatched<ViewIntent, typeof VIEW_INTENT_FIELDS>] extends [never] ? true : Mismatched<ViewIntent, typeof VIEW_INTENT_FIELDS> = true;
+void messageFieldsMatchTheUnion;
+void intentFieldsMatchTheUnion;
+
+/**
+ * Every intent type, once, read off {@link VIEW_INTENT_FIELDS}. A message from a page whose type is not in it is not an intent.
  * @public the intent tests enumerate it to see that each type is delivered
  */
-export const VIEW_INTENT_TYPES = [
-  'ready', 'sendPrompt', 'sendNow', 'cancelTurn', 'setMode', 'setModel', 'setConfigOption',
-  'connectAgent', 'disconnectAgent', 'configureAgent', 'detachFile', 'stopHire', 'openTranscript', 'answerPermission', 'listSessions', 'openSession', 'keepDraft',
-] as const;
-
-// the list and the union say the same thing: a type added to one and not the other fails to compile here
-type SameMembers<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-const intentTypesMatchTheUnion: SameMembers<(typeof VIEW_INTENT_TYPES)[number], ViewIntent['type']> = true;
-void intentTypesMatchTheUnion;
+export const VIEW_INTENT_TYPES = Object.keys(VIEW_INTENT_FIELDS) as ViewIntent['type'][];
 
 const isString = (v: unknown): v is string => typeof v === 'string';
 

@@ -9,8 +9,9 @@ The design is `ARCHITECTURE-acp-host-contract.md` in jawata-enterprise (`docs/sp
 `npm ci` then `npm run build` builds every package on a fresh clone, in the order the packages' own dependencies set
 (`scripts/build.mjs`; the order is tested, not alphabetical). Another repository — the Eclipse plug-in, a Theia host — takes the
 library packages as tarballs: `npm run pack` builds and writes `packed/jawata-acp-contract-<v>.tgz`, `packed/jawata-chat-core-<v>.tgz`
-and `packed/jawata-chat-view-<v>.tgz`, which that repository installs with `npm install <path>/packed/<file>.tgz`. The packages are
-private: they are not published to a registry.
+and `packed/jawata-chat-view-<v>.tgz`, which that repository installs in ONE command, all three together, because chat-view and
+chat-core name each other by package name: `npm install <path>/packed/jawata-acp-contract-<v>.tgz <path>/packed/jawata-chat-core-<v>.tgz
+<path>/packed/jawata-chat-view-<v>.tgz`. The packages are private: they are not published to a registry.
 
 ## Licence
 

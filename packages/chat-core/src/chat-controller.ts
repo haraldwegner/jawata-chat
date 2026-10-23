@@ -125,17 +125,28 @@ export class ChatController {
     this.portTurn = false;
     const subscriptions = [
       port.onMessage((message) => this.hear(message)),
-      port.onDispose(() => { if (this.port === port) { this.port = undefined; this.portIsPage = false; this.portReady = false; } }),
+      port.onDispose(() => { if (this.port === port) { this.letGo(); } }),
     ];
     this.portSubscriptions = subscriptions;
     return {
       dispose: () => {
         subscriptions.forEach(s => s.dispose());
-        if (this.port === port) { this.port = undefined; this.portIsPage = false; this.portReady = false; this.portSubscriptions = []; }
+        if (this.port === port) { this.letGo(); this.portSubscriptions = []; }
       },
     };
   }
 
+
+  /**
+   * The port in use is gone: nothing is told until another is seated. A request to show the sessions that was waiting for this page goes
+   * with it, so that a page coming later is not shown the list unasked (ledger 28i-C21-7).
+   */
+  private letGo(): void {
+    this.port = undefined;
+    this.portIsPage = false;
+    this.portReady = false;
+    this.historyWanted = false;
+  }
 
   /** What the page asked of the core. One entry for every route a prompt or a request can take. */
   async handle(intent: ViewIntent): Promise<void> {

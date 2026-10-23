@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initialViewState, reduce } from '../dist/view-state.js';
 import { chatOn, sessionFile } from './play.mjs';
+import { RecordingPort } from '../dist/test-support.js';
 
 const recorded = readFileSync(sessionFile('R6'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
 const listed = recorded.find(l => l.dir === 'recv' && l.msg.result?.sessions).msg.result.sessions;
@@ -83,5 +84,53 @@ test('the page\'s own listSessions request is not a request to show the list', a
   try {
     await c.port.deliver({ type: 'listSessions' });
     assert.equal(c.port.toView.filter(m => m.type === 'sessionList')[0].show, undefined);
+  } finally { c.dispose(); }
+});
+
+/** A page that can go away, as a webview that is closed does. */
+class ClosablePort extends RecordingPort {
+  closers = [];
+  onDispose(handler) { this.closers.push(handler); return { dispose: () => { /* kept */ } }; }
+  close() { this.closers.forEach(h => h()); }
+}
+/** A chat whose test port is let go of, so that pages are the ones that serve. */
+const chatWithPages = () => { const c = chatOn('R6'); c.chat.attach(new RecordingPort()).dispose(); return c; };
+
+test('showHistory: a request that waits for a page is forgotten when that page goes away; a later page is not shown the list unasked (ledger 28i-C21-7)', async () => {
+  const c = chatWithPages();
+  try {
+    const first = new ClosablePort();
+    c.chat.attachPage(first);
+    await c.chat.showHistory();
+    first.close();
+    const later = new ClosablePort();
+    c.chat.attachPage(later);
+    await later.deliver({ type: 'ready' });
+    assert.deepEqual(later.toView.filter(m => m.type === 'sessionList'), [], 'the page that came later asked for nothing');
+  } finally { c.dispose(); }
+});
+
+test('showHistory: a request that waits for a page is forgotten when the page is let go of', async () => {
+  const c = chatWithPages();
+  try {
+    const first = new ClosablePort();
+    const handle = c.chat.attachPage(first);
+    await c.chat.showHistory();
+    handle.dispose();
+    const later = new ClosablePort();
+    c.chat.attachPage(later);
+    await later.deliver({ type: 'ready' });
+    assert.deepEqual(later.toView.filter(m => m.type === 'sessionList'), [], 'the page that came later asked for nothing');
+  } finally { c.dispose(); }
+});
+
+test('showHistory: asked with no page at all, the next page to say ready shows the list: the command opening the chat', async () => {
+  const c = chatWithPages();
+  try {
+    await c.chat.showHistory();
+    const later = new ClosablePort();
+    c.chat.attachPage(later);
+    await later.deliver({ type: 'ready' });
+    assert.equal(later.toView.filter(m => m.type === 'sessionList').length, 1);
   } finally { c.dispose(); }
 });

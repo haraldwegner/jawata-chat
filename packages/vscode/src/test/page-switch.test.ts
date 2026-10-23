@@ -108,4 +108,18 @@ suite('Switching the place of the chat', () => {
 			assert.strictEqual(left.told.length, before, 'the page did not take the chat from it');
 		} finally { c.dispose(); }
 	});
+	test('a page refused its first seat (a port that is not a page had the chat) takes the chat when shown after that port is gone (ledger 28i-C21-7)', async () => {
+		const c = chatOf();
+		try {
+			const pages = new PageSwitch(c.chat as ChatController, () => undefined);
+			const held = c.chat.attach(new RecordingPort());
+			const left = page();
+			pages.mount('left', left.host); // refused: the port that is not a page keeps the chat
+			assert.strictEqual(left.told.length, 0, 'the refused page is told nothing');
+			held.dispose();
+			left.show();
+			for (let i = 0; i < 50 && left.told.length === 0; i++) { await new Promise(r => setTimeout(r, 20)); }
+			assert.deepStrictEqual(left.told.map(m => (m as { type: string }).type), ['state', 'snapshot'], 'shown again, it takes the chat and is given its state');
+		} finally { c.dispose(); }
+	});
 });

@@ -26,8 +26,9 @@ export interface Disposable {
  * 3: hires and their transcripts, proposals to answer, the agent's session list, the typed draft and its resets.
  * 4: the session list can ask the page to show it (`show`), for a command that opens the sessions without the button.
  * 5: the page says its number when it says ready, and the core serves only a page of its own number (ledger 28i-C13-8).
+ * 6: the page tells the core when it has stopped drawing the chat (`pageFailed`), so the host's log has it (ledger 28i-C13-10).
  */
-export const VIEW_CONTRACT_VERSION = 5;
+export const VIEW_CONTRACT_VERSION = 6;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -114,7 +115,9 @@ export type ViewIntent =
   /** Open a session the agent listed: it is replayed into the chat. */
   | { type: 'openSession'; sessionId: string }
   /** Answer a proposal with one of the choices the agent offered. */
-  | { type: 'answerPermission'; requestId: string; optionId: string };
+  | { type: 'answerPermission'; requestId: string; optionId: string }
+  /** The page hit an error it could not draw past and shows the person a notice; the core writes it down. */
+  | { type: 'pageFailed'; message: string };
 
 /** The names of a message's fields, `type` left out. */
 type FieldsOf<M> = Exclude<keyof M, 'type'>;
@@ -177,6 +180,7 @@ export const VIEW_INTENT_FIELDS = {
   listSessions: ['cursor'],
   openSession: ['sessionId'],
   answerPermission: ['requestId', 'optionId'],
+  pageFailed: ['message'],
 } as const satisfies { readonly [T in ViewIntent['type']]: readonly FieldsOf<Extract<ViewIntent, { type: T }>>[] };
 
 // the records and the unions say the same thing: a field missing from a record names its message here and fails to compile
@@ -209,6 +213,7 @@ export function isViewIntent(value: unknown): value is ViewIntent {
     case 'listSessions': return v.cursor === undefined || isString(v.cursor);
     case 'openSession': return isString(v.sessionId);
     case 'answerPermission': return isString(v.requestId) && isString(v.optionId);
+    case 'pageFailed': return isString(v.message);
     case 'sendPrompt': return isString(v.text) && (v.files === undefined || (Array.isArray(v.files) && v.files.every(isString)));
     case 'setMode': return isString(v.modeId);
     case 'setModel': return isString(v.modelId);

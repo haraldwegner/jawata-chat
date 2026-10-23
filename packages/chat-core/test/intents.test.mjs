@@ -234,6 +234,16 @@ test('a message that is not an intent is ignored and logged: a page cannot ask t
   } finally { c.dispose(); }
 });
 
+test('pageFailed: the core writes down what the page could not draw past (ledger 28i-C13-10)', async () => {
+  const c = await connected('R1');
+  try {
+    assert.ok(isViewIntent({ type: 'pageFailed', message: 'x' }) && !isViewIntent({ type: 'pageFailed' }));
+    await c.port.deliver({ type: 'pageFailed', message: 'Cannot read properties of undefined' });
+    assert.ok(c.host.logged.some(l => /^ERROR ChatController: the page stopped drawing the chat .*Cannot read properties of undefined/.test(l)), c.host.logged.join('\n'));
+  } finally { c.dispose(); }
+});
+
+
 test('every intent of the union was delivered by a test above', () => {
   const missing = VIEW_INTENT_TYPES.filter(t => !delivered.has(t));
   assert.deepEqual(missing, [], `no test delivers: ${missing.join(', ')}`);

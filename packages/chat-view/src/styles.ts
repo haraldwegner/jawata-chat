@@ -195,6 +195,7 @@ const RULES: Rule[] = [
   ['.spinner', 'width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--jc-edge); border-top-color: var(--jc-accent); animation: jc-spin 0.8s linear infinite;'],
   ['.load-overlay', 'display: none; position: absolute; inset: 0; z-index: 10; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: color-mix(in srgb, var(--jc-ground) 85%, transparent);'],
   ['.load-overlay.visible', 'display: flex;'],
+  ['.page-failed', 'display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; color: var(--jc-text);'],
 ];
 
 const MOTION = `

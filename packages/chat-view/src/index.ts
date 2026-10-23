@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { Disposable, PageTransport } from '@jawata/chat-core/view';
 
 import { ChatView } from './ChatView.js';
+import { PageFailed } from './PageFailed.js';
 import { CHAT_CSS } from './styles.js';
 
 export type { PageTransport } from '@jawata/chat-core/view';
@@ -14,6 +15,6 @@ export function mountChatView(container: HTMLElement, transport: PageTransport):
   container.ownerDocument.head.appendChild(style);
   container.classList.add('jc-chat');
   const root = createRoot(container);
-  root.render(createElement(ChatView, { transport }));
+  root.render(createElement(PageFailed, { transport }, createElement(ChatView, { transport })));
   return { dispose: () => { root.unmount(); style.remove(); container.classList.remove('jc-chat'); } };
 }

@@ -219,6 +219,9 @@ export class ChatController {
       case 'openTranscript':
         await this.openTranscript(intent.planId);
         break;
+      case 'pageFailed':
+        this.host.log.logError('ChatController: the page stopped drawing the chat and shows the person a notice', intent.message);
+        break;
     }
   }
 

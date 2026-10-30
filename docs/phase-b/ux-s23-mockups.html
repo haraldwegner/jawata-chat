@@ -1,0 +1,231 @@
+<title>Agent Control Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* layout: a page of labelled mock panels, each the chat's agents bar in one state; the panels are what he decides on */
+:root {
+  --bg: #f4f5f7; --fg: #1d2127; --quiet: #5d6672; --edge: #cdd2d9; --panel: #ffffff; --raised: #eef0f3;
+  --accent: #1f6fb2; --ok: #2c8a4b; --warn: #a86a00; --bad: #b3372f; --mark: #fff3c4;
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #14171b; --fg: #e3e6ea; --quiet: #98a1ad; --edge: #333a43; --panel: #1c2026; --raised: #252a31;
+  --accent: #5aa7e6; --ok: #5fc07f; --warn: #e0a23a; --bad: #e57a72; --mark: #4a4120; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #14171b; --fg: #e3e6ea; --quiet: #98a1ad; --edge: #333a43; --panel: #1c2026; --raised: #252a31;
+  --accent: #5aa7e6; --ok: #5fc07f; --warn: #e0a23a; --bad: #e57a72; --mark: #4a4120; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--ui); margin: 0;
+  padding-block: 24px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; text-wrap: balance; }
+h2 { font-size: 1.05rem; margin: 0 0 2px; }
+.lede { color: var(--quiet); margin: 0; max-width: 62ch; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; align-items: start; }
+.case { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tag { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--quiet); }
+.tag b { color: var(--fg); }
+.note { color: var(--quiet); font-size: .9rem; margin: 0; max-width: 62ch; }
+.note mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 2px; }
+
+/* the mock: the chat's agents bar, as it would sit in the chat */
+.chat { background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 8px 10px; font-size: 13px; min-width: 0; }
+.chat .conv { color: var(--quiet); font-size: 12px; padding: 6px 0 0; border-top: 1px dashed var(--edge); margin-top: 8px; }
+.agents { border: 1px solid var(--edge); border-radius: 4px; padding: 8px 10px; background: var(--raised); max-height: 22em; overflow-y: auto; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.head .count { font-weight: 600; }
+button { font: inherit; font-size: 12px; padding: 1px 9px; border-radius: 4px; cursor: pointer; color: var(--fg); background: transparent; border: 1px solid var(--edge); }
+button:hover { background: var(--panel); }
+button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.primary { border-color: var(--accent); color: var(--accent); }
+.agent { padding: 4px 0; border-top: 1px solid var(--edge); }
+.agent:first-of-type { border-top: 0; }
+.row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.fold { cursor: pointer; border: 0; padding: 0 2px; background: none; color: var(--quiet); font-size: 12px; }
+.seat { font-weight: 600; }
+.seat em { font-style: normal; font-weight: 400; color: var(--quiet); font-family: var(--mono); font-size: 12px; }
+.q { color: var(--quiet); }
+.state { padding: 0 6px; border-radius: 9px; border: 1px solid var(--edge); font-size: 11px; }
+.state.running { color: var(--accent); border-color: var(--accent); }
+.state.compacting { color: var(--warn); border-color: var(--warn); font-style: italic; }
+.state.done { color: var(--ok); border-color: var(--ok); }
+.state.failed { color: var(--bad); border-color: var(--bad); font-weight: 600; }
+.task { margin: 1px 0 0 22px; overflow-wrap: anywhere; }
+.talk { margin: 6px 0 2px 22px; padding-left: 10px; border-left: 2px solid var(--edge); max-height: 9em; overflow-y: auto; font-size: 12px; }
+.talk .t { margin-bottom: 3px; } .talk .r { font-weight: 600; margin-right: 6px; }
+.empty { color: var(--quiet); font-style: italic; }
+.zero { color: var(--quiet); padding: 6px 0; }
+.form { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 4px; background: var(--panel); display: grid; gap: 8px; }
+.form label { display: grid; gap: 2px; font-size: 12px; color: var(--quiet); }
+.form select, .form textarea { font: inherit; font-size: 13px; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 3px 6px; width: 100%; }
+.form textarea { resize: vertical; }
+.form .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.key { display: grid; gap: 4px; font-size: .88rem; margin: 0; padding: 0; list-style: none; color: var(--quiet); max-width: 70ch; }
+.key b { color: var(--fg); font-weight: 600; }
+.theme { align-self: flex-end; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <h1>Agent Control: the proposed view in six states</h1>
+    <p class="lede">Mock-ups for the three open decisions. They are the chat's agents bar as the ux report proposes it, not built code. Hover any element for its explanation; fold toggles and the attach buttons work.</p>
+  </header>
+
+  <section class="case">
+    <h2>1. The bar as it appears: every agent's talk folded</h2>
+    <p class="note">What you see when two agents work and one has finished. Task text under each row, never cut. This is the default state.</p>
+    <div class="chat" id="m1"></div>
+  </section>
+
+  <section class="case">
+    <h2>2. One agent unfolded</h2>
+    <p class="note">Unfolding shows what the agent and its program said, read only. Folding hides it again.</p>
+    <div class="chat" id="m2"></div>
+  </section>
+
+  <section class="case">
+    <h2>3. Decision D1: tokens in the row, or only in the cost's mouseover</h2>
+    <div class="pair">
+      <div class="case"><div class="tag"><b>As built today</b> (signed row P6: tokens and cost)</div><div class="chat" id="m3a"></div></div>
+      <div class="case"><div class="tag"><b>Proposed</b> (cost only; hover the cost to see the tokens)</div><div class="chat" id="m3b"></div></div>
+    </div>
+  </section>
+
+  <section class="case">
+    <h2>4. Decision D2: what attaching a brain asks for</h2>
+    <p class="note">Press “Attach a brain” in each panel.</p>
+    <div class="pair">
+      <div class="case"><div class="tag"><b>A (recommended)</b> seat, brain and model, task</div><div class="chat" id="m4a"></div></div>
+      <div class="case"><div class="tag"><b>B</b> brain only</div><div class="chat" id="m4b"></div></div>
+    </div>
+  </section>
+
+  <section class="case">
+    <h2>5. Decision D3: when the bar shows</h2>
+    <div class="pair">
+      <div class="case"><div class="tag"><b>Proposed</b> hidden until an agent exists</div><div class="chat" id="m5a"></div></div>
+      <div class="case"><div class="tag"><b>Alternative</b> shown with zero agents</div><div class="chat" id="m5b"></div></div>
+    </div>
+  </section>
+
+  <section class="case">
+    <h2>6. Edge states: a failed agent, a compacting agent, an empty transcript</h2>
+    <div class="chat" id="m6"></div>
+  </section>
+
+  <ul class="key">
+    <li><b>Seat name</b> is shown with the command you type, for example architect (/refactor). The agent has to send that command; today it does not.</li>
+    <li><b>Mouseovers</b> carry the explanations, so the bar itself stays lean.</li>
+    <li><b>Example data:</b> all agents, tasks, costs and transcripts here are made up for the mock-up.</li>
+  </ul>
+</main>
+
+<script>
+(function () {
+  var TIPS = {
+    title: 'The agents started for this conversation. The numbers are what the agent last reported.',
+    fold: 'Show or fold what this agent and its program said. You cannot type into it.',
+    seat: function (c) { return 'The role this agent plays. Type ' + c + ' in a message to use the same role yourself.'; },
+    who: 'The program and the model that do the work. The model decides most of the cost.',
+    elapsed: 'How long this agent has been at it.',
+    stop: 'Ends this agent. The other agents go on.',
+    attach: 'Starts another hired agent in this conversation. It appears in the list when it starts.',
+    cost: function (t) { return 'What this agent has cost so far, in US dollars. It has used ' + t + ' tokens.'; },
+    tokens: 'Tokens this agent has used so far.',
+    state: { running: 'The agent is working.', compacting: 'The agent is shortening its own conversation so it can go on.', done: 'The agent has finished.', failed: 'The agent ended with a failure.' }
+  };
+  var AGENTS = [
+    { id: 'a', seat: 'architect', cmd: '/refactor', brain: 'claude', model: 'sonnet', state: 'running', time: '1m 12s', tokens: '15.0k', cost: '$0.31',
+      task: 'Review the new retry policy against the target architecture and say whether each change is a design fix or a bandage.',
+      talk: [['pm', 'Review the retry policy change against ARCHITECTURE-queue.md.'], ['agent', 'Reading the diff. The policy now lives in the sender, not the queue.'], ['agent', 'Two of the four changes are bandages; I will name the design fix for each.']] },
+    { id: 'b', seat: 'test-writer', cmd: '/cover', brain: 'claude', model: 'haiku', state: 'done', time: '9s', tokens: '2.1k', cost: '$0.02',
+      task: "Cover the queue's send-now path.",
+      talk: [['pm', "Write tests for the queue's send-now path."], ['agent', 'Added three tests: nothing waiting, one waiting, cancelled while sending.']] },
+    { id: 'c', seat: 'javadoc-writer', cmd: '/javadocs', brain: 'claude', model: 'sonnet', state: 'running', time: '24s', tokens: '4.8k', cost: '$0.08',
+      task: 'Document the public methods of RetryPolicy that have no documentation.', talk: [] }
+  ];
+  function el(tag, cls, text, title) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (title) e.title = title; return e; }
+  function agentRow(a, o) {
+    var wrap = el('div', 'agent');
+    var open = !!o.open[a.id];
+    var row = el('div', 'row');
+    var f = el('button', 'fold', open ? '▾' : '▸', TIPS.fold); f.setAttribute('aria-expanded', open ? 'true' : 'false'); f.setAttribute('aria-label', 'Show or fold the talk of ' + a.seat);
+    f.onclick = function () { o.open[a.id] = !o.open[a.id]; o.draw(); };
+    row.appendChild(f);
+    var seat = el('span', 'seat', a.seat + ' ', TIPS.seat(a.cmd)); var em = el('em', null, '(' + a.cmd + ')'); seat.appendChild(em); row.appendChild(seat);
+    row.appendChild(el('span', 'q', a.brain + ' · ' + a.model, TIPS.who));
+    row.appendChild(el('span', 'state ' + a.state, a.state, TIPS.state[a.state]));
+    row.appendChild(el('span', 'q', a.time, TIPS.elapsed));
+    if (o.tokens) { row.appendChild(el('span', 'q', a.tokens + ' tokens', TIPS.tokens)); row.appendChild(el('span', 'q', a.cost, 'What this agent has cost so far, in US dollars.')); }
+    else { row.appendChild(el('span', 'q', a.cost, TIPS.cost(a.tokens))); }
+    if (a.state === 'running' || a.state === 'compacting') { row.appendChild(el('button', null, 'Stop', TIPS.stop)); }
+    wrap.appendChild(row);
+    wrap.appendChild(el('div', 'task', a.task, a.task));
+    if (open) {
+      var t = el('div', 'talk'); t.setAttribute('role', 'log'); t.setAttribute('aria-label', 'Transcript, read only'); t.title = 'Read only';
+      if (!a.talk.length) { t.appendChild(el('div', 'empty', 'No talk recorded for this agent.', 'Nothing this agent said has been stored.')); }
+      a.talk.forEach(function (x) { var d = el('div', 't'); d.appendChild(el('span', 'r', x[0])); d.appendChild(document.createTextNode(x[1])); t.appendChild(d); });
+      wrap.appendChild(t);
+    }
+    return wrap;
+  }
+  function attachForm(o, mode) {
+    var f = el('div', 'form');
+    function lab(text, tip, node) { var l = el('label', null, text); l.title = tip; l.appendChild(node); return l; }
+    function sel(opts) { var s = el('select'); opts.forEach(function (x) { var op = el('option', null, x); s.appendChild(op); }); return s; }
+    if (mode === 'A') {
+      f.appendChild(lab('Seat', "Which role the new agent plays. It works from that seat's instructions.", sel(['architect (/refactor)', 'test-writer (/cover)', 'javadoc-writer (/javadocs)', 'debugger (/debug)', 'profiler (/profile)', 'ux (/ux)'])));
+      f.appendChild(lab('Brain and model', 'The program and model that do the work. Their cost differs.', sel(['claude · sonnet', 'claude · haiku', 'claude · opus'])));
+      var ta = el('textarea'); ta.rows = 2; ta.placeholder = 'What should this agent do?';
+      f.appendChild(lab('Task', 'What you want this agent to do. It is sent as its first instruction.', ta));
+    } else {
+      f.appendChild(lab('Brain and model', 'The program and model that do the work. Their cost differs.', sel(['claude · sonnet', 'claude · haiku', 'claude · opus'])));
+      f.appendChild(el('div', 'empty', 'The new agent starts with no role and no task. The agent has to choose both.'));
+    }
+    var acts = el('div', 'acts');
+    var cancel = el('button', null, 'Cancel', 'Closes this form and hires nothing.'); cancel.onclick = function () { o.form = false; o.draw(); };
+    var start = el('button', 'primary', 'Start', 'Hires the agent now.'); start.onclick = function () { o.form = false; o.draw(); };
+    acts.appendChild(cancel); acts.appendChild(start); f.appendChild(acts);
+    return f;
+  }
+  function mount(id, cfg) {
+    var host = document.getElementById(id);
+    var o = { open: Object.assign({}, cfg.open || {}), form: false, tokens: !!cfg.tokens, draw: draw };
+    function draw() {
+      host.textContent = '';
+      var list = cfg.agents;
+      if (list.length === 0 && !cfg.zeroShown) {
+        host.appendChild(el('div', 'empty', 'The agents bar is not shown: no agent has been started in this conversation.'));
+      } else {
+        var bar = el('div', 'agents');
+        var head = el('div', 'head');
+        var working = list.filter(function (a) { return a.state === 'running' || a.state === 'compacting'; }).length;
+        var fin = list.length - working;
+        head.appendChild(el('span', 'count', working + (working === 1 ? ' agent working' : ' agents working') + (fin ? ' · ' + fin + ' finished' : ''), TIPS.title));
+        if (cfg.attach) { var b = el('button', null, 'Attach a brain', TIPS.attach); b.onclick = function () { o.form = !o.form; draw(); }; head.appendChild(b); }
+        bar.appendChild(head);
+        if (list.length === 0) { bar.appendChild(el('div', 'zero', 'No agents yet. Attach one to start working in parallel.')); }
+        list.forEach(function (a) { bar.appendChild(agentRow(a, o)); });
+        host.appendChild(bar);
+        if (o.form) { host.appendChild(attachForm(o, cfg.attach)); }
+      }
+      host.appendChild(el('div', 'conv', 'The conversation continues below.'));
+    }
+    draw();
+  }
+  mount('m1', { agents: AGENTS, attach: 'A' });
+  mount('m2', { agents: AGENTS, open: { b: true }, attach: 'A' });
+  mount('m3a', { agents: AGENTS.slice(0, 2), tokens: true });
+  mount('m3b', { agents: AGENTS.slice(0, 2) });
+  mount('m4a', { agents: AGENTS.slice(0, 2), attach: 'A' });
+  mount('m4b', { agents: AGENTS.slice(0, 2), attach: 'B' });
+  mount('m5a', { agents: [] });
+  mount('m5b', { agents: [], zeroShown: true, attach: 'A' });
+  var edge = [
+    Object.assign({}, AGENTS[0], { state: 'compacting', task: 'Review the new retry policy against the target architecture.' }),
+    Object.assign({}, AGENTS[2], { state: 'failed', time: '2m 03s', task: 'Document the public methods of RetryPolicy. The program ended before it finished.', talk: [] })
+  ];
+  mount('m6', { agents: edge, open: { c: true } });
+})();
+</script>

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { ViewIntent, ViewState } from '@jawata/chat-core/view';
-import { Picker, pickersFor } from './Pickers.js';
+import { AUTONOMY_OPTION, autonomyOf, type ViewIntent, type ViewState } from '@jawata/chat-core/view';
+import { AutonomyButton, Picker, pickersFor } from './Pickers.js';
 
 /** How long the person stops typing before the core is told what the draft is. */
 const DRAFT_PAUSE_MS = 250;
@@ -118,6 +118,8 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     setModel: modelId => send({ type: 'setModel', modelId }),
   }) : [];
 
+  const autonomy = session ? autonomyOf(session) : null;
+
   const placeholder = hint ?? (commands.length > 0 ? 'Type a message or / for commands...' : 'Type a message...');
 
   return (
@@ -164,6 +166,7 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
               onToggle={() => setOpenPicker(o => (o === p.id ? null : p.id))}
               onChoose={value => { setOpenPicker(null); if (value !== p.current) { setChosen(c => ({ ...c, [p.id]: value })); p.choose(value); } }} />
           ))}
+          {autonomy ? <AutonomyButton armed={autonomy.armed} onPress={value => send({ type: 'setConfigOption', configId: AUTONOMY_OPTION, value })} /> : null}
         </div>
         <span className="toolbar-spacer" />
       </div>

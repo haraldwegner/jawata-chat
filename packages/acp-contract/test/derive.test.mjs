@@ -95,6 +95,32 @@ test('seatModels makes one model option per seat and points a recorded change at
   assert.equal(out[1].msg.params.configId, 'seat-model:test-writer');
 });
 
+test('autonomy adds the off/on option, points the recorded change at it and shows the new value in the answer', () => {
+  const opts = () => [{ id: 'model', category: 'model', type: 'select', currentValue: 'a', options: [] }];
+  const base = parseSession([
+    JSON.stringify({ dir: 'recv', msg: { jsonrpc: '2.0', id: 1, result: { sessionId: 's', configOptions: opts() } } }),
+    JSON.stringify({ dir: 'send', msg: { jsonrpc: '2.0', id: 2, method: 'session/set_config_option', params: { sessionId: 's', configId: 'model', value: 'b' } } }),
+    JSON.stringify({ dir: 'recv', msg: { jsonrpc: '2.0', id: 2, result: { configOptions: opts() } } }),
+  ].join('\n'));
+  const out = deriveSession(base, [{ op: 'autonomy', select: 'on' }]);
+  const before = out[0].msg.result.configOptions.find((o) => o.id === 'autonomy');
+  assert.equal(before.type, 'select');
+  assert.equal(before.currentValue, 'off');
+  assert.deepEqual(before.options.map((c) => c.value), ['off', 'on']);
+  assert.equal(out[1].msg.params.configId, 'autonomy');
+  assert.equal(out[1].msg.params.value, 'on');
+  assert.equal(out[2].msg.result.configOptions.find((o) => o.id === 'autonomy').currentValue, 'on', 'the answer to the change shows the new value');
+});
+
+test('Level 1 refuses an autonomy option that is not an off/on select holding one of its own values', () => {
+  const line = (o) => ({ dir: 'recv', msg: { jsonrpc: '2.0', id: 1, result: { configOptions: [o] } } });
+  const good = { id: 'autonomy', name: 'Autocontinue', type: 'select', currentValue: 'off', options: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }] };
+  assert.deepEqual(checkLevel1([line(good)]), []);
+  assert.match(checkLevel1([line({ ...good, type: 'boolean' })])[0], /autonomy.*type/);
+  assert.match(checkLevel1([line({ ...good, currentValue: 'maybe' })])[0], /autonomy.*currentValue/);
+  assert.match(checkLevel1([line({ ...good, options: [{ value: 'off', name: 'Off' }] })])[0], /autonomy.*values/);
+});
+
 test('insertAfter adds lines after a base line, by base index', () => {
   const extra = { dir: 'send', msg: { jsonrpc: '2.0', id: 99, method: '_jawata/hire/stop', params: { planId: 'p' } } };
   const out = deriveSession(R1(), [{ op: 'insertAfter', at: 1, lines: [extra] }]);
@@ -106,7 +132,7 @@ test('every derived file equals its derivation, and the manifest lists exactly t
   const manifest = JSON.parse(readFileSync(sessions('derived.json'), 'utf8'));
   const overlays = readdirSync(sessions('overlays')).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '.jsonl')).sort();
   assert.deepEqual(Object.keys(manifest).sort(), overlays, 'the manifest and the overlays name the same files');
-  assert.deepEqual(overlays, ['R10.jsonl', 'R3.jsonl', 'R4.jsonl', 'R5.jsonl', 'R9.jsonl'], 'the derived sessions are exactly these five: a new one is a decision, not an accident');
+  assert.deepEqual(overlays, ['R10.jsonl', 'R11.jsonl', 'R3.jsonl', 'R4.jsonl', 'R5.jsonl', 'R9.jsonl'], 'the derived sessions are exactly these six: a new one is a decision, not an accident');
   assert.ok(overlays.length > 0);
   for (const [file, entry] of Object.entries(manifest)) {
     const overlayText = readFileSync(sessions(entry.overlay), 'utf8');

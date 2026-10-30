@@ -129,6 +129,10 @@
         "title": "jawata chat: Set Agent Model"
       },
       {
+        "command": "jawataChat.setAutonomy",
+        "title": "jawata chat: Autocontinue on or off"
+      },
+      {
         "command": "jawataChat.attachFile",
         "title": "jawata chat: Attach File to Prompt",
         "icon": "$(attach)"
@@ -189,6 +193,11 @@
         "command": "jawataChat.cancelTurn",
         "key": "escape",
         "when": "jawataChat.turnInProgress"
+      },
+      {
+        "command": "jawataChat.setAutonomy",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a"
       }
     ],
     "configuration": {

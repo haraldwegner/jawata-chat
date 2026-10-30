@@ -33,6 +33,13 @@ export const HIRE_METHODS = ['_jawata/hire/stop', '_jawata/hire/transcript'] as 
 /** E6: one model option per seat, `seat-model:<seat>`, category `model`. */
 export const SEAT_MODEL_PREFIX = 'seat-model:';
 
+/**
+ * CR1 (provisional until 28h's D19 names the field): whether the session's autocontinue grant is armed is one select option, `autonomy`,
+ * with the values `off` and `on`. A plain ACP config option, so a host that knows nothing of jawata shows it as it shows any selector.
+ */
+export const AUTONOMY_OPTION_ID = 'autonomy';
+export const AUTONOMY_VALUES = ['off', 'on'] as const;
+
 const HIRE_FIELDS: Record<keyof HireMeta, 'string' | 'number'> = {
   planId: 'string', seat: 'string', brain: 'string', model: 'string', state: 'string',
   elapsedMs: 'number', tokens: 'number', costUsd: 'number', brainSessionId: 'string',
@@ -114,6 +121,16 @@ export function checkLevel1(lines: RecordedLine[]): string[] {
       if (typeof o?.id === 'string' && o.id.startsWith(SEAT_MODEL_PREFIX)) {
         if (o.category !== 'model') { out.push(`${at}: option ${o.id}: category is ${JSON.stringify(o.category)}, not "model"`); }
         if (o.type !== 'select') { out.push(`${at}: option ${o.id}: type is ${JSON.stringify(o.type)}, not "select"`); }
+      }
+      if (o?.id === AUTONOMY_OPTION_ID) {
+        if (o.type !== 'select') { out.push(`${at}: option ${AUTONOMY_OPTION_ID}: type is ${JSON.stringify(o.type)}, not "select"`); }
+        const values = (Array.isArray(o.options) ? o.options : []).map((c: { value?: unknown }) => c?.value);
+        if (values.join(',') !== AUTONOMY_VALUES.join(',')) {
+          out.push(`${at}: option ${AUTONOMY_OPTION_ID}: values are ${JSON.stringify(values)}, not ${JSON.stringify(AUTONOMY_VALUES)}`);
+        }
+        if (!(AUTONOMY_VALUES as readonly unknown[]).includes(o.currentValue)) {
+          out.push(`${at}: option ${AUTONOMY_OPTION_ID}: currentValue ${JSON.stringify(o.currentValue)} is not one of ${AUTONOMY_VALUES.join(', ')}`);
+        }
       }
     }
     if (typeof msg.method === 'string' && msg.method.startsWith('_jawata/')) {

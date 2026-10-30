@@ -11,7 +11,7 @@ const session = (name) => readSession(path(`../sessions/${name}.jsonl`));
 const updates = (s, kind) => s.filter((l) => update(l) === kind);
 const update = (l) => l.msg.params?.update?.sessionUpdate;
 
-for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'bases/hires', 'bases/model']) {
+for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'bases/hires', 'bases/model']) {
   test(`${name}: parses as a recorded session`, () => {
     assert.ok(session(name).length > 0);
   });
@@ -70,6 +70,19 @@ test('R5 (shape only): one model option per seat, and the change names one seat'
   const ids = s.find((l) => l.msg.result?.configOptions).msg.result.configOptions.filter((o) => o.id.startsWith('seat-model:')).map((o) => o.id);
   assert.deepEqual(ids, ['seat-model:architect', 'seat-model:test-writer']);
   assert.equal(s.find((l) => l.msg.method === 'session/set_config_option').msg.params.configId, 'seat-model:test-writer');
+});
+
+test('R11 (shape only): the autonomy option is armed by a change, the answer shows on, then it is ended and the answer shows off', () => {
+  const s = session('R11');
+  const changes = s.filter((l) => l.dir === 'send' && l.msg.method === 'session/set_config_option');
+  assert.deepEqual(changes.map((l) => [l.msg.params.configId, l.msg.params.value]), [['autonomy', 'on'], ['autonomy', 'off']]);
+  const states = s.filter((l) => l.dir === 'recv' && l.msg.result?.configOptions).map((l) => l.msg.result.configOptions.find((o) => o.id === 'autonomy').currentValue);
+  assert.deepEqual(states, ['off', 'on', 'off'], 'off at the start, on after the first change, off after the second');
+  for (const change of changes) {
+    const answer = s.find((l) => l.dir === 'recv' && l.msg.id === change.msg.id);
+    assert.ok(answer, `change ${change.msg.id} is answered`);
+    assert.equal(answer.msg.result.configOptions.find((o) => o.id === 'autonomy').currentValue, change.msg.params.value, 'the answer echoes the value set');
+  }
 });
 
 test('R6: the list holds only this session, and the load replays the turn', () => {

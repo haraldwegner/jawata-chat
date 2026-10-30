@@ -34,6 +34,17 @@ suite('Commands take their arguments', () => {
 		assert.deepStrictEqual(did, [['open', 's-42']]);
 	});
 
+	test('setAutonomy takes on or off, and with nothing asks for the opposite of what the agent reports', async () => {
+		const { chat, did } = fakeChat();
+		const reporting = (value: string) => ({ ...chat, snapshot: () => ({ session: { configOptions: [{ id: 'autonomy', type: 'select', currentValue: value, options: [] }] } }) }) as unknown as ChatController;
+		await commands(chat).setAutonomy('on');
+		await commands(chat).setAutonomy('off');
+		await commands(reporting('off')).setAutonomy();
+		await commands(reporting('on')).setAutonomy();
+		const intent = (value: string) => ['handle', { type: 'setConfigOption', configId: 'autonomy', value }];
+		assert.deepStrictEqual(did, [intent('on'), intent('off'), intent('on'), intent('off')]);
+	});
+
 	test('sendPrompt, setMode and setModel take theirs', async () => {
 		const { chat, did } = fakeChat();
 		await commands(chat).sendPrompt('hello');

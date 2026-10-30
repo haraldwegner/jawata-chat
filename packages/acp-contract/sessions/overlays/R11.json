@@ -1,0 +1,10 @@
+{
+  "base": "bases/model.jsonl",
+  "ops": [
+    {
+      "op": "autonomy",
+      "select": "on",
+      "ends": true
+    }
+  ]
+}

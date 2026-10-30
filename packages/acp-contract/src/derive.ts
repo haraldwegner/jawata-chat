@@ -1,4 +1,4 @@
-import { checkLevel1, COMMAND_GROUPS, META_GROUP, SEAT_MODEL_PREFIX, type CommandGroup } from './level1.js';
+import { AUTONOMY_OPTION_ID, AUTONOMY_VALUES, checkLevel1, COMMAND_GROUPS, META_GROUP, SEAT_MODEL_PREFIX, type CommandGroup } from './level1.js';
 import type { RecordedLine } from './recording.js';
 
 /**
@@ -13,7 +13,9 @@ export type Op =
   /** Tag every advertised command with its group: the names listed, else `default` (E1). */
   | { op: 'commandGroups'; seat: string[]; utility: string[]; default: CommandGroup }
   /** Replace the model option with one `seat-model:<seat>` option per seat, and point a recorded change at `select` (E6). */
-  | { op: 'seatModels'; seats: string[]; select: string };
+  | { op: 'seatModels'; seats: string[]; select: string }
+  /** Add the `autonomy` option (off at first), and make the recorded model change the person setting it to `select`; the answer shows the new value (CR1). */
+  | { op: 'autonomy'; select: 'on' | 'off'; /** Add a second exchange after the answer: the person sets it back to off. */ ends?: boolean };
 
 export interface Overlay {
   /** The promoted recording this derives from, relative to the sessions folder. */
@@ -35,6 +37,14 @@ function setAt(line: RecordedLine, path: (string | number)[], value: unknown): v
   for (const key of path.slice(0, -1)) { node = node[key] ??= {}; }
   const last = path[path.length - 1]!;
   node[last] = last in node ? merge(node[last], value) : clone(value);
+}
+
+function autonomyOption(current: string): unknown {
+  return {
+    id: AUTONOMY_OPTION_ID, name: 'Autocontinue', type: 'select', currentValue: current,
+    description: 'Whether the agent goes on from one checkpoint to the next by itself.',
+    options: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }],
+  };
 }
 
 function mapOptions(line: RecordedLine, f: (options: any[]) => any[]): void {
@@ -76,6 +86,29 @@ export function deriveSession(base: RecordedLine[], ops: Op[]): RecordedLine[] {
         if (l.dir === 'send' && l.msg.method === 'session/set_config_option' && l.msg.params?.configId === 'model') {
           l.msg.params.configId = `${SEAT_MODEL_PREFIX}${op.select}`;
         }
+      }
+    } else if (op.op === 'autonomy') {
+      let value: string = AUTONOMY_VALUES[0];
+      let asked: RecordedLine | undefined;
+      for (const l of lines) {
+        mapOptions(l, (options) => (options.some((o) => o.id === AUTONOMY_OPTION_ID) ? options : [...options, autonomyOption(value)]));
+        if (l.dir === 'send' && l.msg.method === 'session/set_config_option' && l.msg.params?.configId === 'model') {
+          l.msg.params.configId = AUTONOMY_OPTION_ID;
+          l.msg.params.value = op.select;
+          value = op.select;
+          asked = l;
+        }
+      }
+      if (op.ends && asked) {
+        const answerAt = lines.findIndex((l) => l.dir === 'recv' && l.msg.id === asked!.msg.id && Array.isArray(l.msg.result?.configOptions));
+        if (answerAt < 0) { throw new Error('derive: autonomy: the change has no answer carrying the options'); }
+        const again = clone(asked);
+        again.msg.id = 90;
+        again.msg.params.value = 'off';
+        const answer = clone(lines[answerAt]!);
+        answer.msg.id = 90;
+        answer.msg.result.configOptions.find((o: { id: string }) => o.id === AUTONOMY_OPTION_ID).currentValue = 'off';
+        inserts.set(answerAt, [...(inserts.get(answerAt) ?? []), again, answer]);
       }
     }
   }

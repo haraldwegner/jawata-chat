@@ -1,4 +1,4 @@
-import type { ViewSession } from '@jawata/chat-core/view';
+import { AUTONOMY_OPTION, type ViewSession } from '@jawata/chat-core/view';
 
 /** One choice in a picker. */
 interface Choice { value: string; name: string; description?: string | null }
@@ -44,7 +44,7 @@ export function pickersFor(
   const options = (session.configOptions ?? []) as unknown as RawOption[];
   if (options.length > 0) {
     return options
-      .filter(o => o && o.type === 'select' && Array.isArray(o.options) && o.options.length > 0)
+      .filter(o => o && o.id !== AUTONOMY_OPTION && o.type === 'select' && Array.isArray(o.options) && o.options.length > 0)
       .map(o => {
         const groups = choicesOf(o.options);
         const current = chosen[o.id] ?? o.currentValue ?? '';
@@ -111,3 +111,18 @@ export function Picker({ model, open, onToggle, onChoose }: { model: PickerModel
     </div>
   );
 }
+
+/** The autocontinue switch: pressed means the agent reports the grant armed; pressing sends the opposite value and waits for the agent's word. */
+export function AutonomyButton({ armed, onPress }: { armed: boolean; onPress: (next: 'on' | 'off') => void }) {
+  return (
+    <button className={'autonomy-btn' + (armed ? ' armed' : '')} data-config-id={AUTONOMY_OPTION} aria-pressed={armed}
+      title={armed
+        ? 'Autocontinue is on: the agent goes on from one checkpoint to the next by itself. Press to end it.'
+        : 'Autocontinue is off: the agent stops at each checkpoint. Press to let it go on by itself.'}
+      onClick={e => { e.stopPropagation(); onPress(armed ? 'off' : 'on'); }}>
+      <span className="picker-icon">{armed ? '⏵⏵' : '⏸'}</span>
+      <span className="picker-label">{armed ? 'Autocontinue on' : 'Autocontinue off'}</span>
+    </button>
+  );
+}
+

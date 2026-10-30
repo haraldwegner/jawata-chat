@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { ChatController } from '@jawata/chat-core';
+import { AUTONOMY_OPTION, autonomyOf, type ChatController } from '@jawata/chat-core';
 import { getOutputChannel, getTrafficChannel, lastRecordingPath } from './utils/Logger';
 
 interface Parts {
@@ -62,6 +62,15 @@ export function chatCommands(parts: Parts): Record<string, Command> {
 
     setMode: askAndApply({ title: 'Set the agent mode', placeHolder: 'The mode id, for example "plan"' }, modeId => ({ type: 'setMode', modeId }), parts),
     setModel: askAndApply({ title: 'Set the agent model', placeHolder: 'The model id' }, modelId => ({ type: 'setModel', modelId }), parts),
+
+    /**
+     * Arm or end the session's autocontinue grant, the same intent the chat's button sends (CR1). Given 'on' or 'off' it sets that; given
+     * nothing it sets the opposite of what the agent reports. It is the agent that says whether the grant is armed: this only asks.
+     */
+    setAutonomy: async (value?: unknown) => {
+      const next = value === 'on' || value === 'off' ? value : autonomyOf(chat.snapshot().session)?.armed ? 'off' : 'on';
+      await chat.handle({ type: 'setConfigOption', configId: AUTONOMY_OPTION, value: next });
+    },
 
     configureAgent: () => vscode.commands.executeCommand('workbench.action.openSettings', 'jawataChat.agent'),
 

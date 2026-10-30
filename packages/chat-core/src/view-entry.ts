@@ -5,3 +5,4 @@
  */
 export * from './view.js';
 export { initialViewState, reduce, waitingLine, isWorking, type ViewState, type PartView, type ToolCallView, type HireView, type ProposalView } from './view-state.js';
+export { AUTONOMY_OPTION, autonomyOf } from './autonomy.js';

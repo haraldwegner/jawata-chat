@@ -110,6 +110,13 @@ type EntryView =
   | { kind: 'turn'; turn: TurnView }
   | { kind: 'error'; message: string };
 
+/** The side thread (CR3): a few short exchanges with the agent in a session of their own, apart from the conversation. */
+interface SideView {
+  entries: EntryView[];
+  /** A side answer is on its way: the person cannot ask another until it ends. */
+  processing: boolean;
+}
+
 export interface ViewState {
   contractVersion: number;
   /** Set when a message spoke another version of the contract than this one: nothing else is folded, and the view says so. */
@@ -138,13 +145,15 @@ export interface ViewState {
   draft: string;
   /** How many times the chat was cleared or a new conversation begun, which takes the draft: a page that sees this change empties its field. */
   draftResets: number;
+  /** The side thread, if one is open; null when none is. It belongs to the conversation: a cleared, loaded or other conversation has none. */
+  side: SideView | null;
 }
 
 /** What the agents added to the state, as it is when there is no conversation. */
 const noAgents = () => ({ hires: [] as HireView[], transcripts: {} as Record<string, TranscriptTurn[]>, proposals: [] as ProposalView[] });
 
 export function initialViewState(): ViewState {
-  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0 };
+  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0, side: null };
 }
 
 /**
@@ -312,6 +321,16 @@ function reduceUpdate(state: ViewState, update: Extract<ViewMessage, { type: 'se
   }
 }
 
+/**
+ * The state with `change` applied to the side thread's entries by the conversation's own rules (an answer's parts, a tool call, an
+ * ended turn), and its running flag set when given. The side thread keeps no plan or hires: what the change puts there is dropped.
+ */
+function withSide(state: ViewState, change: (inner: ViewState) => ViewState, processing?: boolean): ViewState {
+  const side = state.side ?? { entries: [], processing: false };
+  const inner = change({ ...state, entries: side.entries });
+  return { ...state, side: { entries: inner.entries, processing: processing ?? side.processing } };
+}
+
 /** The first prompt in the queue is the one that was just sent, if it says what was sent. */
 function withoutQueuedHead(queued: PromptView[], sent: PromptView): PromptView[] {
   const head = queued[0];
@@ -370,11 +389,11 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
     case 'sessionInfoUpdate':
       return withSession(state, s => ({ ...s, title: message.title }));
     case 'loadSessionStart':
-      return { ...state, entries: [], plan: null, loading: true, processing: false, queued: [], ...noAgents() };
+      return { ...state, entries: [], plan: null, loading: true, processing: false, queued: [], side: null, ...noAgents() };
     case 'loadSessionEnd':
       return { ...withTurnEnded(state), loading: false };
     case 'clearChat':
-      return { ...state, entries: [], plan: null, processing: false, attachments: [], queued: [], ...noAgents(), draft: '', draftResets: state.draftResets + 1 };
+      return { ...state, entries: [], plan: null, processing: false, attachments: [], queued: [], side: null, ...noAgents(), draft: '', draftResets: state.draftResets + 1 };
     case 'draft':
       return { ...state, draft: message.text };
     case 'sessionList': {
@@ -387,6 +406,22 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
       return { ...state, proposals: state.proposals.filter(p => p.requestId !== message.requestId) };
     case 'hireTranscript':
       return { ...state, transcripts: { ...state.transcripts, [message.planId]: message.turns } };
+    case 'sideAsked':
+      return withSide(state, inner => {
+        const ended = withTurnEnded(inner);
+        return { ...ended, entries: appending(ended.entries, { kind: 'user', text: message.text, files: [] }) };
+      }, true);
+    case 'sideUpdate':
+      return state.side ? withSide(state, inner => reduceUpdate(inner, message.update)) : state;
+    case 'sideEnd':
+      return state.side ? withSide(state, withTurnEnded, false) : state;
+    case 'sideError':
+      return state.side ? withSide(state, inner => {
+        const ended = withTurnEnded(inner);
+        return { ...ended, entries: appending(ended.entries, { kind: 'error', message: message.message }) };
+      }, false) : state;
+    case 'sideClosed':
+      return { ...state, side: null };
     case 'file-attached':
       return { ...state, attachments: [...state.attachments, { path: message.path, name: message.name }] };
     case 'file-detached':

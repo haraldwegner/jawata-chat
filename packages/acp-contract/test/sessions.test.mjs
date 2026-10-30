@@ -11,7 +11,7 @@ const session = (name) => readSession(path(`../sessions/${name}.jsonl`));
 const updates = (s, kind) => s.filter((l) => update(l) === kind);
 const update = (l) => l.msg.params?.update?.sessionUpdate;
 
-for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'bases/hires', 'bases/model']) {
+for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'R13', 'bases/hires', 'bases/model']) {
   test(`${name}: parses as a recorded session`, () => {
     assert.ok(session(name).length > 0);
   });
@@ -83,6 +83,21 @@ test('R11 (shape only): the autonomy option is armed by a change, the answer sho
     assert.ok(answer, `change ${change.msg.id} is answered`);
     assert.equal(answer.msg.result.configOptions.find((o) => o.id === 'autonomy').currentValue, change.msg.params.value, 'the answer echoes the value set');
   }
+});
+
+test('R13 (shape only): a second session is opened beside the first and asked a question; its answer streams to that session, not the first', () => {
+  const s = session('R13');
+  const opened = s.filter((l) => l.dir === 'send' && l.msg.method === 'session/new');
+  assert.equal(opened.length, 2, 'the main session and the side session');
+  const ids = opened.map((l) => s.find((r) => r.dir === 'recv' && r.msg.id === l.msg.id).msg.result.sessionId);
+  assert.notEqual(ids[0], ids[1]);
+  assert.equal(opened[0].msg.params._meta, undefined, 'the first session is an ordinary one');
+  assert.deepEqual(opened[1].msg.params._meta, { 'jawata/side': true }, 'the second says it is a side thread')
+  const asked = s.filter((l) => l.dir === 'send' && l.msg.method === 'session/prompt');
+  assert.deepEqual(asked.map((l) => l.msg.params.sessionId), [ids[0], ids[1]], 'one prompt for each session');
+  const side = s.filter((l) => l.dir === 'recv' && l.msg.params?.sessionId === ids[1] && update(l) === 'agent_message_chunk');
+  assert.equal(side.length, 1, 'the side answer streams to the side session');
+  assert.ok(s.some((l) => l.dir === 'recv' && l.msg.id === asked[1].msg.id && l.msg.result.stopReason === 'end_turn'), 'the side prompt is answered');
 });
 
 test('R6: the list holds only this session, and the load replays the turn', () => {

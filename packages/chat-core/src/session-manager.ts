@@ -37,6 +37,8 @@ interface SessionAnswer {
 export class SessionManager extends Emitter<SessionEvents> implements ChatSessions, SessionLifecycle {
   private readonly table = new SessionRegistry();
   private readonly hearing: Disposable[];
+  /** The side session (CR3): a second session with the active session's agent, opened by the first side question. It is never in the table, so it is never the active session. */
+  private side: { agentId: string; sessionId: string } | null = null;
   /** The connects under way, by agent: a second ask for the same agent shares the first. */
   private readonly connecting = new Map<string, Promise<SessionInfo>>();
 
@@ -112,6 +114,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
     if (!session) { return; }
     this.host.log.log(`Disconnecting agent ${agentName}`);
     this.table.drop(session.sessionId);
+    this.side = null;
     this.supply.stop(session.agentId);
     this.emit('agent-disconnected', agentName);
     this.emit('active-session-changed', null);
@@ -197,6 +200,29 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
     const answer = await link.prompt({ sessionId, prompt });
     this.host.log.log(`Prompt response: stopReason=${answer.stopReason}`);
     return answer;
+  }
+
+  async askSide(text: string): Promise<PromptResponse> {
+    const main = this.table.active;
+    if (!main) { throw new Error('No active session. Create a session first.'); }
+    const link = this.supply.linkOf(main.agentId);
+    if (!link) { throw new Error(`No connection for agent: ${main.agentId}`); }
+    if (this.side && this.side.agentId !== main.agentId) { this.side = null; }
+    if (!this.side) {
+      // the one key that tells the agent this is a side thread and not a second chat window (agreed with 28h, 2026-10-30)
+      const answer = await link.newSession({ cwd: main.cwd, mcpServers: [], _meta: { 'jawata/side': true } });
+      this.side = { agentId: main.agentId, sessionId: answer.sessionId };
+      this.host.log.log(`Side session ${answer.sessionId} opened beside ${main.sessionId}`);
+    }
+    return link.prompt({ sessionId: this.side.sessionId, prompt: [{ type: 'text', text }] });
+  }
+
+  getSideSessionId(): string | null {
+    return this.side?.sessionId ?? null;
+  }
+
+  closeSide(): void {
+    this.side = null;
   }
 
   async cancelTurn(sessionId: string): Promise<void> {

@@ -9,6 +9,11 @@
     "overlay": "overlays/R11.json",
     "overlaySha256": "672cdbeccda934d74e1dd9d841bb1dba815bf82fa857e49399730d804a4729ca"
   },
+  "R13.jsonl": {
+    "source": "R1.jsonl",
+    "overlay": "overlays/R13.json",
+    "overlaySha256": "60cac5afbb0abb18f354066266d64b17e3b2a73835d4bcb822ebcfb9e787c11f"
+  },
   "R3.jsonl": {
     "source": "R1.jsonl",
     "overlay": "overlays/R3.json",

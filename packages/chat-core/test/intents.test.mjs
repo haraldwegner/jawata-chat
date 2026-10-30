@@ -244,6 +244,23 @@ test('pageFailed: the core writes down what the page could not draw past (ledger
 });
 
 
+test('askSide and closeSide: a side question goes to a second session and is answered in the side thread; closing forgets the thread', async () => {
+  const c = await connected('R13');
+  try {
+    await c.port.deliver({ type: 'sendPrompt', text: 'first' });
+    c.port.toView.length = 0;
+    await c.port.deliver({ type: 'askSide', text: 'a side question' });
+    // the first turn's recorded trailing lines (its title) may still be playing; they are the main thread's and are not looked at here
+    assert.deepEqual(types(c.port).filter(t => t.startsWith('side')), ['sideAsked', 'sideUpdate', 'sideEnd']);
+    assert.equal(c.sent('session/new').length, 2);
+    assert.deepEqual(c.sent('session/new')[1]._meta, { 'jawata/side': true });
+    assert.deepEqual(c.sent('session/prompt').map(p => p.prompt[0].text).slice(-1), ['a side question']);
+    c.port.toView.length = 0;
+    await c.port.deliver({ type: 'closeSide' });
+    assert.deepEqual(types(c.port).filter(t => t.startsWith('side')), ['sideClosed']);
+  } finally { c.dispose(); }
+});
+
 test('every intent of the union was delivered by a test above', () => {
   const missing = VIEW_INTENT_TYPES.filter(t => !delivered.has(t));
   assert.deepEqual(missing, [], `no test delivers: ${missing.join(', ')}`);

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { goldenBody, digestOf } from '../dist/test-support.js';
-import { loaded, played, sessionFile } from './play.mjs';
+import { loaded, played, playedWithASideQuestion, sessionFile } from './play.mjs';
 
 const golden = (name) => new URL(`../goldens/view-${name}.json`, import.meta.url);
 
@@ -20,6 +20,14 @@ test('R1: the page is told a prompt and a streamed answer', async () => check('R
 test('R2: the page is told a tool call and its outcome', async () => check('R2', await played('R2')));
 test('R3: the page is told the grouped command list', async () => check('R3', await played('R3')));
 test('R7: the page is told two proposals, one allowed and one failed', async () => check('R7', await played('R7')));
+test('R13: the page is told the side question and its answer apart from the first turn, and the first turn is as in R1', async () => {
+  const { messages, state } = await playedWithASideQuestion('R13', 'How many files did you just read?');
+  const types = messages.map(m => m.type);
+  assert.ok(types.indexOf('sideAsked') > types.indexOf('promptEnd'), types.join(','));
+  assert.deepEqual(types.filter(t => t.startsWith('side')), ['sideAsked', 'sideUpdate', 'sideEnd']);
+  assert.equal(state.side.entries.at(-1).turn.parts[0].text, 'None. This answer comes from the side thread.');
+  check('R13', messages);
+});
 test('R6: the page is told a loaded session replayed, between its load start and its load end', async () => {
   const messages = await loaded('R6');
   const types = messages.map(m => m.type);

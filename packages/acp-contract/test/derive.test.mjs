@@ -132,7 +132,7 @@ test('every derived file equals its derivation, and the manifest lists exactly t
   const manifest = JSON.parse(readFileSync(sessions('derived.json'), 'utf8'));
   const overlays = readdirSync(sessions('overlays')).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '.jsonl')).sort();
   assert.deepEqual(Object.keys(manifest).sort(), overlays, 'the manifest and the overlays name the same files');
-  assert.deepEqual(overlays, ['R10.jsonl', 'R11.jsonl', 'R3.jsonl', 'R4.jsonl', 'R5.jsonl', 'R9.jsonl'], 'the derived sessions are exactly these six: a new one is a decision, not an accident');
+  assert.deepEqual(overlays, ['R10.jsonl', 'R11.jsonl', 'R13.jsonl', 'R3.jsonl', 'R4.jsonl', 'R5.jsonl', 'R9.jsonl'], 'the derived sessions are exactly these seven: a new one is a decision, not an accident');
   assert.ok(overlays.length > 0);
   for (const [file, entry] of Object.entries(manifest)) {
     const overlayText = readFileSync(sessions(entry.overlay), 'utf8');
@@ -151,4 +151,9 @@ test('the sessions README marks every derived file SHAPE ONLY', () => {
     assert.ok(row, `${file} has a row`);
     assert.match(row, /SHAPE ONLY/, `${file} is marked`);
   }
+});
+
+test('side: a base that opens no session gives the second session nothing to sit beside, and is refused', () => {
+  const base = [{ dir: 'send', msg: { jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: 1 } } }];
+  assert.throws(() => deriveSession(base, [{ op: 'side', question: 'q', answer: 'a' }]), /opens no session/);
 });

@@ -1,0 +1,10 @@
+{
+  "base": "R1.jsonl",
+  "ops": [
+    {
+      "op": "side",
+      "question": "How many files did you just read?",
+      "answer": "None. This answer comes from the side thread."
+    }
+  ]
+}

@@ -72,6 +72,19 @@ export function chatCommands(parts: Parts): Record<string, Command> {
       await chat.handle({ type: 'setConfigOption', configId: AUTONOMY_OPTION, value: next });
     },
 
+    /**
+     * A side question (CR3): given its words, it goes to the side thread without a dialog; otherwise the person types it in an input box.
+     * The chat is shown first, since the answer comes in the side thread of the page.
+     */
+    askSide: async (text?: unknown) => {
+      const asked = typeof text === 'string' && text.length > 0
+        ? text
+        : await vscode.window.showInputBox({ title: 'jawata chat: Side question', placeHolder: 'A short question, answered apart from the conversation' });
+      if (!asked) { return; }
+      await showChat();
+      await chat.handle({ type: 'askSide', text: asked });
+    },
+
     configureAgent: () => vscode.commands.executeCommand('workbench.action.openSettings', 'jawataChat.agent'),
 
     /** Given a path or a file (the explorer passes the one clicked), it is attached without asking; otherwise the person picks one. */

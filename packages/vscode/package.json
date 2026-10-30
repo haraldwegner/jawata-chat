@@ -133,6 +133,10 @@
         "title": "jawata chat: Autocontinue on or off"
       },
       {
+        "command": "jawataChat.askSide",
+        "title": "jawata chat: Side question"
+      },
+      {
         "command": "jawataChat.attachFile",
         "title": "jawata chat: Attach File to Prompt",
         "icon": "$(attach)"
@@ -198,6 +202,11 @@
         "command": "jawataChat.setAutonomy",
         "key": "ctrl+alt+a",
         "mac": "cmd+alt+a"
+      },
+      {
+        "command": "jawataChat.askSide",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s"
       }
     ],
     "configuration": {

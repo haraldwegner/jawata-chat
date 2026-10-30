@@ -15,7 +15,9 @@ export type Op =
   /** Replace the model option with one `seat-model:<seat>` option per seat, and point a recorded change at `select` (E6). */
   | { op: 'seatModels'; seats: string[]; select: string }
   /** Add the `autonomy` option (off at first), and make the recorded model change the person setting it to `select`; the answer shows the new value (CR1). */
-  | { op: 'autonomy'; select: 'on' | 'off'; /** Add a second exchange after the answer: the person sets it back to off. */ ends?: boolean };
+  | { op: 'autonomy'; select: 'on' | 'off'; /** Add a second exchange after the answer: the person sets it back to off. */ ends?: boolean }
+  /** After the last line, open a second session with the same agent and ask it `question`; it answers `answer` (the side thread, CR3). */
+  | { op: 'side'; question: string; answer: string };
 
 export interface Overlay {
   /** The promoted recording this derives from, relative to the sessions folder. */
@@ -38,6 +40,9 @@ function setAt(line: RecordedLine, path: (string | number)[], value: unknown): v
   const last = path[path.length - 1]!;
   node[last] = last in node ? merge(node[last], value) : clone(value);
 }
+
+/** The id of the second session a `side` op opens; fixed so that the derived file is the same each time. */
+const SIDE_SESSION_ID = 'side-session-0001';
 
 function autonomyOption(current: string): unknown {
   return {
@@ -113,6 +118,20 @@ export function deriveSession(base: RecordedLine[], ops: Op[]): RecordedLine[] {
     }
   }
   const out = lines.flatMap((l, i) => [l, ...(inserts.get(i) ?? [])]);
+  for (const op of ops) {
+    if (op.op !== 'side') { continue; }
+    const newId = Math.max(...out.map((l) => (typeof l.msg.id === 'number' ? l.msg.id : 0))) + 1;
+    const cwd = out.find((l) => l.dir === 'send' && l.msg.method === 'session/new')?.msg.params?.cwd;
+    if (cwd === undefined) { throw new Error('derive: side: the base opens no session to open a second one beside'); }
+    const sessionId = SIDE_SESSION_ID;
+    out.push(
+      { dir: 'send', msg: { jsonrpc: '2.0', id: newId, method: 'session/new', params: { cwd, mcpServers: [], _meta: { 'jawata/side': true } } } },
+      { dir: 'recv', msg: { jsonrpc: '2.0', id: newId, result: { sessionId } } },
+      { dir: 'send', msg: { jsonrpc: '2.0', id: newId + 1, method: 'session/prompt', params: { sessionId, prompt: [{ type: 'text', text: op.question }] } } },
+      { dir: 'recv', msg: { jsonrpc: '2.0', method: 'session/update', params: { sessionId, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: op.answer } } } } },
+      { dir: 'recv', msg: { jsonrpc: '2.0', id: newId + 1, result: { stopReason: 'end_turn' } } },
+    );
+  }
   const violations = checkLevel1(out);
   if (violations.length > 0) { throw new Error(`derive: the result breaks Level 1: ${violations.join('; ')}`); }
   return out;

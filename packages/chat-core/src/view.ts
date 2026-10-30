@@ -27,8 +27,10 @@ export interface Disposable {
  * 4: the session list can ask the page to show it (`show`), for a command that opens the sessions without the button.
  * 5: the page says its number when it says ready, and the core serves only a page of its own number (ledger 28i-C13-8).
  * 6: the page tells the core when it has stopped drawing the chat (`pageFailed`), so the host's log has it (ledger 28i-C13-10).
+ * 7: the side thread (CR3): a side question goes out as a prompt of a second session and its answer is shown apart from the main thread
+ *    (`askSide`, `closeSide`; `sideAsked`, `sideUpdate`, `sideEnd`, `sideError`, `sideClosed`; the state's `side`).
  */
-export const VIEW_CONTRACT_VERSION = 6;
+export const VIEW_CONTRACT_VERSION = 7;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -85,6 +87,16 @@ export type ViewMessage =
   | ({ type: 'permissionRequest' } & ProposalView)
   /** The proposal has been answered, or is withdrawn (the turn was cancelled, the chat cleared). */
   | { type: 'permissionResolved'; requestId: string }
+  /** The person asked a side question: the side thread shows it and waits for the answer. */
+  | { type: 'sideAsked'; text: string }
+  /** What the agent says in the side session; the main thread is not told it. */
+  | { type: 'sideUpdate'; update: SessionNotification['update'] }
+  /** The side session's answer is over. */
+  | { type: 'sideEnd'; stopReason: string }
+  /** The side question could not be answered. */
+  | { type: 'sideError'; message: string }
+  /** The side thread is closed: it is forgotten, and the next side question begins a new one. */
+  | { type: 'sideClosed' }
   /** The whole view state, sent after `state` to a page that says `ready`: a page that comes late, reloads or is relayed is caught up from it, not from a replay of the deltas. */
   | { type: 'snapshot'; state: ViewState };
 
@@ -116,6 +128,10 @@ export type ViewIntent =
   | { type: 'openSession'; sessionId: string }
   /** Answer a proposal with one of the choices the agent offered. */
   | { type: 'answerPermission'; requestId: string; optionId: string }
+  /** Ask a short side question without disturbing the running step; it goes out as a prompt of its own and is answered in the side thread. */
+  | { type: 'askSide'; text: string }
+  /** Close the side thread. */
+  | { type: 'closeSide' }
   /** The page hit an error it could not draw past and shows the person a notice; the core writes it down. */
   | { type: 'pageFailed'; message: string };
 
@@ -155,6 +171,11 @@ export const VIEW_MESSAGE_FIELDS = {
   sessionList: ['sessions', 'nextCursor', 'append', 'show'],
   permissionRequest: ['requestId', 'title', 'diffs', 'options'],
   permissionResolved: ['requestId'],
+  sideAsked: ['text'],
+  sideUpdate: ['update'],
+  sideEnd: ['stopReason'],
+  sideError: ['message'],
+  sideClosed: [],
   snapshot: ['state'],
 } as const satisfies { readonly [T in ViewMessage['type']]: readonly FieldsOf<Extract<ViewMessage, { type: T }>>[] };
 
@@ -179,6 +200,8 @@ export const VIEW_INTENT_FIELDS = {
   keepDraft: ['text'],
   listSessions: ['cursor'],
   openSession: ['sessionId'],
+  askSide: ['text'],
+  closeSide: [],
   answerPermission: ['requestId', 'optionId'],
   pageFailed: ['message'],
 } as const satisfies { readonly [T in ViewIntent['type']]: readonly FieldsOf<Extract<ViewIntent, { type: T }>>[] };
@@ -206,7 +229,8 @@ export function isViewIntent(value: unknown): value is ViewIntent {
   const v = value as Record<string, unknown>;
   switch (v.type) {
     case 'ready': return v.contractVersion === undefined || typeof v.contractVersion === 'number';
-    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': return true;
+    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': return true;
+    case 'askSide': return isString(v.text);
     case 'detachFile': return isString(v.path);
     case 'stopHire': case 'openTranscript': return isString(v.planId);
     case 'keepDraft': return isString(v.text);

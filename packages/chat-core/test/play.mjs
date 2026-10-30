@@ -31,6 +31,18 @@ export async function played(name) {
   } finally { c.dispose(); }
 }
 
+/** R13: the first turn, then a side question; everything the page is told, in order. */
+export async function playedWithASideQuestion(name, question) {
+  const c = chatOn(name);
+  try {
+    await c.sessions.connectToAgent('agent');
+    await c.chat.sendPrompt('replay');
+    await c.port.deliver({ type: 'askSide', text: question });
+    await new Promise(r => setTimeout(r, 100));
+    return { messages: c.port.toView, state: c.chat.snapshot() };
+  } finally { c.dispose(); }
+}
+
 /** R6: list, then open (load) the session the recording loads, and wait for the replay to end. */
 export async function loaded(name) {
   const c = chatOn(name);

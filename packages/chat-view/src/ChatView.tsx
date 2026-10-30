@@ -4,6 +4,7 @@ import { AgentsBar } from './Agents.js';
 import { History } from './History.js';
 import { InputArea } from './InputArea.js';
 import { Proposals } from './Proposals.js';
+import { SideThread } from './SideThread.js';
 import { Messages, PlanBar } from './Messages.js';
 
 /** The chat: a fold of the messages the core tells it, and the intents it sends back. It keeps no other state of the conversation. */
@@ -48,6 +49,7 @@ export function ChatView({ transport }: { transport: PageTransport }) {
         onConnect={() => transport.send({ type: 'connectAgent' })}
         onConfigure={() => transport.send({ type: 'configureAgent' })} />
       <Proposals state={state} send={transport.send.bind(transport)} />
+      <SideThread state={state} send={transport.send.bind(transport)} />
       <InputArea state={state} send={transport.send.bind(transport)} />
       <div className={'load-overlay' + (state.loading ? ' visible' : '')} role="status" aria-live="polite">
         <div className="spinner" />

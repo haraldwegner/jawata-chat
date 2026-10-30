@@ -62,7 +62,7 @@ export class ChatController {
     this.asking = this.updates.onPermissionRequest(request => this.askPermission(request));
 
     this.listen('active-session-changed', (sessionId) => {
-      if (sessionId !== this.pendingIn) { this.pending = []; this.pendingIn = sessionId; this.withdrawProposals(); }
+      if (sessionId !== this.pendingIn) { this.pending = []; this.pendingIn = sessionId; this.withdrawProposals(); this.sessions.closeSide(); }
       this.sendCurrentState();
     });
     this.listen('clear-chat', () => this.clearChat());
@@ -74,7 +74,7 @@ export class ChatController {
       const models = this.sessions.getActiveSession()?.models;
       if (models) { this.post({ type: 'modelsUpdate', models }); }
     });
-    this.listen('session-load-start', () => { this.pending = []; this.post({ type: 'loadSessionStart' }); this.replay = []; });
+    this.listen('session-load-start', () => { this.pending = []; this.sessions.closeSide(); this.post({ type: 'loadSessionStart' }); this.replay = []; });
     this.listen('session-load-end', (_sessionId, _agentName, ok) => {
       this.endReplay();
       this.post({ type: 'loadSessionEnd', ok });
@@ -222,6 +222,12 @@ export class ChatController {
       case 'openTranscript':
         await this.openTranscript(intent.planId);
         break;
+      case 'askSide':
+        return this.askSide(intent.text);
+      case 'closeSide':
+        this.sessions.closeSide();
+        this.post({ type: 'sideClosed' });
+        return;
       case 'pageFailed':
         this.host.log.logError('ChatController: the page stopped drawing the chat and shows the person a notice', intent.message);
         break;
@@ -312,6 +318,7 @@ export class ChatController {
   private handleSessionUpdate(update: SessionNotification): void {
     // What the agent says about a session (commands, options, title) is written down by the sessions
     // themselves; this only passes the update on, and only for the one session the page shows.
+    if (update.sessionId === this.sessions.getSideSessionId()) { this.post({ type: 'sideUpdate', update: update.update }); return; }
     if (update.sessionId !== this.sessions.getActiveSessionId()) { return; }
     const message: ViewMessage = { type: 'sessionUpdate', update: update.update, sessionId: update.sessionId };
     if (this.replay) { this.replay.push(message); } else { this.post(message); }
@@ -370,6 +377,20 @@ export class ChatController {
       this.host.log.logError('Prompt failed', e);
       this.post({ type: 'error', message: reason });
       this.post({ type: 'promptEnd', stopReason: 'error' });
+    }
+  }
+
+  /** A side question goes to the side session and is answered in the side thread; the main thread, its turn and its queue are not touched. */
+  private async askSide(text: string): Promise<void> {
+    const body = text.trim();
+    if (!body || this.view.side?.processing) { return; }
+    this.post({ type: 'sideAsked', text: body });
+    try {
+      const answer = await this.sessions.askSide(body);
+      this.post({ type: 'sideEnd', stopReason: answer.stopReason });
+    } catch (e) {
+      this.host.log.logError('Side question failed', e);
+      this.post({ type: 'sideError', message: (e as Error).message || 'The side question failed' });
     }
   }
 

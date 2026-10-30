@@ -156,14 +156,12 @@ function Waiting({ state }: { state: ViewState }) {
   );
 }
 
-export function Messages({ state, onConnect, onConfigure, onHistory }: { state: ViewState; onConnect: () => void; onConfigure: () => void; onHistory: () => void }) {
-  const el = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (el.current) { el.current.scrollTop = el.current.scrollHeight; } }, [state.entries, state.processing]);
-  const last = state.entries.length - 1;
+/** The conversation's entries in order: what the person sent, what the agent answered, what went wrong. The side thread draws its own the same way. */
+export function EntryList({ entries, processing }: { entries: ViewState['entries']; processing: boolean }) {
+  const last = entries.length - 1;
   return (
-    <div className="messages" ref={el}>
-      {!state.session && state.entries.length === 0 && !state.loading ? <EmptyState onConnect={onConnect} onConfigure={onConfigure} onHistory={onHistory} /> : null}
-      {state.entries.map((entry, i) => {
+    <>
+      {entries.map((entry, i) => {
         switch (entry.kind) {
           case 'user': return (
             <div className="message user" key={i}>
@@ -172,9 +170,20 @@ export function Messages({ state, onConnect, onConfigure, onHistory }: { state: 
             </div>
           );
           case 'error': return <div className="message error" key={i} title="The agent or the connection reported this. Sending again tries again.">{entry.message}</div>;
-          case 'turn': return <TurnView turn={entry.turn} streaming={state.processing && i === last} key={i} />;
+          case 'turn': return <TurnView turn={entry.turn} streaming={processing && i === last} key={i} />;
         }
       })}
+    </>
+  );
+}
+
+export function Messages({ state, onConnect, onConfigure, onHistory }: { state: ViewState; onConnect: () => void; onConfigure: () => void; onHistory: () => void }) {
+  const el = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (el.current) { el.current.scrollTop = el.current.scrollHeight; } }, [state.entries, state.processing]);
+  return (
+    <div className="messages" ref={el}>
+      {!state.session && state.entries.length === 0 && !state.loading ? <EmptyState onConnect={onConnect} onConfigure={onConfigure} onHistory={onHistory} /> : null}
+      <EntryList entries={state.entries} processing={state.processing} />
       <Waiting state={state} />
     </div>
   );

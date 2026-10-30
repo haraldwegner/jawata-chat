@@ -55,7 +55,7 @@ button.primary { border-color: var(--accent); color: var(--accent); }
 .talk .t { margin-bottom: 3px; } .talk .r { font-weight: 600; margin-right: 6px; }
 .empty { color: var(--quiet); font-style: italic; }
 .zero { color: var(--quiet); padding: 6px 0; }
-.form { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 4px; background: var(--panel); display: grid; gap: 8px; }
+.xform { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 4px; background: var(--panel); display: grid; gap: 8px; }
 .form label { display: grid; gap: 2px; font-size: 12px; color: var(--quiet); }
 .form select, .form textarea { font: inherit; font-size: 13px; color: var(--fg); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 3px 6px; width: 100%; }
 .form textarea { resize: vertical; }
@@ -64,168 +64,169 @@ button.primary { border-color: var(--accent); color: var(--accent); }
 .key b { color: var(--fg); font-weight: 600; }
 .theme { align-self: flex-end; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.pick { position: relative; display: inline-block; }
+.pickbtn { color: var(--quiet); }
+.menu { position: absolute; z-index: 3; left: 0; top: 100%; min-width: 170px; margin-top: 2px; padding: 3px 0; background: var(--panel); border: 1px solid var(--edge); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.menu .item { padding: 3px 10px; cursor: pointer; white-space: nowrap; }
+.menu .item:hover, .menu .item:focus-visible { background: var(--raised); }
+.menu .item .ck { display: inline-block; width: 1.1em; color: var(--ok); }
+.menu .hd { padding: 2px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--quiet); }
+.state.idle { color: var(--quiet); }
 </style>
 
 <main>
   <header>
-    <h1>Agent Control: the proposed view in six states</h1>
-    <p class="lede">Mock-ups for the three open decisions. They are the chat's agents bar as the ux report proposes it, not built code. Hover any element for its explanation; fold toggles and the attach buttons work.</p>
+    <h1>Agent Control, revised after your answers</h1>
+    <p class="lede">The bar is now its own panel that is always shown. There is no attach button: each agent is a row, you click its brain to see the choices, and the one you pick overwrites it. Cost shows only when the agent sends one. Hover for explanations; the fold toggles and the brain pickers work.</p>
   </header>
 
   <section class="case">
-    <h2>1. The bar as it appears: every agent's talk folded</h2>
-    <p class="note">What you see when two agents work and one has finished. Task text under each row, never cut. This is the default state.</p>
+    <h2>1. The panel with agents working, talk folded</h2>
+    <p class="note">Click a brain (the grey text with the arrow) to open the choices.</p>
     <div class="chat" id="m1"></div>
   </section>
 
   <section class="case">
     <h2>2. One agent unfolded</h2>
-    <p class="note">Unfolding shows what the agent and its program said, read only. Folding hides it again.</p>
     <div class="chat" id="m2"></div>
   </section>
 
   <section class="case">
-    <h2>3. Decision D1: tokens in the row, or only in the cost's mouseover</h2>
+    <h2>3. Cost on a subscription and on a metered key (your D1 question)</h2>
+    <p class="note">The chat shows what the agent sends. Claude's own traffic carries a dollar amount even on a subscription, where it is a price at API rates and nothing is billed. A brain that sends none shows tokens only. Today's code would show <mark>$0.000</mark> for a missing figure; that is wrong and would be changed. Hover the cost.</p>
+    <div class="chat" id="m3"></div>
+  </section>
+
+  <section class="case">
+    <h2>4. Your D3: the panel with zero agents, two readings</h2>
+    <p class="note">You said the panel is its own panel and is shown with zero agents. Overwriting a brain needs a row to click, so there are two ways to read that. <mark>Which one is meant?</mark></p>
     <div class="pair">
-      <div class="case"><div class="tag"><b>As built today</b> (signed row P6: tokens and cost)</div><div class="chat" id="m3a"></div></div>
-      <div class="case"><div class="tag"><b>Proposed</b> (cost only; hover the cost to see the tokens)</div><div class="chat" id="m3b"></div></div>
+      <div class="case"><div class="tag"><b>X</b> rows are the agents started in this conversation</div><div class="chat" id="m4x"></div></div>
+      <div class="case"><div class="tag"><b>Y</b> rows are every seat, idle ones included</div><div class="chat" id="m4y"></div></div>
     </div>
   </section>
 
   <section class="case">
-    <h2>4. Decision D2: what attaching a brain asks for</h2>
-    <p class="note">Press “Attach a brain” in each panel.</p>
-    <div class="pair">
-      <div class="case"><div class="tag"><b>A (recommended)</b> seat, brain and model, task</div><div class="chat" id="m4a"></div></div>
-      <div class="case"><div class="tag"><b>B</b> brain only</div><div class="chat" id="m4b"></div></div>
-    </div>
-  </section>
-
-  <section class="case">
-    <h2>5. Decision D3: when the bar shows</h2>
-    <div class="pair">
-      <div class="case"><div class="tag"><b>Proposed</b> hidden until an agent exists</div><div class="chat" id="m5a"></div></div>
-      <div class="case"><div class="tag"><b>Alternative</b> shown with zero agents</div><div class="chat" id="m5b"></div></div>
-    </div>
-  </section>
-
-  <section class="case">
-    <h2>6. Edge states: a failed agent, a compacting agent, an empty transcript</h2>
-    <div class="chat" id="m6"></div>
+    <h2>5. Edge states: a failed agent, a compacting agent, an empty transcript</h2>
+    <div class="chat" id="m5"></div>
   </section>
 
   <ul class="key">
     <li><b>Seat name</b> is shown with the command you type, for example architect (/refactor). The agent has to send that command; today it does not.</li>
-    <li><b>Mouseovers</b> carry the explanations, so the bar itself stays lean.</li>
-    <li><b>Example data:</b> all agents, tasks, costs and transcripts here are made up for the mock-up.</li>
+    <li><b>Overwrite</b> means the brain you pick replaces the agent's brain. What happens to work already under way is the agent's rule (28h) and is not decided here.</li>
+    <li><b>Example data:</b> agents, tasks, costs and transcripts are made up.</li>
   </ul>
 </main>
 
 <script>
 (function () {
+  var BRAINS = ['claude · sonnet', 'claude · haiku', 'claude · opus', 'codex · gpt-5', 'cursor · auto'];
   var TIPS = {
-    title: 'The agents started for this conversation. The numbers are what the agent last reported.',
+    title: 'The agents of this conversation. The numbers are what the agent last reported.',
     fold: 'Show or fold what this agent and its program said. You cannot type into it.',
     seat: function (c) { return 'The role this agent plays. Type ' + c + ' in a message to use the same role yourself.'; },
-    who: 'The program and the model that do the work. The model decides most of the cost.',
+    pick: 'The program and model that do the work. Click to choose another; your choice replaces this one.',
     elapsed: 'How long this agent has been at it.',
     stop: 'Ends this agent. The other agents go on.',
-    attach: 'Starts another hired agent in this conversation. It appears in the list when it starts.',
-    cost: function (t) { return 'What this agent has cost so far, in US dollars. It has used ' + t + ' tokens.'; },
     tokens: 'Tokens this agent has used so far.',
-    state: { running: 'The agent is working.', compacting: 'The agent is shortening its own conversation so it can go on.', done: 'The agent has finished.', failed: 'The agent ended with a failure.' }
+    cost: 'What this agent reports it has cost, in US dollars at API prices. On a subscription nothing is charged for it.',
+    state: { running: 'The agent is working.', compacting: 'The agent is shortening its own conversation so it can go on.', done: 'The agent has finished.', failed: 'The agent ended with a failure.', idle: 'This seat has no work now.' }
   };
   var AGENTS = [
-    { id: 'a', seat: 'architect', cmd: '/refactor', brain: 'claude', model: 'sonnet', state: 'running', time: '1m 12s', tokens: '15.0k', cost: '$0.31',
+    { id: 'a', seat: 'architect', cmd: '/refactor', brain: 'claude · sonnet', state: 'running', time: '1m 12s', tokens: '15.0k', cost: '$0.31',
       task: 'Review the new retry policy against the target architecture and say whether each change is a design fix or a bandage.',
       talk: [['pm', 'Review the retry policy change against ARCHITECTURE-queue.md.'], ['agent', 'Reading the diff. The policy now lives in the sender, not the queue.'], ['agent', 'Two of the four changes are bandages; I will name the design fix for each.']] },
-    { id: 'b', seat: 'test-writer', cmd: '/cover', brain: 'claude', model: 'haiku', state: 'done', time: '9s', tokens: '2.1k', cost: '$0.02',
+    { id: 'b', seat: 'test-writer', cmd: '/cover', brain: 'codex · gpt-5', state: 'done', time: '9s', tokens: '2.1k', cost: null,
       task: "Cover the queue's send-now path.",
       talk: [['pm', "Write tests for the queue's send-now path."], ['agent', 'Added three tests: nothing waiting, one waiting, cancelled while sending.']] },
-    { id: 'c', seat: 'javadoc-writer', cmd: '/javadocs', brain: 'claude', model: 'sonnet', state: 'running', time: '24s', tokens: '4.8k', cost: '$0.08',
+    { id: 'c', seat: 'javadoc-writer', cmd: '/javadocs', brain: 'claude · haiku', state: 'running', time: '24s', tokens: '4.8k', cost: '$0.08',
       task: 'Document the public methods of RetryPolicy that have no documentation.', talk: [] }
   ];
+  var IDLE = [
+    { id: 'i1', seat: 'debugger', cmd: '/debug', brain: 'claude · sonnet', state: 'idle' },
+    { id: 'i2', seat: 'profiler', cmd: '/profile', brain: 'claude · sonnet', state: 'idle' },
+    { id: 'i3', seat: 'ux', cmd: '/ux', brain: 'claude · opus', state: 'idle' }
+  ];
   function el(tag, cls, text, title) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (title) e.title = title; return e; }
+  function picker(a, o) {
+    var w = el('span', 'pick');
+    var b = el('button', 'pickbtn', a.brain + ' ▾', TIPS.pick); b.setAttribute('aria-haspopup', 'listbox'); b.setAttribute('aria-expanded', o.menu === a.id ? 'true' : 'false');
+    b.onclick = function () { o.menu = o.menu === a.id ? null : a.id; o.draw(); };
+    w.appendChild(b);
+    if (o.menu === a.id) {
+      var m = el('div', 'menu'); m.setAttribute('role', 'listbox');
+      m.appendChild(el('div', 'hd', 'Brain for ' + a.seat));
+      BRAINS.forEach(function (x) {
+        var it = el('div', 'item'); it.setAttribute('role', 'option'); it.tabIndex = 0;
+        it.appendChild(el('span', 'ck', x === a.brain ? '✓' : ''));
+        it.appendChild(document.createTextNode(x));
+        var pick = function () { a.brain = x; o.menu = null; o.draw(); };
+        it.onclick = pick; it.onkeydown = function (e) { if (e.key === 'Enter') { pick(); } };
+        m.appendChild(it);
+      });
+      w.appendChild(m);
+    }
+    return w;
+  }
   function agentRow(a, o) {
     var wrap = el('div', 'agent');
+    var idle = a.state === 'idle';
     var open = !!o.open[a.id];
     var row = el('div', 'row');
-    var f = el('button', 'fold', open ? '▾' : '▸', TIPS.fold); f.setAttribute('aria-expanded', open ? 'true' : 'false'); f.setAttribute('aria-label', 'Show or fold the talk of ' + a.seat);
-    f.onclick = function () { o.open[a.id] = !o.open[a.id]; o.draw(); };
-    row.appendChild(f);
-    var seat = el('span', 'seat', a.seat + ' ', TIPS.seat(a.cmd)); var em = el('em', null, '(' + a.cmd + ')'); seat.appendChild(em); row.appendChild(seat);
-    row.appendChild(el('span', 'q', a.brain + ' · ' + a.model, TIPS.who));
+    if (!idle) {
+      var f = el('button', 'fold', open ? '▾' : '▸', TIPS.fold); f.setAttribute('aria-expanded', open ? 'true' : 'false'); f.setAttribute('aria-label', 'Show or fold the talk of ' + a.seat);
+      f.onclick = function () { o.open[a.id] = !o.open[a.id]; o.draw(); };
+      row.appendChild(f);
+    }
+    var seat = el('span', 'seat', a.seat + ' ', TIPS.seat(a.cmd)); seat.appendChild(el('em', null, '(' + a.cmd + ')')); row.appendChild(seat);
+    row.appendChild(picker(a, o));
     row.appendChild(el('span', 'state ' + a.state, a.state, TIPS.state[a.state]));
-    row.appendChild(el('span', 'q', a.time, TIPS.elapsed));
-    if (o.tokens) { row.appendChild(el('span', 'q', a.tokens + ' tokens', TIPS.tokens)); row.appendChild(el('span', 'q', a.cost, 'What this agent has cost so far, in US dollars.')); }
-    else { row.appendChild(el('span', 'q', a.cost, TIPS.cost(a.tokens))); }
-    if (a.state === 'running' || a.state === 'compacting') { row.appendChild(el('button', null, 'Stop', TIPS.stop)); }
-    wrap.appendChild(row);
-    wrap.appendChild(el('div', 'task', a.task, a.task));
-    if (open) {
-      var t = el('div', 'talk'); t.setAttribute('role', 'log'); t.setAttribute('aria-label', 'Transcript, read only'); t.title = 'Read only';
-      if (!a.talk.length) { t.appendChild(el('div', 'empty', 'No talk recorded for this agent.', 'Nothing this agent said has been stored.')); }
-      a.talk.forEach(function (x) { var d = el('div', 't'); d.appendChild(el('span', 'r', x[0])); d.appendChild(document.createTextNode(x[1])); t.appendChild(d); });
-      wrap.appendChild(t);
-    }
+    if (!idle) {
+      row.appendChild(el('span', 'q', a.time, TIPS.elapsed));
+      row.appendChild(el('span', 'q', a.tokens + ' tokens', TIPS.tokens));
+      if (a.cost) { row.appendChild(el('span', 'q', a.cost, TIPS.cost)); }
+      if (a.state === 'running' || a.state === 'compacting') { row.appendChild(el('button', null, 'Stop', TIPS.stop)); }
+      wrap.appendChild(row);
+      wrap.appendChild(el('div', 'task', a.task, a.task));
+      if (open) {
+        var t = el('div', 'talk'); t.setAttribute('role', 'log'); t.setAttribute('aria-label', 'Transcript, read only'); t.title = 'Read only';
+        if (!a.talk.length) { t.appendChild(el('div', 'empty', 'No talk recorded for this agent.', 'Nothing this agent said has been stored.')); }
+        a.talk.forEach(function (x) { var d = el('div', 't'); d.appendChild(el('span', 'r', x[0])); d.appendChild(document.createTextNode(x[1])); t.appendChild(d); });
+        wrap.appendChild(t);
+      }
+    } else { wrap.appendChild(row); }
     return wrap;
-  }
-  function attachForm(o, mode) {
-    var f = el('div', 'form');
-    function lab(text, tip, node) { var l = el('label', null, text); l.title = tip; l.appendChild(node); return l; }
-    function sel(opts) { var s = el('select'); opts.forEach(function (x) { var op = el('option', null, x); s.appendChild(op); }); return s; }
-    if (mode === 'A') {
-      f.appendChild(lab('Seat', "Which role the new agent plays. It works from that seat's instructions.", sel(['architect (/refactor)', 'test-writer (/cover)', 'javadoc-writer (/javadocs)', 'debugger (/debug)', 'profiler (/profile)', 'ux (/ux)'])));
-      f.appendChild(lab('Brain and model', 'The program and model that do the work. Their cost differs.', sel(['claude · sonnet', 'claude · haiku', 'claude · opus'])));
-      var ta = el('textarea'); ta.rows = 2; ta.placeholder = 'What should this agent do?';
-      f.appendChild(lab('Task', 'What you want this agent to do. It is sent as its first instruction.', ta));
-    } else {
-      f.appendChild(lab('Brain and model', 'The program and model that do the work. Their cost differs.', sel(['claude · sonnet', 'claude · haiku', 'claude · opus'])));
-      f.appendChild(el('div', 'empty', 'The new agent starts with no role and no task. The agent has to choose both.'));
-    }
-    var acts = el('div', 'acts');
-    var cancel = el('button', null, 'Cancel', 'Closes this form and hires nothing.'); cancel.onclick = function () { o.form = false; o.draw(); };
-    var start = el('button', 'primary', 'Start', 'Hires the agent now.'); start.onclick = function () { o.form = false; o.draw(); };
-    acts.appendChild(cancel); acts.appendChild(start); f.appendChild(acts);
-    return f;
   }
   function mount(id, cfg) {
     var host = document.getElementById(id);
-    var o = { open: Object.assign({}, cfg.open || {}), form: false, tokens: !!cfg.tokens, draw: draw };
+    var o = { open: Object.assign({}, cfg.open || {}), menu: cfg.menu || null, draw: draw };
     function draw() {
       host.textContent = '';
       var list = cfg.agents;
-      if (list.length === 0 && !cfg.zeroShown) {
-        host.appendChild(el('div', 'empty', 'The agents bar is not shown: no agent has been started in this conversation.'));
-      } else {
-        var bar = el('div', 'agents');
-        var head = el('div', 'head');
-        var working = list.filter(function (a) { return a.state === 'running' || a.state === 'compacting'; }).length;
-        var fin = list.length - working;
-        head.appendChild(el('span', 'count', working + (working === 1 ? ' agent working' : ' agents working') + (fin ? ' · ' + fin + ' finished' : ''), TIPS.title));
-        if (cfg.attach) { var b = el('button', null, 'Attach a brain', TIPS.attach); b.onclick = function () { o.form = !o.form; draw(); }; head.appendChild(b); }
-        bar.appendChild(head);
-        if (list.length === 0) { bar.appendChild(el('div', 'zero', 'No agents yet. Attach one to start working in parallel.')); }
-        list.forEach(function (a) { bar.appendChild(agentRow(a, o)); });
-        host.appendChild(bar);
-        if (o.form) { host.appendChild(attachForm(o, cfg.attach)); }
-      }
+      var bar = el('div', 'agents');
+      var head = el('div', 'head');
+      var working = list.filter(function (a) { return a.state === 'running' || a.state === 'compacting'; }).length;
+      var fin = list.filter(function (a) { return a.state === 'done' || a.state === 'failed'; }).length;
+      head.appendChild(el('span', 'count', working + (working === 1 ? ' agent working' : ' agents working') + (fin ? ' · ' + fin + ' finished' : ''), TIPS.title));
+      bar.appendChild(head);
+      if (list.length === 0) { bar.appendChild(el('div', 'zero', 'No agents have been started in this conversation.')); }
+      list.forEach(function (a) { bar.appendChild(agentRow(a, o)); });
+      host.appendChild(bar);
       host.appendChild(el('div', 'conv', 'The conversation continues below.'));
     }
     draw();
   }
-  mount('m1', { agents: AGENTS, attach: 'A' });
-  mount('m2', { agents: AGENTS, open: { b: true }, attach: 'A' });
-  mount('m3a', { agents: AGENTS.slice(0, 2), tokens: true });
-  mount('m3b', { agents: AGENTS.slice(0, 2) });
-  mount('m4a', { agents: AGENTS.slice(0, 2), attach: 'A' });
-  mount('m4b', { agents: AGENTS.slice(0, 2), attach: 'B' });
-  mount('m5a', { agents: [] });
-  mount('m5b', { agents: [], zeroShown: true, attach: 'A' });
+  function copy(x) { return JSON.parse(JSON.stringify(x)); }
+  mount('m1', { agents: copy(AGENTS) });
+  mount('m2', { agents: copy(AGENTS), open: { b: true } });
+  mount('m3', { agents: copy(AGENTS).slice(0, 2) });
+  mount('m4x', { agents: [] });
+  mount('m4y', { agents: copy(IDLE) });
   var edge = [
-    Object.assign({}, AGENTS[0], { state: 'compacting', task: 'Review the new retry policy against the target architecture.' }),
-    Object.assign({}, AGENTS[2], { state: 'failed', time: '2m 03s', task: 'Document the public methods of RetryPolicy. The program ended before it finished.', talk: [] })
+    Object.assign(copy(AGENTS[0]), { state: 'compacting', task: 'Review the new retry policy against the target architecture.' }),
+    Object.assign(copy(AGENTS[2]), { state: 'failed', time: '2m 03s', task: 'Document the public methods of RetryPolicy. The program ended before it finished.', talk: [] })
   ];
-  mount('m6', { agents: edge, open: { c: true } });
+  mount('m5', { agents: edge, open: { c: true } });
 })();
 </script>

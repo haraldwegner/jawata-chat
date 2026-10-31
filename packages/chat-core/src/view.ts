@@ -1,4 +1,4 @@
-import type { PastSession, ProposalView, TranscriptTurn, ViewState } from './view-state.js';
+import type { BrainChoice, HireView, PastSession, ProposalView, TranscriptTurn, ViewState } from './view-state.js';
 import type { AvailableCommand, SessionConfigOption, SessionModeState, SessionNotification } from '@agentclientprotocol/sdk';
 
 /**
@@ -29,8 +29,10 @@ export interface Disposable {
  * 6: the page tells the core when it has stopped drawing the chat (`pageFailed`), so the host's log has it (ledger 28i-C13-10).
  * 7: the side thread (CR3): a side question goes out as a prompt of a second session and its answer is shown apart from the main thread
  *    (`askSide`, `closeSide`; `sideAsked`, `sideUpdate`, `sideEnd`, `sideError`, `sideClosed`; the state's `side`).
+ * 8: the Agent Control panel (CR2): the hires are a tree and carry a seat command, a task and an optional cost; the person can ask for the
+ *    brains on offer and replace an agent's (`listBrains`, `chooseBrain`; `brainList`, `hireChanged`; the state's `brains`).
  */
-export const VIEW_CONTRACT_VERSION = 7;
+export const VIEW_CONTRACT_VERSION = 8;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -79,6 +81,10 @@ export type ViewMessage =
   | { type: 'file-detached'; path: string }
   /** What the agent answered when asked for a hired agent's transcript. */
   | { type: 'hireTranscript'; planId: string; turns: TranscriptTurn[] }
+  /** The brains and models the agent offers. */
+  | { type: 'brainList'; brains: BrainChoice[] }
+  /** One hire as the agent now describes it (the answer to a brain change). */
+  | { type: 'hireChanged'; hire: HireView }
   /** What the person has typed and not sent, as the core keeps it for them. */
   | { type: 'draft'; text: string }
   /** A page of the sessions the agent lists; `append` adds it to the list the page has, otherwise it replaces it. */
@@ -132,6 +138,10 @@ export type ViewIntent =
   | { type: 'askSide'; text: string }
   /** Close the side thread. */
   | { type: 'closeSide' }
+  /** Ask which brains and models the agent offers. */
+  | { type: 'listBrains' }
+  /** Replace the brain and model of one hire. */
+  | { type: 'chooseBrain'; planId: string; brain: string; model: string }
   /** The page hit an error it could not draw past and shows the person a notice; the core writes it down. */
   | { type: 'pageFailed'; message: string };
 
@@ -167,6 +177,8 @@ export const VIEW_MESSAGE_FIELDS = {
   'file-attached': ['path', 'name'],
   'file-detached': ['path'],
   hireTranscript: ['planId', 'turns'],
+  brainList: ['brains'],
+  hireChanged: ['hire'],
   draft: ['text'],
   sessionList: ['sessions', 'nextCursor', 'append', 'show'],
   permissionRequest: ['requestId', 'title', 'diffs', 'options'],
@@ -202,6 +214,8 @@ export const VIEW_INTENT_FIELDS = {
   openSession: ['sessionId'],
   askSide: ['text'],
   closeSide: [],
+  listBrains: [],
+  chooseBrain: ['planId', 'brain', 'model'],
   answerPermission: ['requestId', 'optionId'],
   pageFailed: ['message'],
 } as const satisfies { readonly [T in ViewIntent['type']]: readonly FieldsOf<Extract<ViewIntent, { type: T }>>[] };
@@ -229,7 +243,8 @@ export function isViewIntent(value: unknown): value is ViewIntent {
   const v = value as Record<string, unknown>;
   switch (v.type) {
     case 'ready': return v.contractVersion === undefined || typeof v.contractVersion === 'number';
-    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': return true;
+    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': case 'listBrains': return true;
+    case 'chooseBrain': return isString(v.planId) && isString(v.brain) && isString(v.model);
     case 'askSide': return isString(v.text);
     case 'detachFile': return isString(v.path);
     case 'stopHire': case 'openTranscript': return isString(v.planId);

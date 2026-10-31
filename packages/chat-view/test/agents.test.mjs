@@ -1,5 +1,5 @@
-// The agents view on R4 (two overlapping hires, one compacting, both ending done; then a stop and a transcript request).
-// R4 is derived (shape only) from a real Claude turn. The hire updates posted here are R4's own, in its order.
+// The Agent Control panel on R12 (a pm, a chief engineer under it, a dev under that; the dev and then the chief engineer end; a list of
+// brains and the pm's brain replaced). R12 is derived (shape only). The hire updates posted here are R12's own, in its order.
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -7,12 +7,14 @@ import { act, closeDom, viewOn, sessionFile } from './dom.mjs';
 
 after(closeDom);
 
-const hireUpdates = readFileSync(sessionFile('R4'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
+const hireUpdates = readFileSync(sessionFile('R12'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
   .filter(l => l.dir === 'recv' && l.msg.method === 'session/update' && ['tool_call', 'tool_call_update'].includes(l.msg.params.update.sessionUpdate))
   .map(l => l.msg.params.update);
 
 const title = (v) => v.$('.agents-title')?.textContent;
-const rows = (v) => v.$$('.hire-row');
+const rowsOf = (v) => v.$$('.hire');
+const shape = (v) => rowsOf(v).map(r => `${r.getAttribute('data-depth')}:${r.querySelector('.hire-seat').textContent.split(' ')[0]}`);
+const post = (v, update) => act(async () => { v.port.post({ type: 'sessionUpdate', sessionId: v.sessions.getActiveSessionId(), update }); });
 
 async function intentsOf(v) {
   const intents = [];
@@ -21,90 +23,119 @@ async function intentsOf(v) {
   return intents;
 }
 
-/** Post R4's updates one at a time, noting the title and the rows after each. */
-async function play(v) {
-  const seen = [];
+async function ready(v) {
+  await v.connect();
+  await v.settle();
   await act(async () => { v.port.post({ type: 'promptStart' }); });
-  for (const update of hireUpdates) {
-    await act(async () => { v.port.post({ type: 'sessionUpdate', sessionId: v.sessions.getActiveSessionId(), update }); });
-    seen.push({ title: title(v), rows: rows(v).length });
-  }
-  return seen;
 }
 
-test('R4: nothing shows before a hire; then the count reads two while both work, one when one has ended, none when both have', async () => {
-  const v = await viewOn('R4');
+test('R12: the panel is there with no agent, and says none works', async () => {
+  const v = await viewOn('R12');
   try {
     await v.connect();
     await v.settle();
-    assert.equal(title(v), undefined, 'no agents view without hires');
-    const seen = await play(v);
-    const titles = [...new Set(seen.map(s => s.title))];
-    assert.deepEqual(titles, ['1 agent working', '2 agents working', '1 agent working · 1 finished', '0 agents working · 2 finished']);
-    assert.equal(seen.at(-1).rows, 2, 'one row per hire');
+    assert.equal(title(v), '0 agents working');
+    assert.equal(v.$('.agents-none').textContent, 'No agents are working.');
+    assert.equal(rowsOf(v).length, 0);
   } finally { v.dispose(); }
 });
 
-test('R4: a row shows seat, program and model, state, elapsed time, tokens and cost, and a hire that compacts says so', async () => {
-  const v = await viewOn('R4');
+test('R12: the working agents stand as a tree, the pm at the root; an agent that has ended is not shown, and the count says how many ended', async () => {
+  const v = await viewOn('R12');
   try {
-    await v.connect();
-    await v.settle();
-    const states = [];
-    const titles = [];
-    await act(async () => { v.port.post({ type: 'promptStart' }); });
-    for (const update of hireUpdates) {
-      await act(async () => { v.port.post({ type: 'sessionUpdate', sessionId: v.sessions.getActiveSessionId(), update }); });
-      states.push(v.$('.hire-row[data-plan-id="p-test-writer"] .hire-state')?.textContent);
-      titles.push(title(v));
-    }
-    assert.ok(states.includes('compacting'), 'the row says compacting and not running');
-    assert.equal(titles[states.indexOf('compacting')], '2 agents working', 'a hire that compacts still works: the count has it');
-    const row = v.$('.hire-row[data-plan-id="p-architect"]');
-    assert.equal(row.querySelector('.hire-seat').textContent, 'architect');
-    assert.equal(row.querySelector('.hire-who').textContent, 'claude · sonnet');
-    assert.equal(row.querySelector('.hire-state').textContent, 'done');
-    assert.equal(row.querySelector('.hire-time').textContent, '9s');
-    assert.equal(row.querySelector('.hire-tokens').textContent, '15.0k tokens');
-    assert.equal(row.querySelector('.hire-cost').textContent, '$0.03');
-    for (const el of row.querySelectorAll('span')) { assert.ok(el.getAttribute('title'), `${el.className} has a mouseover`); }
+    await ready(v);
+    const seen = [];
+    for (const update of hireUpdates) { await post(v, update); seen.push({ title: title(v), shape: shape(v).join(' ') }); }
+    assert.ok(seen.some(s => s.shape === '0:pm 1:chief-engineer 2:dev'), 'three levels at once');
+    assert.ok(seen.some(s => s.title === '3 agents working'));
+    assert.equal(seen.at(-1).shape, '0:pm', 'at the end only the pm works');
+    assert.equal(seen.at(-1).title, '1 agent working · 2 finished');
+    assert.equal(v.$('.hire[data-depth="0"]').style.marginLeft, '0px');
+    const all = seen.find(s => s.shape === '0:pm 1:chief-engineer 2:dev');
+    assert.ok(all);
   } finally { v.dispose(); }
 });
 
-test('R4: Stop is on a working hire only and asks for that hire, by plan, and for no other', async () => {
-  const v = await viewOn('R4');
+test('R12: a row shows the seat with its command, the brain, state, time, tokens, the task in full and a cost only when the agent sent one; every part has a mouseover', async () => {
+  const v = await viewOn('R12');
   try {
-    await v.connect();
-    await v.settle();
+    await ready(v);
+    const upTo = hireUpdates.findIndex(u => u.sessionUpdate === 'tool_call' && u._meta['jawata/hire'].planId === 'p-dev') + 1;
+    for (const update of hireUpdates.slice(0, upTo)) { await post(v, update); }
+    const pm = v.$('.hire[data-plan-id="p-pm"]');
+    assert.equal(pm.querySelector('.hire-seat').textContent.replace(/\s+/g, ' ').trim(), 'pm (/pm)');
+    assert.equal(pm.querySelector('.brain-btn').textContent, 'claude · sonnet ▾');
+    assert.equal(pm.querySelector('.hire-state').textContent, 'running');
+    assert.equal(pm.querySelector('.hire-task').textContent, 'Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.');
+    assert.equal(pm.querySelector('.hire-task').getAttribute('title'), pm.querySelector('.hire-task').textContent, 'the task is never cut: the mouseover has it all');
+    assert.equal(pm.querySelector('.hire-cost'), null, 'the pm sent no cost: no cost shows, and not $0.000');
+    const ce = v.$('.hire[data-plan-id="p-ce"]');
+    assert.equal(ce.querySelector('.hire-state').textContent, 'compacting');
+    assert.match(ce.querySelector('.hire-cost').textContent, /^\$0\.0\d+$/, 'the chief engineer sent a cost');
+    assert.equal(ce.querySelector('.hire-tokens').textContent, '12.0k tokens');
+    for (const el of v.$$('.hire-row span:not(.brain-wrap), .hire-row button')) { assert.ok(el.closest('[title], [aria-label]'), `${el.className} has a mouseover, its own or its parent's`); }
+  } finally { v.dispose(); }
+});
+
+test('R12: Stop is on every working agent and asks for that agent by plan, and for no other', async () => {
+  const v = await viewOn('R12');
+  try {
+    await ready(v);
     const intents = await intentsOf(v);
-    await act(async () => { v.port.post({ type: 'promptStart' }); });
-    // the point where both work: after the second hire began
-    const both = hireUpdates.findIndex(u => u.sessionUpdate === 'tool_call' && u._meta['jawata/hire'].planId === 'p-test-writer') + 1;
-    for (const update of hireUpdates.slice(0, both)) { await act(async () => { v.port.post({ type: 'sessionUpdate', sessionId: v.sessions.getActiveSessionId(), update }); }); }
-    assert.equal(title(v), '2 agents working');
-    assert.equal(v.$$('.hire-stop').length, 2);
-    await v.click(v.$('.hire-row[data-plan-id="p-test-writer"] .hire-stop'));
-    assert.deepEqual(intents.filter(i => i.type === 'stopHire'), [{ type: 'stopHire', planId: 'p-test-writer' }]);
-    assert.equal(rows(v).length, 2, 'the rows stay until the agent says otherwise');
-    for (const update of hireUpdates.slice(both)) { await act(async () => { v.port.post({ type: 'sessionUpdate', sessionId: v.sessions.getActiveSessionId(), update }); }); }
-    assert.equal(v.$$('.hire-stop').length, 0, 'a finished hire has nothing to stop');
+    const upTo = hireUpdates.findIndex(u => u.sessionUpdate === 'tool_call' && u._meta['jawata/hire'].planId === 'p-dev') + 1;
+    for (const update of hireUpdates.slice(0, upTo)) { await post(v, update); }
+    assert.equal(v.$$('.hire-stop').length, 3);
+    await v.click(v.$('.hire[data-plan-id="p-ce"] .hire-stop'));
+    assert.deepEqual(intents.filter(i => i.type === 'stopHire'), [{ type: 'stopHire', planId: 'p-ce' }]);
+    assert.equal(rowsOf(v).length, 3, 'the rows stay until the agent says otherwise');
   } finally { v.dispose(); }
 });
 
-test('R4: a transcript opens read-only: turns to read, no field to type into', async () => {
-  const v = await viewOn('R4');
+test('R12: what an agent said is folded until asked for; unfolding asks for it, shows it read-only, and folding hides it again; an empty one says so', async () => {
+  const v = await viewOn('R12');
   try {
-    await v.connect();
-    await v.settle();
-    await play(v);
-    await v.click(v.$('.hire-row[data-plan-id="p-architect"] .hire-transcript-btn'));
-    await v.settle(() => v.$('.hire-turn'));
+    await ready(v);
+    const intents = await intentsOf(v);
+    await post(v, hireUpdates[0]);
+    assert.ok(!v.$('.hire-transcript'), 'folded by default');
+    assert.equal(v.$('.hire-fold').getAttribute('aria-expanded'), 'false');
+    await v.click(v.$('.hire-fold'));
+    assert.deepEqual(intents.filter(i => i.type === 'openTranscript'), [{ type: 'openTranscript', planId: 'p-pm' }]);
+    assert.ok(v.$('.hire-transcript-wait'), 'it says it is loading');
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-pm', turns: [{ role: 'user', text: 'Run the sprint' }, { role: 'assistant', text: 'Starting with S22' }] }); });
     const pane = v.$('.hire-transcript');
-    assert.ok(pane, 'the transcript is shown');
-    assert.deepEqual(v.$$('.hire-turn').map(e => e.textContent.replace(/\s+/g, ' ').trim()), ['user Reply done', 'assistant done']);
+    assert.deepEqual(v.$$('.hire-turn').map(e => e.textContent.replace(/\s+/g, ' ').trim()), ['user Run the sprint', 'assistant Starting with S22']);
     assert.equal(pane.querySelectorAll('input, textarea, select, button, [contenteditable]').length, 0, 'nothing in it can be typed into');
     assert.equal(pane.getAttribute('role'), 'log');
-    await v.click(v.$('.hire-row[data-plan-id="p-architect"] .hire-transcript-btn'));
-    assert.ok(!v.$('.hire-transcript'), 'it closes');
+    await v.click(v.$('.hire-fold'));
+    assert.ok(!v.$('.hire-transcript'), 'it folds again');
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-pm', turns: [] }); });
+    await v.click(v.$('.hire-fold'));
+    assert.equal(v.$('.hire-transcript-empty').textContent, 'No talk recorded for this agent.');
+  } finally { v.dispose(); }
+});
+
+test('R12: the brain is a control: clicking it shows what the agent offers, picking one replaces this agent\'s brain, and the row shows what the agent answered', async () => {
+  const v = await viewOn('R12');
+  try {
+    await ready(v);
+    const intents = await intentsOf(v);
+    await post(v, hireUpdates[0]);
+    assert.ok(!v.$('.brain-menu'), 'closed until clicked');
+    await v.click(v.$('.hire[data-plan-id="p-pm"] .brain-btn'));
+    assert.equal(intents.filter(i => i.type === 'listBrains').length, 1, 'the list is asked for when first needed');
+    await v.settle(() => v.$$('.brain-item').length > 0);
+    assert.deepEqual(v.$$('.brain-item').map(e => e.textContent), ['✓claude · sonnet', 'claude · haiku', 'claude · opus', 'codex · gpt-5'].map(t => t.replace('✓', '✓')));
+    assert.equal(v.$('.brain-item[aria-selected="true"]').textContent, '✓claude · sonnet', 'the current one is marked');
+    const codex = v.$$('.brain-item').find(e => e.textContent.includes('codex'));
+    await v.click(codex);
+    assert.deepEqual(intents.filter(i => i.type === 'chooseBrain'), [{ type: 'chooseBrain', planId: 'p-pm', brain: 'codex', model: 'gpt-5' }]);
+    await v.settle(() => v.$('.hire[data-plan-id="p-pm"] .brain-btn').textContent.startsWith('codex'));
+    assert.equal(v.$('.hire[data-plan-id="p-pm"] .brain-btn').textContent, 'codex · gpt-5 ▾');
+    assert.ok(!v.$('.brain-menu'), 'the choice closes the list');
+    await v.click(v.$('.hire[data-plan-id="p-pm"] .brain-btn'));
+    assert.equal(intents.filter(i => i.type === 'listBrains').length, 1, 'the list is not asked for again');
+    await v.click(v.$$('.brain-item').find(e => e.textContent.includes('codex')));
+    assert.equal(intents.filter(i => i.type === 'chooseBrain').length, 1, 'choosing the brain it already has asks for nothing');
   } finally { v.dispose(); }
 });

@@ -1,0 +1,245 @@
+{
+  "base": "bases/hires.jsonl",
+  "ops": [
+    {
+      "op": "set",
+      "at": 8,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "kind": "execute",
+        "title": "pm \u00b7 claude \u00b7 sonnet \u2014 running",
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-pm",
+            "seat": "pm",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "running",
+            "elapsedMs": 0,
+            "tokens": 0,
+            "seatCommand": "/pm",
+            "task": "Run sprint 28i: keep the plan's stages moving and report at each checkpoint."
+          }
+        }
+      }
+    },
+    {
+      "op": "set",
+      "at": 13,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "kind": "execute",
+        "title": "chief-engineer \u00b7 claude \u00b7 sonnet \u2014 running",
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-ce",
+            "seat": "chief-engineer",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "running",
+            "elapsedMs": 1200,
+            "tokens": 800,
+            "seatCommand": "/chief-engineer",
+            "task": "Carry out stages S22 to S24 of the plan with the developers.",
+            "costUsd": 0.002,
+            "parentPlanId": "p-pm"
+          }
+        }
+      }
+    },
+    {
+      "op": "set",
+      "at": 15,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-ce",
+            "seat": "chief-engineer",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "compacting",
+            "elapsedMs": 4000,
+            "tokens": 12000,
+            "seatCommand": "/chief-engineer",
+            "task": "Carry out stages S22 to S24 of the plan with the developers.",
+            "costUsd": 0.01,
+            "parentPlanId": "p-pm"
+          }
+        }
+      }
+    },
+    {
+      "op": "insertAfter",
+      "at": 17,
+      "lines": [
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {
+              "sessionId": "1ed71d1c-13e0-4536-98f1-744829032b95",
+              "update": {
+                "sessionUpdate": "tool_call",
+                "toolCallId": "toolu_dev",
+                "title": "dev \u00b7 claude \u00b7 haiku \u2014 running",
+                "kind": "execute",
+                "status": "in_progress",
+                "_meta": {
+                  "jawata/hire": {
+                    "planId": "p-dev",
+                    "seat": "dev",
+                    "brain": "claude",
+                    "model": "haiku",
+                    "state": "running",
+                    "elapsedMs": 300,
+                    "tokens": 200,
+                    "seatCommand": "/dev",
+                    "task": "Write the side thread's tests.",
+                    "parentPlanId": "p-ce"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "op": "set",
+      "at": 20,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-dev",
+            "seat": "dev",
+            "brain": "claude",
+            "model": "haiku",
+            "state": "done",
+            "elapsedMs": 6000,
+            "tokens": 5200,
+            "seatCommand": "/dev",
+            "task": "Write the side thread's tests.",
+            "parentPlanId": "p-ce"
+          }
+        }
+      }
+    },
+    {
+      "op": "set",
+      "at": 22,
+      "path": [
+        "msg",
+        "params",
+        "update"
+      ],
+      "value": {
+        "_meta": {
+          "jawata/hire": {
+            "planId": "p-ce",
+            "seat": "chief-engineer",
+            "brain": "claude",
+            "model": "sonnet",
+            "state": "done",
+            "elapsedMs": 11000,
+            "tokens": 21000,
+            "seatCommand": "/chief-engineer",
+            "task": "Carry out stages S22 to S24 of the plan with the developers.",
+            "costUsd": 0.04,
+            "parentPlanId": "p-pm"
+          }
+        }
+      }
+    },
+    {
+      "op": "insertAfter",
+      "at": 27,
+      "lines": [
+        {
+          "dir": "send",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 100,
+            "method": "_jawata/brains"
+          }
+        },
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 100,
+            "result": {
+              "brains": [
+                {
+                  "brain": "claude",
+                  "model": "sonnet"
+                },
+                {
+                  "brain": "claude",
+                  "model": "haiku"
+                },
+                {
+                  "brain": "claude",
+                  "model": "opus"
+                },
+                {
+                  "brain": "codex",
+                  "model": "gpt-5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "dir": "send",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 101,
+            "method": "_jawata/hire/brain",
+            "params": {
+              "planId": "p-pm",
+              "brain": "codex",
+              "model": "gpt-5"
+            }
+          }
+        },
+        {
+          "dir": "recv",
+          "msg": {
+            "jsonrpc": "2.0",
+            "id": 101,
+            "result": {
+              "planId": "p-pm",
+              "seat": "pm",
+              "brain": "codex",
+              "model": "gpt-5",
+              "state": "running",
+              "elapsedMs": 15000,
+              "tokens": 30000,
+              "seatCommand": "/pm",
+              "task": "Run sprint 28i: keep the plan's stages moving and report at each checkpoint."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

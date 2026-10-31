@@ -16,7 +16,7 @@
   "messages": [
     {
       "type": "state",
-      "contractVersion": 7,
+      "contractVersion": 8,
       "activeSessionId": "eb4d7d56-b0b4-40d4-998f-2cf1fa3fd890",
       "session": {
         "sessionId": "sessionId#1",
@@ -36,7 +36,7 @@
     {
       "type": "snapshot",
       "state": {
-        "contractVersion": 7,
+        "contractVersion": 8,
         "session": {
           "sessionId": "sessionId#1",
           "agentName": "Claude Agent",
@@ -77,7 +77,8 @@
         "proposals": [],
         "history": null,
         "draft": "",
-        "side": null
+        "side": null,
+        "brains": null
       }
     },
     {
@@ -86,7 +87,7 @@
     },
     {
       "type": "state",
-      "contractVersion": 7,
+      "contractVersion": 8,
       "activeSessionId": "eb4d7d56-b0b4-40d4-998f-2cf1fa3fd890",
       "session": {
         "sessionId": "sessionId#1",

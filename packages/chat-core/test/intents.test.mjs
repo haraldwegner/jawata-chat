@@ -261,6 +261,18 @@ test('askSide and closeSide: a side question goes to a second session and is ans
   } finally { c.dispose(); }
 });
 
+test('listBrains and chooseBrain: the agent is asked for its brains and for a change, and the page is told the answers', async () => {
+  const c = await connected('R12');
+  try {
+    await c.port.deliver({ type: 'sendPrompt', text: 'first' });
+    c.port.toView.length = 0;
+    await c.port.deliver({ type: 'listBrains' });
+    await c.port.deliver({ type: 'chooseBrain', planId: 'p-pm', brain: 'codex', model: 'gpt-5' });
+    assert.deepEqual(types(c.port).filter(t => t === 'brainList' || t === 'hireChanged'), ['brainList', 'hireChanged']);
+    assert.deepEqual(c.sent('_jawata/hire/brain'), [{ planId: 'p-pm', brain: 'codex', model: 'gpt-5' }]);
+  } finally { c.dispose(); }
+});
+
 test('every intent of the union was delivered by a test above', () => {
   const missing = VIEW_INTENT_TYPES.filter(t => !delivered.has(t));
   assert.deepEqual(missing, [], `no test delivers: ${missing.join(', ')}`);

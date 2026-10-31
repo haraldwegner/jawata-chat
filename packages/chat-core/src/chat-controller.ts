@@ -5,7 +5,7 @@ import { AGENT_KEY, type HostPorts } from './ports.js';
 import type { ChatSessions, SessionEvents, SessionInfo } from './session-types.js';
 import type { AgentUpdates, UpdateListener } from './agent-updates.js';
 import { VIEW_CONTRACT_VERSION, isViewIntent, type Disposable, type ViewIntent, type ViewMessage, type ViewPort } from './view.js';
-import { initialViewState, reduce, reduceAll, type ViewState } from './view-state.js';
+import { hireFromEntry, initialViewState, reduce, reduceAll, type ViewState } from './view-state.js';
 
 /**
  * The chat as the core runs it (architecture S4: a reducer from ACP updates and the page's intents to
@@ -216,6 +216,15 @@ export class ChatController {
       case 'openSession':
         await this.flow.open(intent.sessionId);
         break;
+      case 'listBrains':
+        await this.changeActive('list the brains', async id => { this.post({ type: 'brainList', brains: await this.sessions.listBrains(id) }); });
+        return;
+      case 'chooseBrain':
+        await this.changeActive('change the brain', async id => {
+          const hire = hireFromEntry(await this.sessions.chooseBrain(id, intent.planId, intent.brain, intent.model));
+          if (hire) { this.post({ type: 'hireChanged', hire }); }
+        });
+        return;
       case 'stopHire':
         await this.changeActive('stop the hire', id => this.sessions.stopHire(id, intent.planId));
         break;

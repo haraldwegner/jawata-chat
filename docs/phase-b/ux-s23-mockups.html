@@ -77,12 +77,12 @@ button.primary { border-color: var(--accent); color: var(--accent); }
 
 <main>
   <header>
-    <h1>Agent Control, revised after your answers</h1>
-    <p class="lede">The bar is now its own panel that is always shown. There is no attach button: each agent is a row, you click its brain to see the choices, and the one you pick overwrites it. Cost shows only when the agent sends one. Hover for explanations; the fold toggles and the brain pickers work.</p>
+    <h1>Agent Control, the tree as built</h1>
+    <p class="lede">The panel is always shown and lists only the agents that work, as the tree they were hired in: a pm per sprint, chief engineers under it, developers under those. There is no attach button: click an agent's brain to choose another, and the pick overwrites it. Cost shows only when the agent sends one. Hover for explanations; fold toggles and brain pickers work.</p>
   </header>
 
   <section class="case">
-    <h2>1. The panel with agents working, talk folded</h2>
+    <h2>1. Two sprints running: the tree, every agent's talk folded</h2>
     <p class="note">Click a brain (the grey text with the arrow) to open the choices.</p>
     <div class="chat" id="m1"></div>
   </section>
@@ -99,12 +99,9 @@ button.primary { border-color: var(--accent); color: var(--accent); }
   </section>
 
   <section class="case">
-    <h2>4. Your D3: the panel with zero agents, two readings</h2>
-    <p class="note">You said the panel is its own panel and is shown with zero agents. Overwriting a brain needs a row to click, so there are two ways to read that. <mark>Which one is meant?</mark></p>
-    <div class="pair">
-      <div class="case"><div class="tag"><b>X</b> rows are the agents started in this conversation</div><div class="chat" id="m4x"></div></div>
-      <div class="case"><div class="tag"><b>Y</b> rows are every seat, idle ones included</div><div class="chat" id="m4y"></div></div>
-    </div>
+    <h2>4. Zero agents</h2>
+    <p class="note">The panel is its own panel and is always shown. With nothing working it says so. Only working agents are rows.</p>
+    <div class="chat" id="m4x"></div>
   </section>
 
   <section class="case">
@@ -134,14 +131,18 @@ button.primary { border-color: var(--accent); color: var(--accent); }
     state: { running: 'The agent is working.', compacting: 'The agent is shortening its own conversation so it can go on.', done: 'The agent has finished.', failed: 'The agent ended with a failure.', idle: 'This seat has no work now.' }
   };
   var AGENTS = [
-    { id: 'a', seat: 'architect', cmd: '/refactor', brain: 'claude · sonnet', state: 'running', time: '1m 12s', tokens: '15.0k', cost: '$0.31',
-      task: 'Review the new retry policy against the target architecture and say whether each change is a design fix or a bandage.',
-      talk: [['pm', 'Review the retry policy change against ARCHITECTURE-queue.md.'], ['agent', 'Reading the diff. The policy now lives in the sender, not the queue.'], ['agent', 'Two of the four changes are bandages; I will name the design fix for each.']] },
-    { id: 'b', seat: 'test-writer', cmd: '/cover', brain: 'codex · gpt-5', state: 'done', time: '9s', tokens: '2.1k', cost: null,
-      task: "Cover the queue's send-now path.",
-      talk: [['pm', "Write tests for the queue's send-now path."], ['agent', 'Added three tests: nothing waiting, one waiting, cancelled while sending.']] },
-    { id: 'c', seat: 'javadoc-writer', cmd: '/javadocs', brain: 'claude · haiku', state: 'running', time: '24s', tokens: '4.8k', cost: '$0.08',
-      task: 'Document the public methods of RetryPolicy that have no documentation.', talk: [] }
+    { id: 'a', depth: 0, seat: 'pm', cmd: '/pm', brain: 'claude \u00B7 sonnet', state: 'running', time: '41m 08s', tokens: '212.4k', cost: null,
+      task: "Run sprint 28i: keep the plan's stages moving and report at each checkpoint.",
+      talk: [['user', 'Run sprint 28i'], ['assistant', 'Starting with S23. Hiring a chief engineer for the Agent Control view.']] },
+    { id: 'b', depth: 1, seat: 'chief-engineer', cmd: '/chief-engineer', brain: 'claude \u00B7 sonnet', state: 'running', time: '12m 30s', tokens: '88.0k', cost: '$1.21',
+      task: 'Carry out stages S22 to S24 of the plan with the developers.',
+      talk: [['user', 'Carry out S22 to S24'], ['assistant', 'Splitting the work: one developer for the panel, one for the tests.']] },
+    { id: 'c', depth: 2, seat: 'dev', cmd: '/dev', brain: 'claude \u00B7 haiku', state: 'running', time: '3m 02s', tokens: '14.6k', cost: '$0.08',
+      task: 'Build the brain picker in the agents panel and test it on the recorded session.', talk: [] },
+    { id: 'd', depth: 2, seat: 'dev', cmd: '/dev', brain: 'codex \u00B7 gpt-5', state: 'compacting', time: '9m 40s', tokens: '61.2k', cost: null,
+      task: 'Write the planted-break script for the panel.', talk: [['user', 'Write the break script'], ['assistant', 'Reading the existing S24 script first.']] },
+    { id: 'e', depth: 0, seat: 'pm', cmd: '/pm', brain: 'claude \u00B7 opus', state: 'running', time: '6m 15s', tokens: '30.1k', cost: null,
+      task: 'Run sprint 28k: hold the integration phase until the agent is ready.', talk: [] }
   ];
   var IDLE = [
     { id: 'i1', seat: 'debugger', cmd: '/debug', brain: 'claude · sonnet', state: 'idle' },
@@ -170,7 +171,7 @@ button.primary { border-color: var(--accent); color: var(--accent); }
     return w;
   }
   function agentRow(a, o) {
-    var wrap = el('div', 'agent');
+    var wrap = el('div', 'agent'); wrap.style.marginLeft = ((a.depth || 0) * 16) + 'px';
     var idle = a.state === 'idle';
     var open = !!o.open[a.id];
     var row = el('div', 'row');
@@ -222,7 +223,6 @@ button.primary { border-color: var(--accent); color: var(--accent); }
   mount('m2', { agents: copy(AGENTS), open: { b: true } });
   mount('m3', { agents: copy(AGENTS).slice(0, 2) });
   mount('m4x', { agents: [] });
-  mount('m4y', { agents: copy(IDLE) });
   var edge = [
     Object.assign(copy(AGENTS[0]), { state: 'compacting', task: 'Review the new retry policy against the target architecture.' }),
     Object.assign(copy(AGENTS[2]), { state: 'failed', time: '2m 03s', task: 'Document the public methods of RetryPolicy. The program ended before it finished.', talk: [] })

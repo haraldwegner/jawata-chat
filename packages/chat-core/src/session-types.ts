@@ -84,6 +84,10 @@ export interface ChatSessions {
   getSideSessionId(): string | null;
   /** Forget the side session; the next side question opens a new one. */
   closeSide(): void;
+  /** The brains and models the agent offers (`_jawata/brains`). */
+  listBrains(sessionId: string): Promise<{ brain: string; model: string }[]>;
+  /** Replace one hire's brain and model (`_jawata/hire/brain`); the answer is the hire as the agent now describes it. */
+  chooseBrain(sessionId: string, planId: string, brain: string, model: string): Promise<Record<string, unknown>>;
   /** End one hired agent (`_jawata/hire/stop`). */
   stopHire(sessionId: string, planId: string): Promise<void>;
   /** A hired agent's transcript (`_jawata/hire/transcript`). */

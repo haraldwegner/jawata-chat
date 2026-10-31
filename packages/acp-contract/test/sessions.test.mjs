@@ -11,7 +11,7 @@ const session = (name) => readSession(path(`../sessions/${name}.jsonl`));
 const updates = (s, kind) => s.filter((l) => update(l) === kind);
 const update = (l) => l.msg.params?.update?.sessionUpdate;
 
-for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'R13', 'bases/hires', 'bases/model']) {
+for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'R12', 'R13', 'bases/hires', 'bases/model']) {
   test(`${name}: parses as a recorded session`, () => {
     assert.ok(session(name).length > 0);
   });
@@ -83,6 +83,26 @@ test('R11 (shape only): the autonomy option is armed by a change, the answer sho
     assert.ok(answer, `change ${change.msg.id} is answered`);
     assert.equal(answer.msg.result.configOptions.find((o) => o.id === 'autonomy').currentValue, change.msg.params.value, 'the answer echoes the value set');
   }
+});
+
+test('R12 (shape only): a pm, a chief engineer under it and a dev under that, a list of brains, and a brain overwritten', () => {
+  const s = session('R12');
+  const hires = new Map();
+  for (const l of s) {
+    const h = l.msg.params?.update?._meta?.['jawata/hire'];
+    if (h) { hires.set(h.planId, h); }
+  }
+  assert.deepEqual([...hires.keys()].sort(), ['p-ce', 'p-dev', 'p-pm']);
+  assert.equal(hires.get('p-pm').parentPlanId, undefined, 'the pm is a root');
+  assert.equal(hires.get('p-ce').parentPlanId, 'p-pm');
+  assert.equal(hires.get('p-dev').parentPlanId, 'p-ce');
+  assert.ok(s.some((l) => l.msg.params?.update?._meta?.['jawata/hire'] && l.msg.params.update._meta['jawata/hire'].costUsd === undefined), 'a hire that reports no cost');
+  assert.equal(s.find((l) => l.dir === 'send' && l.msg.method === '_jawata/brains') !== undefined, true);
+  const chose = s.find((l) => l.dir === 'send' && l.msg.method === '_jawata/hire/brain');
+  assert.deepEqual(chose.msg.params, { planId: 'p-pm', brain: 'codex', model: 'gpt-5' });
+  const answer = s.find((l) => l.dir === 'recv' && l.msg.id === chose.msg.id);
+  assert.equal(answer.msg.result.brain, 'codex', 'the answer is the hire with its new brain');
+  assert.equal(answer.msg.result.planId, 'p-pm');
 });
 
 test('R13 (shape only): a second session is opened beside the first and asked a question; its answer streams to that session, not the first', () => {

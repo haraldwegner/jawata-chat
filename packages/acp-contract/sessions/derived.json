@@ -9,6 +9,11 @@
     "overlay": "overlays/R11.json",
     "overlaySha256": "672cdbeccda934d74e1dd9d841bb1dba815bf82fa857e49399730d804a4729ca"
   },
+  "R12.jsonl": {
+    "source": "bases/hires.jsonl",
+    "overlay": "overlays/R12.json",
+    "overlaySha256": "d908efe2f14b709ed82694b1bd077a9f99f82b92ee2f44955603df6459bf2858"
+  },
   "R13.jsonl": {
     "source": "R1.jsonl",
     "overlay": "overlays/R13.json",
@@ -22,7 +27,7 @@
   "R4.jsonl": {
     "source": "bases/hires.jsonl",
     "overlay": "overlays/R4.json",
-    "overlaySha256": "374b5ef049d8b33e0759c97cb2cfe26d8910a8d89cce2be76fd39775f6f60f10"
+    "overlaySha256": "c9261cf483e0c93ebf48db803fc150deb327689ef17a22e1a668561a78aa2051"
   },
   "R5.jsonl": {
     "source": "bases/model.jsonl",

@@ -21,7 +21,9 @@
             "state": "running",
             "elapsedMs": 0,
             "tokens": 0,
-            "costUsd": 0
+            "costUsd": 0,
+            "seatCommand": "/refactor",
+            "task": "Review the design of the change against the target architecture."
           }
         }
       }
@@ -46,7 +48,9 @@
             "state": "running",
             "elapsedMs": 1200,
             "tokens": 800,
-            "costUsd": 0.002
+            "costUsd": 0.002,
+            "seatCommand": "/cover",
+            "task": "Cover the queue's send-now path."
           }
         }
       }
@@ -69,7 +73,9 @@
             "state": "compacting",
             "elapsedMs": 4000,
             "tokens": 12000,
-            "costUsd": 0.01
+            "costUsd": 0.01,
+            "seatCommand": "/cover",
+            "task": "Cover the queue's send-now path."
           }
         }
       }
@@ -93,7 +99,9 @@
             "elapsedMs": 9000,
             "tokens": 15000,
             "costUsd": 0.03,
-            "brainSessionId": "brain-session-1"
+            "brainSessionId": "brain-session-1",
+            "seatCommand": "/refactor",
+            "task": "Review the design of the change against the target architecture."
           }
         }
       }
@@ -117,7 +125,9 @@
             "elapsedMs": 11000,
             "tokens": 21000,
             "costUsd": 0.04,
-            "brainSessionId": "brain-session-2"
+            "brainSessionId": "brain-session-2",
+            "seatCommand": "/cover",
+            "task": "Cover the queue's send-now path."
           }
         }
       }

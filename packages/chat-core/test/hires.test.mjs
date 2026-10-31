@@ -2,7 +2,7 @@
 // transcript are the extension requests the contract names, sent by intent. R4 is derived (shape only) from a real Claude turn.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialViewState, isWorking, reduce } from '../dist/view-state.js';
+import { initialViewState, isWorking, reduce, workingTree } from '../dist/view-state.js';
 import { chatOn } from './play.mjs';
 
 const working = (s) => s.hires.filter(isWorking).length;
@@ -36,7 +36,7 @@ test('R4: a row holds seat, brain, model, state, elapsed time, tokens and cost a
   try {
     const end = c.chat.snapshot();
     const architect = end.hires.find(h => h.planId === 'p-architect');
-    assert.deepEqual({ ...architect }, { planId: 'p-architect', seat: 'architect', brain: 'claude', model: 'sonnet', state: 'done', elapsedMs: 9000, tokens: 15000, costUsd: 0.03, brainSessionId: 'brain-session-1' });
+    assert.deepEqual({ ...architect }, { planId: 'p-architect', seat: 'architect', seatCommand: '/refactor', task: 'Review the design of the change against the target architecture.', brain: 'claude', model: 'sonnet', state: 'done', elapsedMs: 9000, tokens: 15000, costUsd: 0.03, brainSessionId: 'brain-session-1' });
     let state = initialViewState();
     const states = [];
     for (const m of c.port.toView) { state = reduce(state, m); states.push(state.hires.find(h => h.planId === 'p-test-writer')?.state); }
@@ -79,4 +79,62 @@ test('an update without hire fields leaves the hire as it was; one with unusable
   const next = reduce(first, { type: 'sessionUpdate', sessionId: 's', update: { sessionUpdate: 'tool_call_update', toolCallId: 't', title: 'y' } });
   assert.deepEqual(next.hires, first.hires);
   assert.deepEqual(reduce(initialViewState(), tool({ _meta: { 'jawata/hire': { seat: 'no plan' } } })).hires, []);
+});
+
+// --- the Agent Control tree (R12: a pm, a chief engineer under it, a dev under that) ---
+
+async function playedTree() {
+  const c = chatOn('R12');
+  await c.chat.flow.connect();
+  await c.chat.sendPrompt('replay');
+  await new Promise(r => setTimeout(r, 300));
+  c.sent = (method) => c.host.traffic.filter(t => t.direction === 'send' && t.message.method === method).map(t => t.message.params);
+  return c;
+}
+const shape = (state) => workingTree(state.hires).map(r => `${r.depth}:${r.hire.seat}`);
+
+test('R12: the working agents are a tree by parent, the pm at the root; a hire that has ended drops out, and the tree keeps its shape while something under it works', async () => {
+  const c = await playedTree();
+  try {
+    let state = initialViewState();
+    const seen = [];
+    for (const m of c.port.toView) { state = reduce(state, m); seen.push(shape(state).join(' ')); }
+    assert.ok(seen.includes('0:pm 1:chief-engineer 2:dev'), 'three levels at once');
+    assert.equal(seen.at(-1), '0:pm', 'at the end only the pm works: the chief engineer and the dev are done and are not shown');
+    assert.equal(workingTree([]).length, 0);
+  } finally { c.dispose(); }
+});
+
+test('the tree: a hire whose parent is not known is a root; a done parent stays while a child under it works; a loop of parents does not hang', () => {
+  const h = (planId, state, parentPlanId) => ({ planId, seat: planId, seatCommand: '', task: '', brain: 'b', model: 'm', state, elapsedMs: 0, tokens: 0, ...(parentPlanId ? { parentPlanId } : {}) });
+  assert.deepEqual(workingTree([h('a', 'running', 'gone')]).map(r => r.depth), [0]);
+  assert.deepEqual(workingTree([h('a', 'done'), h('b', 'running', 'a')]).map(r => `${r.depth}:${r.hire.planId}`), ['0:a', '1:b']);
+  assert.deepEqual(workingTree([h('a', 'done'), h('b', 'done', 'a')]), []);
+  assert.ok(workingTree([h('a', 'running', 'b'), h('b', 'running', 'a')]).length <= 2, 'a loop is cut');
+  assert.deepEqual(workingTree([h('a', 'running', 'a')]).map(r => r.depth), [0], 'a hire that names itself as parent is a root');
+});
+
+test('R12: a hire that sent no cost has none (not zero); one that sent a cost has it', async () => {
+  const c = await playedTree();
+  try {
+    const end = c.chat.snapshot();
+    assert.equal('costUsd' in end.hires.find(h => h.planId === 'p-pm'), false);
+    assert.equal(end.hires.find(h => h.planId === 'p-ce').costUsd, 0.04);
+  } finally { c.dispose(); }
+});
+
+test('R12: the brains the agent offers are asked for and told to the page; choosing one asks for it by plan and shows the hire as the agent answers', async () => {
+  const c = await playedTree();
+  try {
+    c.port.toView.length = 0;
+    await c.port.deliver({ type: 'listBrains' });
+    assert.deepEqual(c.port.toView.map(m => m.type), ['brainList']);
+    assert.deepEqual(c.port.toView[0].brains.map(b => `${b.brain}/${b.model}`), ['claude/sonnet', 'claude/haiku', 'claude/opus', 'codex/gpt-5']);
+    assert.equal(c.chat.snapshot().hires.find(h => h.planId === 'p-pm').brain, 'claude');
+    await c.port.deliver({ type: 'chooseBrain', planId: 'p-pm', brain: 'codex', model: 'gpt-5' });
+    assert.deepEqual(c.sent('_jawata/hire/brain'), [{ planId: 'p-pm', brain: 'codex', model: 'gpt-5' }]);
+    const pm = c.chat.snapshot().hires.find(h => h.planId === 'p-pm');
+    assert.equal(`${pm.brain}/${pm.model}`, 'codex/gpt-5', 'the row shows what the agent answered');
+    assert.equal(c.chat.snapshot().hires.length, 3, 'one row per hire still');
+  } finally { c.dispose(); }
 });

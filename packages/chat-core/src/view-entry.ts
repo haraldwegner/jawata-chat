@@ -4,5 +4,5 @@
  * (`@jawata/chat-core/view`), so that a bundler that does not drop what is unused still ships none of the core's machinery to the page.
  */
 export * from './view.js';
-export { initialViewState, reduce, waitingLine, isWorking, type ViewState, type PartView, type ToolCallView, type HireView, type ProposalView } from './view-state.js';
+export { initialViewState, reduce, waitingLine, isWorking, workingTree, type ViewState, type PartView, type ToolCallView, type HireView, type ProposalView } from './view-state.js';
 export { AUTONOMY_OPTION, autonomyOf } from './autonomy.js';

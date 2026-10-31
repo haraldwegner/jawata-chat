@@ -5,12 +5,12 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { checkLevel1, deriveSession, formatSession, parseSession, readSession } from '../dist/index.js';
+import { checkLevel1, hireViolations, deriveSession, formatSession, parseSession, readSession } from '../dist/index.js';
 
 const sessions = (p) => fileURLToPath(new URL(`../sessions/${p}`, import.meta.url));
 const R1 = () => readSession(sessions('R1.jsonl'));
 
-const hire = (over = {}) => ({ planId: 'p1', seat: 'architect', brain: 'claude', model: 'sonnet', state: 'running', elapsedMs: 0, tokens: 0, costUsd: 0, ...over });
+const hire = (over = {}) => ({ planId: 'p1', seat: 'architect', brain: 'claude', model: 'sonnet', state: 'running', elapsedMs: 0, tokens: 0, costUsd: 0, seatCommand: '/refactor', task: 'Review the change.', ...over });
 const callWith = (meta) => ({ dir: 'recv', msg: { jsonrpc: '2.0', method: 'session/update', params: { update: { sessionUpdate: 'tool_call', kind: 'execute', toolCallId: 't', _meta: { 'jawata/hire': meta } } } } });
 
 test('real recordings carry no Level-1 field and pass the check', () => {
@@ -22,8 +22,10 @@ test('a hire with a state the contract does not name, or a missing field, is a v
   assert.deepEqual(checkLevel1([callWith(hire())]), []);
   assert.deepEqual(checkLevel1([callWith(hire({ state: 'compacting' }))]), []);
   assert.match(checkLevel1([callWith(hire({ state: 'bogus' }))])[0], /state/);
-  const { costUsd, ...missing } = hire();
-  assert.match(checkLevel1([callWith(missing)])[0], /costUsd/);
+  const { task, ...missing } = hire();
+  assert.match(checkLevel1([callWith(missing)])[0], /task/);
+  const { costUsd, ...unpriced } = hire();
+  assert.deepEqual(checkLevel1([callWith(unpriced)]), [], 'a hire that reports no cost is not wrong')
 });
 
 test('a command group outside seat, skill, utility, and an unknown jawata method, are violations', () => {
@@ -132,7 +134,7 @@ test('every derived file equals its derivation, and the manifest lists exactly t
   const manifest = JSON.parse(readFileSync(sessions('derived.json'), 'utf8'));
   const overlays = readdirSync(sessions('overlays')).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '.jsonl')).sort();
   assert.deepEqual(Object.keys(manifest).sort(), overlays, 'the manifest and the overlays name the same files');
-  assert.deepEqual(overlays, ['R10.jsonl', 'R11.jsonl', 'R13.jsonl', 'R3.jsonl', 'R4.jsonl', 'R5.jsonl', 'R9.jsonl'], 'the derived sessions are exactly these seven: a new one is a decision, not an accident');
+  assert.deepEqual(overlays, ['R10.jsonl', 'R11.jsonl', 'R12.jsonl', 'R13.jsonl', 'R3.jsonl', 'R4.jsonl', 'R5.jsonl', 'R9.jsonl'], 'the derived sessions are exactly these eight: a new one is a decision, not an accident');
   assert.ok(overlays.length > 0);
   for (const [file, entry] of Object.entries(manifest)) {
     const overlayText = readFileSync(sessions(entry.overlay), 'utf8');
@@ -151,6 +153,19 @@ test('the sessions README marks every derived file SHAPE ONLY', () => {
     assert.ok(row, `${file} has a row`);
     assert.match(row, /SHAPE ONLY/, `${file} is marked`);
   }
+});
+
+test('a hire needs its seat command and its task, may leave out its cost and its parent, and a brain request needs a brain and a model', () => {
+  const full = { planId: 'p', seat: 's', brain: 'b', model: 'm', state: 'running', elapsedMs: 1, tokens: 1, seatCommand: '/s', task: 't' };
+  assert.deepEqual(hireViolations(full), [], 'cost and parent are optional');
+  assert.ok(hireViolations({ ...full, task: undefined }).some((v) => /task is missing/.test(v)));
+  assert.ok(hireViolations({ ...full, seatCommand: undefined }).some((v) => /seatCommand is missing/.test(v)));
+  assert.ok(hireViolations({ ...full, costUsd: 'free' }).some((v) => /costUsd is not a number/.test(v)));
+  const ask = (params) => [{ dir: 'send', msg: { jsonrpc: '2.0', id: 1, method: '_jawata/hire/brain', params } }];
+  assert.ok(checkLevel1(ask({ planId: 'p', brain: 'b' })).some((v) => /needs a brain and a model/.test(v)));
+  assert.deepEqual(checkLevel1(ask({ planId: 'p', brain: 'b', model: 'm' })), []);
+  const answered = [...ask({ planId: 'p', brain: 'b', model: 'm' }), { dir: 'recv', msg: { jsonrpc: '2.0', id: 1, result: { ok: true } } }];
+  assert.ok(checkLevel1(answered).some((v) => /brain reply: hire: planId is missing/.test(v)), 'the answer is the hire as it now is')
 });
 
 test('side: a base that opens no session gives the second session nothing to sit beside, and is refused', () => {

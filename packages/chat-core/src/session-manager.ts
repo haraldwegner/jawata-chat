@@ -282,6 +282,20 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
   }
 
   /** A hired agent's transcript, from the agent (E5): turns of a role and words. */
+  async listBrains(sessionId: string): Promise<{ brain: string; model: string }[]> {
+    const link = this.linkOf(sessionId);
+    if (!link) { throw new Error(`No connection for session: ${sessionId}`); }
+    const answer = await link.request<{ brains?: { brain?: unknown; model?: unknown }[] }>('_jawata/brains');
+    return (answer?.brains ?? []).map(b => ({ brain: String(b.brain ?? ''), model: String(b.model ?? '') }));
+  }
+
+  async chooseBrain(sessionId: string, planId: string, brain: string, model: string): Promise<Record<string, unknown>> {
+    const link = this.linkOf(sessionId);
+    if (!link) { throw new Error(`No connection for session: ${sessionId}`); }
+    this.host.log.log(`Hire ${planId}: brain ${brain} ${model}`);
+    return (await link.request<Record<string, unknown>>('_jawata/hire/brain', { planId, brain, model })) ?? {};
+  }
+
   async hireTranscript(sessionId: string, planId: string): Promise<TranscriptTurn[]> {
     const link = this.linkOf(sessionId);
     if (!link) { throw new Error(`No connection for session: ${sessionId}`); }

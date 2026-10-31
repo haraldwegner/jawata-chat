@@ -27,14 +27,27 @@ export interface ToolCallView {
 export interface HireView {
   planId: string;
   seat: string;
+  /** The command the person types for this seat, for example `/refactor`; empty when the agent sent none. */
+  seatCommand: string;
+  /** What the hire was asked to do. */
+  task: string;
+  /** The hire that hired this one; absent for a root (a pm). */
+  parentPlanId?: string;
   brain: string;
   model: string;
   /** `running`, `compacting`, `done` or `failed`. */
   state: string;
   elapsedMs: number;
   tokens: number;
-  costUsd: number;
+  /** What the agent reported; absent when it reported none (never 0 for a missing figure). */
+  costUsd?: number;
   brainSessionId?: string;
+}
+
+/** A brain and model the agent offers; the person picks one to replace an agent's. */
+export interface BrainChoice {
+  brain: string;
+  model: string;
 }
 
 /** One turn of a hired agent's transcript, read-only. */
@@ -49,14 +62,52 @@ export const isWorking = (hire: HireView): boolean => hire.state === 'running' |
 /** What a tool call's `_meta` says about the hire it is, if it is one; undefined when it says nothing usable. */
 function hireIn(meta: unknown): HireView | undefined {
   const h = (meta as { 'jawata/hire'?: Record<string, unknown> } | null | undefined)?.['jawata/hire'];
-  if (!h || typeof h.planId !== 'string') { return undefined; }
+  return h ? hireFromEntry(h) : undefined;
+}
+
+/** A hire as the agent describes it (in `_meta` or as the answer to a brain change); undefined when it carries no plan id. */
+export function hireFromEntry(h: Record<string, unknown>): HireView | undefined {
+  if (typeof h.planId !== 'string') { return undefined; }
   const num = (x: unknown) => (typeof x === 'number' ? x : 0);
   const str = (x: unknown) => (typeof x === 'string' ? x : '');
   return {
-    planId: h.planId, seat: str(h.seat), brain: str(h.brain), model: str(h.model), state: str(h.state) || 'running',
-    elapsedMs: num(h.elapsedMs), tokens: num(h.tokens), costUsd: num(h.costUsd),
+    planId: h.planId, seat: str(h.seat), seatCommand: str(h.seatCommand), task: str(h.task), brain: str(h.brain), model: str(h.model),
+    state: str(h.state) || 'running', elapsedMs: num(h.elapsedMs), tokens: num(h.tokens),
+    ...(typeof h.costUsd === 'number' ? { costUsd: h.costUsd } : {}),
+    ...(typeof h.parentPlanId === 'string' ? { parentPlanId: h.parentPlanId } : {}),
     ...(typeof h.brainSessionId === 'string' ? { brainSessionId: h.brainSessionId } : {}),
   };
+}
+
+/** A hire in the tree the panel shows, with how deep it sits. */
+export interface TreeRow {
+  hire: HireView;
+  depth: number;
+}
+
+/**
+ * The hires that work, as the tree they were hired in: a hire shows when it works or when something under it does, so the tree keeps
+ * its shape; a hire whose parent is not in the list is a root. Each hire stands under its parent, in the order they first appeared.
+ */
+export function workingTree(hires: HireView[]): TreeRow[] {
+  const known = new Set(hires.map(h => h.planId));
+  const children = new Map<string | undefined, HireView[]>();
+  for (const h of hires) {
+    const parent = h.parentPlanId && known.has(h.parentPlanId) && h.parentPlanId !== h.planId ? h.parentPlanId : undefined;
+    children.set(parent, [...(children.get(parent) ?? []), h]);
+  }
+  const shows = (h: HireView, seen: Set<string>): boolean =>
+    isWorking(h) || (!seen.has(h.planId) && (children.get(h.planId) ?? []).some(c => shows(c, new Set(seen).add(h.planId))));
+  const rows: TreeRow[] = [];
+  const walk = (parent: string | undefined, depth: number, seen: Set<string>) => {
+    for (const h of children.get(parent) ?? []) {
+      if (seen.has(h.planId) || !shows(h, seen)) { continue; }
+      rows.push({ hire: h, depth });
+      walk(h.planId, depth + 1, new Set(seen).add(h.planId));
+    }
+  };
+  walk(undefined, 0, new Set());
+  return rows;
 }
 
 /** The hires with this one added or replaced by its plan, in the order they first appeared. */
@@ -137,6 +188,8 @@ export interface ViewState {
   hires: HireView[];
   /** The transcripts the person asked for, by plan. */
   transcripts: Record<string, TranscriptTurn[]>;
+  /** The brains the agent offers, once the page asked; null until then. Not part of the conversation. */
+  brains: BrainChoice[] | null;
   /** Proposals waiting for an answer, oldest first. */
   proposals: ProposalView[];
   /** What the agent last listed as its sessions; null until the page asked. It is the agent's list: the chat keeps none of its own. */
@@ -153,7 +206,7 @@ export interface ViewState {
 const noAgents = () => ({ hires: [] as HireView[], transcripts: {} as Record<string, TranscriptTurn[]>, proposals: [] as ProposalView[] });
 
 export function initialViewState(): ViewState {
-  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0, side: null };
+  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0, side: null, brains: null };
 }
 
 /**
@@ -404,6 +457,10 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
       return { ...state, proposals: [...state.proposals, { requestId: message.requestId, title: message.title, diffs: message.diffs, options: message.options }] };
     case 'permissionResolved':
       return { ...state, proposals: state.proposals.filter(p => p.requestId !== message.requestId) };
+    case 'brainList':
+      return { ...state, brains: message.brains };
+    case 'hireChanged':
+      return { ...state, hires: withHire(state.hires, message.hire) };
     case 'hireTranscript':
       return { ...state, transcripts: { ...state.transcripts, [message.planId]: message.turns } };
     case 'sideAsked':

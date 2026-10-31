@@ -23,12 +23,22 @@ export interface HireMeta {
   state: HireState;
   elapsedMs: number;
   tokens: number;
-  costUsd: number;
+  /** What the agent reports the hire cost, in US dollars at API prices; absent when it reports none (a brain that sends no figure, not zero). */
+  costUsd?: number;
+  /** The command the person types for this seat, for example `/refactor` (S23: the name a person uses is shown with the seat's). */
+  seatCommand: string;
+  /** What the hire was asked to do, in words. */
+  task: string;
+  /** The hire that hired this one; absent for a root (a PM, one per sprint). The panel is a tree built from it (S23). */
+  parentPlanId?: string;
   brainSessionId?: string;
 }
 
 /** E4 and E5: client-to-agent requests about one hire. */
-export const HIRE_METHODS = ['_jawata/hire/stop', '_jawata/hire/transcript'] as const;
+export const HIRE_METHODS = ['_jawata/hire/stop', '_jawata/hire/transcript', '_jawata/hire/brain'] as const;
+
+/** The brains and models the agent offers (S23); asked with no params. PROVISIONAL until 28h names it. */
+export const BRAIN_LIST_METHOD = '_jawata/brains';
 
 /** E6: one model option per seat, `seat-model:<seat>`, category `model`. */
 export const SEAT_MODEL_PREFIX = 'seat-model:';
@@ -42,8 +52,10 @@ export const AUTONOMY_VALUES = ['off', 'on'] as const;
 
 const HIRE_FIELDS: Record<keyof HireMeta, 'string' | 'number'> = {
   planId: 'string', seat: 'string', brain: 'string', model: 'string', state: 'string',
-  elapsedMs: 'number', tokens: 'number', costUsd: 'number', brainSessionId: 'string',
+  elapsedMs: 'number', tokens: 'number', costUsd: 'number', seatCommand: 'string', task: 'string', parentPlanId: 'string', brainSessionId: 'string',
 };
+/** The fields a hire may leave out. */
+const OPTIONAL_HIRE_FIELDS: readonly string[] = ['brainSessionId', 'parentPlanId', 'costUsd'];
 
 /** E4's reply: the stop was taken. */
 export interface HireStopReply { ok: boolean }
@@ -60,7 +72,7 @@ export function hireViolations(meta: any): string[] {
   for (const [field, type] of Object.entries(HIRE_FIELDS)) {
     const v = meta?.[field];
     if (v === undefined) {
-      if (field !== 'brainSessionId') { out.push(`hire: ${field} is missing`); }
+      if (!OPTIONAL_HIRE_FIELDS.includes(field)) { out.push(`hire: ${field} is missing`); }
     } else if (typeof v !== type) {
       out.push(`hire: ${field} is not a ${type}`);
     }
@@ -77,6 +89,13 @@ export function hireViolations(meta: any): string[] {
 function replyViolations(method: string, result: any): string[] {
   if (method === '_jawata/hire/stop') {
     return typeof result?.ok === 'boolean' ? [] : ['stop reply: ok is not a boolean'];
+  }
+  // the brain request answers with the hire as it now is
+  if (method === '_jawata/hire/brain') { return hireViolations(result).map(v => `brain reply: ${v}`); }
+  if (method === BRAIN_LIST_METHOD) {
+    const choices = Array.isArray(result?.brains) ? result.brains : null;
+    if (!choices) { return ['brains reply: brains is not an array']; }
+    return choices.flatMap((c: { brain?: unknown; model?: unknown }) => (typeof c?.brain === 'string' && typeof c?.model === 'string' ? [] : ['brains reply: a choice needs a brain and a model']));
   }
   const out: string[] = [];
   if (typeof result?.planId !== 'string') { out.push('transcript reply: planId is not a string'); }
@@ -134,10 +153,15 @@ export function checkLevel1(lines: RecordedLine[]): string[] {
       }
     }
     if (typeof msg.method === 'string' && msg.method.startsWith('_jawata/')) {
-      if (!(HIRE_METHODS as readonly string[]).includes(msg.method)) {
+      if (msg.method === BRAIN_LIST_METHOD) {
+        if (dir === 'send') { asked.set(msg.id, msg.method); }
+      } else if (!(HIRE_METHODS as readonly string[]).includes(msg.method)) {
         out.push(`${at}: method ${msg.method} is not a jawata extension method`);
       } else if (dir === 'send') {
         if (typeof msg.params?.planId !== 'string') { out.push(`${at}: ${msg.method} needs a planId`); }
+        if (msg.method === '_jawata/hire/brain' && (typeof msg.params?.brain !== 'string' || typeof msg.params?.model !== 'string')) {
+          out.push(`${at}: ${msg.method} needs a brain and a model`);
+        }
         asked.set(msg.id, msg.method);
       }
     } else if (dir === 'recv' && msg.method === undefined && asked.has(msg.id) && msg.result !== undefined) {

@@ -97,7 +97,7 @@ export function AgentsBar({ state, send }: { state: ViewState; send: (intent: Vi
   const toggleMenu = (planId: string) => {
     if (menu === planId) { setMenu(null); return; }
     setMenu(planId);
-    if (state.brains === null) { send({ type: 'listBrains' }); }
+    send({ type: 'listBrains' }); // asked each time the list opens: a brain the agent gained since shows
   };
   return (
     <div className="agents">

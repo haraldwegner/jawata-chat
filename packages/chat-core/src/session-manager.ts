@@ -281,7 +281,6 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
     await link.request('_jawata/hire/stop', { planId });
   }
 
-  /** A hired agent's transcript, from the agent (E5): turns of a role and words. */
   async listBrains(sessionId: string): Promise<{ brain: string; model: string }[]> {
     const link = this.linkOf(sessionId);
     if (!link) { throw new Error(`No connection for session: ${sessionId}`); }
@@ -296,6 +295,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
     return (await link.request<Record<string, unknown>>('_jawata/hire/brain', { planId, brain, model })) ?? {};
   }
 
+  /** A hired agent's transcript, from the agent (E5): turns of a role and words. */
   async hireTranscript(sessionId: string, planId: string): Promise<TranscriptTurn[]> {
     const link = this.linkOf(sessionId);
     if (!link) { throw new Error(`No connection for session: ${sessionId}`); }

@@ -62,7 +62,7 @@ export class ChatController {
     this.asking = this.updates.onPermissionRequest(request => this.askPermission(request));
 
     this.listen('active-session-changed', (sessionId) => {
-      if (sessionId !== this.pendingIn) { this.pending = []; this.pendingIn = sessionId; this.withdrawProposals(); this.sessions.closeSide(); }
+      if (sessionId !== this.pendingIn) { this.pending = []; this.pendingIn = sessionId; this.withdrawProposals(); this.dropSide(); }
       this.sendCurrentState();
     });
     this.listen('clear-chat', () => this.clearChat());
@@ -74,7 +74,7 @@ export class ChatController {
       const models = this.sessions.getActiveSession()?.models;
       if (models) { this.post({ type: 'modelsUpdate', models }); }
     });
-    this.listen('session-load-start', () => { this.pending = []; this.sessions.closeSide(); this.post({ type: 'loadSessionStart' }); this.replay = []; });
+    this.listen('session-load-start', () => { this.pending = []; this.dropSide(); this.post({ type: 'loadSessionStart' }); this.replay = []; });
     this.listen('session-load-end', (_sessionId, _agentName, ok) => {
       this.endReplay();
       this.post({ type: 'loadSessionEnd', ok });
@@ -222,7 +222,7 @@ export class ChatController {
       case 'chooseBrain':
         await this.changeActive('change the brain', async id => {
           const hire = hireFromEntry(await this.sessions.chooseBrain(id, intent.planId, intent.brain, intent.model));
-          if (hire) { this.post({ type: 'hireChanged', hire }); }
+          if (hire) { this.post({ type: 'hireChanged', hire }); } else { this.post({ type: 'error', message: 'The agent did not say how the agent stands after the change of brain.' }); }
         });
         return;
       case 'stopHire':
@@ -234,8 +234,7 @@ export class ChatController {
       case 'askSide':
         return this.askSide(intent.text);
       case 'closeSide':
-        this.sessions.closeSide();
-        this.post({ type: 'sideClosed' });
+        this.dropSide();
         return;
       case 'pageFailed':
         this.host.log.logError('ChatController: the page stopped drawing the chat and shows the person a notice', intent.message);
@@ -387,6 +386,12 @@ export class ChatController {
       this.post({ type: 'error', message: reason });
       this.post({ type: 'promptEnd', stopReason: 'error' });
     }
+  }
+
+  /** Forget the side session, and tell the page when it shows a side thread, so the page never keeps a thread the core has let go of. */
+  private dropSide(): void {
+    this.sessions.closeSide();
+    if (this.view.side !== null) { this.post({ type: 'sideClosed' }); }
   }
 
   /** A side question goes to the side session and is answered in the side thread; the main thread, its turn and its queue are not touched. */

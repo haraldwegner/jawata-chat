@@ -115,6 +115,20 @@ test('R12: what an agent said is folded until asked for; unfolding asks for it, 
   } finally { v.dispose(); }
 });
 
+test('two sprints: each pm stands at the root with its own agents under it, in the order they began; a failed agent is not a row', async () => {
+  const v = await viewOn('R12');
+  try {
+    await ready(v);
+    const hire = (planId, seat, state, parentPlanId) => ({ sessionUpdate: 'tool_call', toolCallId: 't-' + planId, title: seat, kind: 'execute', status: 'in_progress',
+      _meta: { 'jawata/hire': { planId, seat, seatCommand: '/' + seat, task: 'task of ' + planId, brain: 'claude', model: 'sonnet', state, elapsedMs: 1000, tokens: 10, ...(parentPlanId ? { parentPlanId } : {}) } } });
+    for (const h of [hire('pm1', 'pm', 'running'), hire('ce1', 'chief-engineer', 'running', 'pm1'), hire('pm2', 'pm', 'running'), hire('ce2', 'chief-engineer', 'running', 'pm2'),
+      hire('dev2', 'dev', 'running', 'ce2'), hire('dev1', 'dev', 'running', 'ce1'), hire('bad', 'dev', 'failed', 'ce1')]) { await post(v, h); }
+    assert.deepEqual(shape(v), ['0:pm', '1:chief-engineer', '2:dev', '0:pm', '1:chief-engineer', '2:dev']);
+    assert.deepEqual(rowsOf(v).map(r => r.getAttribute('data-plan-id')), ['pm1', 'ce1', 'dev1', 'pm2', 'ce2', 'dev2'], 'each under its own parent');
+    assert.equal(title(v), '6 agents working · 1 finished');
+  } finally { v.dispose(); }
+});
+
 test('R12: the brain is a control: clicking it shows what the agent offers, picking one replaces this agent\'s brain, and the row shows what the agent answered', async () => {
   const v = await viewOn('R12');
   try {
@@ -134,7 +148,7 @@ test('R12: the brain is a control: clicking it shows what the agent offers, pick
     assert.equal(v.$('.hire[data-plan-id="p-pm"] .brain-btn').textContent, 'codex · gpt-5 ▾');
     assert.ok(!v.$('.brain-menu'), 'the choice closes the list');
     await v.click(v.$('.hire[data-plan-id="p-pm"] .brain-btn'));
-    assert.equal(intents.filter(i => i.type === 'listBrains').length, 1, 'the list is not asked for again');
+    assert.equal(intents.filter(i => i.type === 'listBrains').length, 2, 'the list is asked for each time it opens, so a brain the agent gained since shows');
     await v.click(v.$$('.brain-item').find(e => e.textContent.includes('codex')));
     assert.equal(intents.filter(i => i.type === 'chooseBrain').length, 1, 'choosing the brain it already has asks for nothing');
   } finally { v.dispose(); }

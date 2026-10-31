@@ -3,13 +3,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AUTONOMY_OPTION, autonomyOf } from '../dist/view-entry.js';
+import { AUTONOMY_OPTION_ID, AUTONOMY_VALUES } from '@jawata/acp-contract';
 import { chatOn } from './play.mjs';
 
 const session = (configOptions) => ({ sessionId: 's', agentName: 'a', title: null, cwd: undefined, modes: null, models: null, configOptions, availableCommands: [] });
 const option = (currentValue, over = {}) => ({ id: 'autonomy', name: 'Autocontinue', type: 'select', currentValue, options: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }], ...over });
 
-test('the option id is the one the contract names', () => {
-  assert.equal(AUTONOMY_OPTION, 'autonomy');
+test('the option id is the one the contract names, and the values the button asks for are the ones it allows', () => {
+  assert.equal(AUTONOMY_OPTION, AUTONOMY_OPTION_ID);
+  assert.deepEqual([...AUTONOMY_VALUES], ['off', 'on']);
 });
 
 test('the grant is armed exactly when the agent reports on', () => {

@@ -114,6 +114,25 @@ test('the tree: a hire whose parent is not known is a root; a done parent stays 
   assert.deepEqual(workingTree([h('a', 'running', 'a')]).map(r => r.depth), [0], 'a hire that names itself as parent is a root');
 });
 
+test('the tree: two sprints, each a pm with its own chief engineer and developers, stand in the order they began, each under its own parent; a failed agent is not shown, unless something under it works', () => {
+  const h = (planId, state, parentPlanId) => ({ planId, seat: planId, seatCommand: '', task: '', brain: 'b', model: 'm', state, elapsedMs: 0, tokens: 0, ...(parentPlanId ? { parentPlanId } : {}) });
+  const hires = [h('pm1', 'running'), h('ce1', 'running', 'pm1'), h('pm2', 'running'), h('ce2', 'running', 'pm2'), h('dev2', 'running', 'ce2'), h('dev1', 'running', 'ce1')];
+  assert.deepEqual(workingTree(hires).map(r => `${r.depth}:${r.hire.planId}`), ['0:pm1', '1:ce1', '2:dev1', '0:pm2', '1:ce2', '2:dev2'], 'each child under its own parent, not interleaved');
+  assert.deepEqual(workingTree([h('a', 'failed')]), [], 'a failed agent is not shown');
+  assert.deepEqual(workingTree([h('a', 'failed'), h('b', 'running', 'a')]).map(r => r.hire.planId), ['a', 'b'], 'but its place in the tree stays while something under it works');
+});
+
+test('R12: a page that comes late or reloads is given the agents as they stand (the panel is a fold of what the core keeps)', async () => {
+  const c = await playedTree();
+  try {
+    c.port.toView.length = 0;
+    await c.port.deliver({ type: 'ready', contractVersion: 8 });
+    const snapshot = c.port.toView.find(m => m.type === 'snapshot');
+    assert.deepEqual(snapshot.state.hires.map(x => x.planId), ['p-pm', 'p-ce', 'p-dev']);
+    assert.deepEqual(workingTree(snapshot.state.hires).map(r => r.hire.planId), ['p-pm']);
+  } finally { c.dispose(); }
+});
+
 test('R12: a hire that sent no cost has none (not zero); one that sent a cost has it', async () => {
   const c = await playedTree();
   try {

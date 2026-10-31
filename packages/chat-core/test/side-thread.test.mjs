@@ -88,6 +88,23 @@ test('a side question that cannot be answered shows an error in the side thread 
   } finally { c.dispose(); }
 });
 
+test('a disconnect drops the side session and the page is told, so it never keeps a thread the core has let go of', async () => {
+  const { agent, c } = await connected();
+  try {
+    await c.port.deliver({ type: 'askSide', text: 'one' });
+    assert.notEqual(c.chat.snapshot().side, null);
+    c.port.toView.length = 0;
+    await c.sessions.disconnectAgent('agent');
+    assert.ok(c.port.toView.some(m => m.type === 'sideClosed'));
+    assert.equal(c.chat.snapshot().side, null);
+    assert.equal(c.sessions.getSideSessionId(), null);
+    await c.sessions.connectToAgent('agent');
+    await c.port.deliver({ type: 'askSide', text: 'two' });
+    assert.equal(c.chat.snapshot().side.entries.filter(e => e.kind === 'user').length, 1, 'a new thread, not the old one grown');
+    assert.equal(agent.log.filter(e => e[0] === 'new').length, 4, 'main, side, main again, side again');
+  } finally { c.dispose(); }
+});
+
 test('an empty side question is not sent, and the thread belongs to the conversation: a new conversation has none', async () => {
   const { agent, c } = await connected();
   try {

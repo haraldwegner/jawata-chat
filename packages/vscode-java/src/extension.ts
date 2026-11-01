@@ -47,9 +47,23 @@ async function stop(): Promise<void> {
   await running?.stop();
 }
 
+/**
+ * A library class has no file of ours: the engine answers a definition with a `jdt:` address, and the source is asked of it when the
+ * editor opens that address, so the person can read the class and navigate from it.
+ */
+function libraryContent(): vscode.Disposable {
+  return vscode.workspace.registerTextDocumentContentProvider('jdt', {
+    async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
+      const source = await client?.sendRequest<string | null>('java/classFileContents', { uri: uri.toString() });
+      return source ?? '';
+    },
+  });
+}
+
 /** @public called by the editor */
 export function activate(context: vscode.ExtensionContext): Promise<void> {
   context.subscriptions.push(
+    libraryContent(),
     vscode.commands.registerCommand('jawataJava.showLog', () => { channel?.show(); }),
     vscode.commands.registerCommand('jawataJava.restartServer', async () => { await stop(); await start(context); }),
   );

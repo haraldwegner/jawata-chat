@@ -1,0 +1,18 @@
+# What the .vsix leaves out. It holds dist/extension.js, the resources, the README and the manifest.
+
+# sources and build products that are not the bundle
+src/**
+out/**
+test/**
+**/*.ts
+**/*.d.ts
+**/*.map
+
+# the tools that build and test it
+tsconfig*.json
+webpack.config.js
+eslint.config.mjs
+
+# the repository's own files
+.gitignore
+node_modules/**

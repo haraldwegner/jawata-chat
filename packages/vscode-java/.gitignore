@@ -1,0 +1,14 @@
+# build output
+dist/
+out/
+*.map
+*.vsix
+
+# the editor downloaded for the tests, and what it writes
+.vscode-test/
+
+# dependencies
+node_modules/
+
+# the operating system's
+.DS_Store

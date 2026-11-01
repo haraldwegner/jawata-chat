@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "out",
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/launch.ts"
+  ]
+}

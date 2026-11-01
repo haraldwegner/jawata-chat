@@ -12,6 +12,10 @@
       "entry": ["src/extension.ts!", "src/webview/main.ts!"],
       "project": ["src/**/*.ts!", "!src/test/**", "!src/test-live/**", "!src/test-visual/**"]
     },
+    "packages/vscode-java": {
+      "entry": ["src/extension.ts!"],
+      "project": ["src/**/*.ts!"]
+    },
     "packages/chat-core": {
       "project": ["src/**/*.ts!"],
       "ignoreIssues": { "src/test-support.ts": ["exports", "types"] }

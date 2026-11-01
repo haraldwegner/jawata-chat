@@ -37,6 +37,17 @@ function problemsWhere(uri: vscode.Uri, accept: () => boolean, since: number, li
   });
 }
 
+/** What the engine answers an agent that asks, through its MCP door, to rename `symbol`: the answer's text, error or not. */
+async function agentRenames(mcp: string, key: string, symbol: string): Promise<string> {
+  const reply = await fetch(`${mcp}/mcp`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Mcp-Session-Id': 'vscode-java-live', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'rename_symbol', arguments: { symbol, newName: 'renamedByTheAgent' } } }),
+  });
+  const body = await reply.json() as { result?: { content?: { text?: string }[] } };
+  return body.result?.content?.[0]?.text ?? JSON.stringify(body);
+}
+
 /**
  * The boundary clause of S16a in a real window: the file is opened, a faulty method is typed into it without saving, and the editor shows the
  * engine's error at the characters of the faulty expression. The window has no other Java extension; the script reads the process list.
@@ -60,6 +71,18 @@ suite('Problems from unsaved text', () => {
       problemRange: { startLine: -1, startCharacter: -1, endLine: -1, endCharacter: -1 }, problemMessage: '',
     };
     assert.equal(measured.otherJavaExtensionPresent, false, 'the window has no Red Hat Java extension');
+
+    // with a harmless unsaved edit in the editor, an agent's rename of a method of that file is refused by the engine and nothing is written
+    const mcp = process.env.JAWATA_LIVE_MCP_URL;
+    const key = process.env.JAWATA_LIVE_MCP_KEY;
+    const symbol = process.env.JAWATA_LIVE_RENAME_SYMBOL;
+    assert.ok(mcp && key && symbol, 'JAWATA_LIVE_MCP_URL, _MCP_KEY and _RENAME_SYMBOL are set');
+    await editor.edit(builder => builder.insert(new vscode.Position(0, 0), '// typed, not saved\n'));
+    const refused = await agentRenames(mcp, key, symbol);
+    assert.ok(refused.includes('UNSAVED_IN_EDITOR'), `the engine refused the rename over unsaved text: ${refused}`);
+    assert.strictEqual(fs.readFileSync(uri.fsPath, 'utf8'), saved, 'and wrote nothing');
+    await editor.edit(builder => builder.delete(new vscode.Range(new vscode.Position(0, 0), new vscode.Position(1, 0))));
+    assert.strictEqual(document.getText(), saved, 'the harmless edit is typed away again');
 
     // type the faulty method before the last closing brace, like a person: an edit in the editor, no save
     const lastBrace = saved.lastIndexOf('}');

@@ -14,7 +14,7 @@
     },
     "packages/vscode-java": {
       "entry": ["src/extension.ts!"],
-      "project": ["src/**/*.ts!"]
+      "project": ["src/**/*.ts!", "!src/test-live/**"]
     },
     "packages/chat-core": {
       "project": ["src/**/*.ts!"],

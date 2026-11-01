@@ -12,3 +12,6 @@ node_modules/
 
 # the operating system's
 .DS_Store
+
+# the editor downloaded for the live run (a link to the chat extension's copy on this machine)
+.vscode-test

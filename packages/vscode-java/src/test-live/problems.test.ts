@@ -37,6 +37,23 @@ function problemsWhere(uri: vscode.Uri, accept: () => boolean, since: number, li
   });
 }
 
+/**
+ * Resolves once the engine holds the text just typed before the class's closing brace. The editor sends its change to the engine on its
+ * own time (and not at all before its connection to the engine is up), so a step that must run after the engine has the edit asks for the
+ * file's outline: the engine answers it from the text it holds, and ends the class on the line the edit moved the closing brace to only
+ * when it holds the edit.
+ */
+async function engineHoldsTheEdit(uri: vscode.Uri, document: vscode.TextDocument, limitMs = 60000): Promise<void> {
+  const closingLine = document.positionAt(document.getText().lastIndexOf('}')).line;
+  const until = Date.now() + limitMs;
+  for (;;) {
+    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[] | undefined>('vscode.executeDocumentSymbolProvider', uri);
+    if (symbols?.[0]?.range.end.line === closingLine) { return; }
+    assert.ok(Date.now() < until, `the engine did not hold the typed edit within ${limitMs} ms`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
 /** What the engine answers an agent that asks, through its MCP door, to rename `symbol`: the answer's text, error or not. */
 async function agentRenames(mcp: string, key: string, symbol: string): Promise<string> {
   const reply = await fetch(`${mcp}/mcp`, {
@@ -77,11 +94,16 @@ suite('Problems from unsaved text', () => {
     const key = process.env.JAWATA_LIVE_MCP_KEY;
     const symbol = process.env.JAWATA_LIVE_RENAME_SYMBOL;
     assert.ok(mcp && key && symbol, 'JAWATA_LIVE_MCP_URL, _MCP_KEY and _RENAME_SYMBOL are set');
-    await editor.edit(builder => builder.insert(new vscode.Position(0, 0), '// typed, not saved\n'));
+    // The comment goes before the class's closing brace, so the renamed member stays where it is: the rename is computed, and the engine's
+    // write guard is what refuses it. (A comment at the top moves the member, and JDT's own check then refuses first, with another message.)
+    const harmlessAt = document.positionAt(saved.lastIndexOf('}'));
+    const harmless = '    // typed, not saved\n';
+    await editor.edit(builder => builder.insert(harmlessAt, harmless));
+    await engineHoldsTheEdit(uri, document);
     const refused = await agentRenames(mcp, key, symbol);
     assert.ok(refused.includes('UNSAVED_IN_EDITOR'), `the engine refused the rename over unsaved text: ${refused}`);
     assert.strictEqual(fs.readFileSync(uri.fsPath, 'utf8'), saved, 'and wrote nothing');
-    await editor.edit(builder => builder.delete(new vscode.Range(new vscode.Position(0, 0), new vscode.Position(1, 0))));
+    await editor.edit(builder => builder.delete(new vscode.Range(harmlessAt, document.positionAt(document.offsetAt(harmlessAt) + harmless.length))));
     assert.strictEqual(document.getText(), saved, 'the harmless edit is typed away again');
 
     // type the faulty method before the last closing brace, like a person: an edit in the editor, no save

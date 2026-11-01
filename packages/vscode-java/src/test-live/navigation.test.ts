@@ -151,6 +151,12 @@ suite('Navigation over unsaved text', () => {
     assert.strictEqual(defPlace.range.start.line, lineIn(defText, def.marker), 'on the declaration line');
     assert.strictEqual(defPlace.range.end.character - defPlace.range.start.character, def.name.length, 'covering the name');
 
+    const declarations = await ask<(vscode.Location | vscode.LocationLink)[]>('declaration', 'vscode.executeDeclarationProvider', uri, at(document, def.at));
+    assert.ok(declarations.length > 0, 'the declaration provider answers');
+    const declPlace = placeOf(declarations[0]);
+    assert.ok(declPlace.uri.fsPath.endsWith(def.file), `declaration is in ${def.file}: ${declPlace.uri.fsPath}`);
+    assert.strictEqual(declPlace.range.start.line, lineIn(defText, def.marker), 'declaration is on the declaration line');
+
     const typeDef = tree.typeDefinition;
     const typeText = typeDef.fileText === '' ? text : fs.readFileSync(path.join(workspace, typeDef.fileText), 'utf8');
     const typePlace = placeOf((await ask<(vscode.Location | vscode.LocationLink)[]>('typeDefinition', 'vscode.executeTypeDefinitionProvider', uri, at(document, typeDef.at)))[0]);

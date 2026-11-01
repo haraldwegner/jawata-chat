@@ -11,5 +11,9 @@
   },
   "include": [
     "src/test-live/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

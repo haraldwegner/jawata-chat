@@ -154,7 +154,7 @@ suite('Refactoring and formatting', () => {
       new vscode.Range(lineA, 0, lineA + 1, 0), options);
     const rangeApply = new vscode.WorkspaceEdit();
     rangeApply.set(uri, rangeEdits);
-    assert.ok(rangeEdits.length > 0 && await vscode.workspace.applyEdit(rangeApply), 'the range is laid out');
+    assert.ok(rangeEdits && rangeEdits.length > 0 && await vscode.workspace.applyEdit(rangeApply), 'the range is laid out');
     assert.ok(document.getText().includes('int a = 1;'), 'the line in the range is laid out');
     assert.ok(document.getText().includes('int  b=2 ;'), 'the line outside the range is as typed');
     const lineC = lineIn(document.getText(), 'void typedC');
@@ -162,13 +162,13 @@ suite('Refactoring and formatting', () => {
     const typeEdits = await ask<vscode.TextEdit[]>('onTypeFormatting', 'vscode.executeFormatOnTypeProvider', uri, typedAt, ';', options);
     const typeApply = new vscode.WorkspaceEdit();
     typeApply.set(uri, typeEdits);
-    assert.ok(typeEdits.length > 0 && await vscode.workspace.applyEdit(typeApply), 'the line just typed is laid out');
+    assert.ok(typeEdits && typeEdits.length > 0 && await vscode.workspace.applyEdit(typeApply), 'the line just typed is laid out');
     assert.ok(document.getText().includes('int c = 3;'), 'the line just typed is laid out');
     assert.ok(document.getText().includes('int  b=2 ;'), 'the other line is still as typed');
     const allEdits = await ask<vscode.TextEdit[]>('formatting', 'vscode.executeFormatDocumentProvider', uri, options);
     const allApply = new vscode.WorkspaceEdit();
     allApply.set(uri, allEdits);
-    assert.ok(allEdits.length > 0 && await vscode.workspace.applyEdit(allApply), 'the document is laid out');
+    assert.ok(allEdits && allEdits.length > 0 && await vscode.workspace.applyEdit(allApply), 'the document is laid out');
     assert.ok(document.getText().includes('int b = 2;'), 'and the line that was left as typed too');
     assert.strictEqual(fs.readFileSync(uri.fsPath, 'utf8'), saved, 'the file on disk is as it was');
     await revert(document);

@@ -66,6 +66,13 @@ export function activate(context: vscode.ExtensionContext): Promise<void> {
     libraryContent(),
     vscode.commands.registerCommand('jawataJava.showLog', () => { channel?.show(); }),
     vscode.commands.registerCommand('jawataJava.restartServer', async () => { await stop(); await start(context); }),
+    // the command a code lens carries ("3 references"): the places the editor's own reference search finds, shown in the references view
+    vscode.commands.registerCommand('jawata.showReferences', async (uri: string, line: number, character: number) => {
+      const target = vscode.Uri.parse(uri);
+      const position = new vscode.Position(line, character);
+      const locations = await vscode.commands.executeCommand<vscode.Location[]>('vscode.executeReferenceProvider', target, position);
+      await vscode.commands.executeCommand('editor.action.showReferences', target, position, locations ?? []);
+    }),
   );
   return start(context);
 }

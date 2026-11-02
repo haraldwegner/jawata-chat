@@ -90,6 +90,7 @@ suite('Structure, colour and hints', () => {
     };
 
     await editor.edit(builder => builder.insert(document.positionAt(saved.lastIndexOf('}')), '\n' + TYPED));
+    try {
     assert.ok(document.isDirty, 'the text is unsaved');
     const text = document.getText();
     const totalLine = lineIn(text, 'int typedTotal(');
@@ -135,9 +136,12 @@ suite('Structure, colour and hints', () => {
     assert.strictEqual(titleOn(totalLine), '0 references', 'the method nothing calls counts none');
 
     assert.strictEqual(fs.readFileSync(uri.fsPath, 'utf8'), saved, 'the file on disk is as it was');
-    await vscode.window.showTextDocument(document);
-    await vscode.commands.executeCommand('workbench.action.files.revert');
-    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    } finally {
+      // the typed text is put away whether the steps passed or not, so a failed step does not leave an unsaved file for the next test
+      await vscode.window.showTextDocument(document);
+      await vscode.commands.executeCommand('workbench.action.files.revert');
+      await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    }
     fs.writeFileSync(`${out}.structure.${treeName}.json`, JSON.stringify(ms));
   });
 });

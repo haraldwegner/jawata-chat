@@ -6,11 +6,18 @@ import * as vscode from 'vscode';
 /** What one tree of the live run asks for: the method renamed in the opened file, and what the renamed declaration reads. */
 interface Tree {
   rename: { line: string; token: string; newName: string; declaration: string };
+  extract: { line: string; token: string };
 }
 
 const TREES: Record<string, Tree> = {
-  maven: { rename: { line: 'public int add(', token: 'add', newName: 'sum', declaration: 'public int sum(' } },
-  plugins: { rename: { line: 'public String hello', token: 'hello', newName: 'greetBy', declaration: 'public String greetBy(' } },
+  maven: {
+    rename: { line: 'public int add(', token: 'add', newName: 'sum', declaration: 'public int sum(' },
+    extract: { line: 'lastResult = a + b;', token: 'a + b' },
+  },
+  plugins: {
+    rename: { line: 'private final Greeter greeter', token: 'greeter', newName: 'friend', declaration: 'private final Greeter friend' },
+    extract: { line: 'return greeter.greet(name);', token: 'greeter.greet(name)' },
+  },
 };
 
 function lineIn(text: string, marker: string): number {
@@ -77,9 +84,32 @@ suite('Refactoring and formatting', () => {
 
     const ms: Record<string, number> = {};
     const ask = async <T>(feature: string, command: string, ...args: unknown[]): Promise<T> => {
+      // An editor abandons a request when the document changes under it, and the engine answers "content modified" then; the revert of
+      // an earlier step is such a change. So a cancelled request is asked again, as an editor would, and only a request that is
+      // cancelled every time fails the step.
       const began = Date.now();
-      const answer = await vscode.commands.executeCommand<T>(command, ...args);
-      ms[feature] = Date.now() - began;
+      for (let attempt = 1; ; attempt++) {
+        try {
+          const answer = await vscode.commands.executeCommand<T>(command, ...args);
+          ms[feature] = Date.now() - began;
+          return answer;
+        } catch (error) {
+          if (attempt >= 4 || !String(error).includes('Canceled')) {
+            throw new Error(`${feature} (${command}) failed after ${Date.now() - began} ms, attempt ${attempt}: ${String(error)}`);
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+    };
+
+    // The editor drops the answer of a provider whose request it cancelled (the document or its problems changed meanwhile) and returns
+    // the others' without an error, so a request whose wanted answer is missing is asked again, a few times, before the step fails.
+    const askUntil = async <T>(feature: string, accept: (answer: T) => boolean, command: string, ...args: unknown[]): Promise<T> => {
+      let answer = await ask<T>(feature, command, ...args);
+      for (let attempt = 1; attempt < 6 && !accept(answer); attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        answer = await ask<T>(feature, command, ...args);
+      }
       return answer;
     };
 
@@ -88,6 +118,7 @@ suite('Refactoring and formatting', () => {
     const references = await ask<vscode.Location[]>('references', 'vscode.executeReferenceProvider', uri, renameAt);
     const renameEdit = await ask<vscode.WorkspaceEdit>('rename', 'vscode.executeDocumentRenameProvider', uri, renameAt, tree.rename.newName);
     assert.ok(renameEdit && renameEdit.size > 0, 'the rename answers an edit');
+    assert.ok(references.length > 0, 'the editor finds the references the rename must edit');
     for (const reference of references) {
       const edits = renameEdit.get(reference.uri);
       assert.ok(edits.some(e => e.range.start.isEqual(reference.range.start)), `the rename edits the reference at ${reference.uri.fsPath}:${reference.range.start.line}`);
@@ -99,6 +130,18 @@ suite('Refactoring and formatting', () => {
     }
     assert.strictEqual(document.getText(), saved, 'the file is as it was after the revert');
     assert.strictEqual(fs.readFileSync(uri.fsPath, 'utf8'), saved, 'the file on disk is as it was');
+
+    // extraction: a selected expression is offered as a refactoring that the editor applies
+    const extractLine = lineIn(saved, tree.extract.line);
+    const extractFrom = document.lineAt(extractLine).text.indexOf(tree.extract.token);
+    const extractions = await askUntil<vscode.CodeAction[]>('extract', a => a.some(x => x.title.includes('local variable')), 'vscode.executeCodeActionProvider', uri,
+      new vscode.Range(extractLine, extractFrom, extractLine, extractFrom + tree.extract.token.length), 'refactor.extract');
+    const toVariable = extractions.find(a => a.title.includes('local variable'));
+    assert.ok(toVariable && toVariable.edit, `the selection can be extracted to a variable: ${JSON.stringify(extractions.map(a => a.title))}`);
+    assert.ok(await vscode.workspace.applyEdit(toVariable.edit), 'the editor applied the extraction');
+    assert.ok(!document.getText().includes(tree.extract.line), 'the selected expression is no longer in its line');
+    await revert(document);
+    assert.strictEqual(document.getText(), saved, 'the file is as it was after the revert');
 
     // formatting: over text typed and not saved, as a range and as the whole document
     const editor = await vscode.window.showTextDocument(document);
@@ -137,14 +180,14 @@ suite('Refactoring and formatting', () => {
     await vscode.window.showTextDocument(problem);
     await errorShown(problemUri, 180000);
     const problemLine = lineIn(problem.getText(), 'new ArrayList');
-    const importFixes = await ask<vscode.CodeAction[]>('codeAction', 'vscode.executeCodeActionProvider', problemUri,
+    const importFixes = await askUntil<vscode.CodeAction[]>('codeAction', a => a.some(x => x.title.includes('java.util')), 'vscode.executeCodeActionProvider', problemUri,
       new vscode.Range(problemLine, 0, problemLine, 0), 'quickfix');
     const fix = importFixes.find(a => a.title.includes('java.util'));
     assert.ok(fix && fix.edit, `the unresolved name has an import fix: ${JSON.stringify(importFixes.map(a => a.title))}`);
     assert.ok(await vscode.workspace.applyEdit(fix.edit), 'the editor applied the import');
     assert.ok(problem.getText().includes('import java.util.ArrayList;'), 'the import is in the file');
     await revert(problem);
-    const organizers = await ask<vscode.CodeAction[]>('organizeImports', 'vscode.executeCodeActionProvider', problemUri,
+    const organizers = await askUntil<vscode.CodeAction[]>('organizeImports', a => a.some(x => x.kind?.value === 'source.organizeImports'), 'vscode.executeCodeActionProvider', problemUri,
       new vscode.Range(problemLine, 0, problemLine, 0), 'source.organizeImports');
     const organize = organizers.find(a => a.kind?.value === 'source.organizeImports');
     assert.ok(organize && organize.edit, `organize imports is offered: ${JSON.stringify(organizers.map(a => a.title))}`);

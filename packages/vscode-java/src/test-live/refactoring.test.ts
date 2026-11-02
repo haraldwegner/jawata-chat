@@ -103,7 +103,7 @@ suite('Refactoring and formatting', () => {
     // formatting: over text typed and not saved, as a range and as the whole document
     const editor = await vscode.window.showTextDocument(document);
     await editor.edit(builder => builder.insert(document.positionAt(saved.lastIndexOf('}')),
-      '    void typedA() {int  a=1 ;}\n    void typedB() {int  b=2 ;}\n'));
+      '    void typedA() {int  a=1 ;}\n    void typedB() {int  b=2 ;}\n    void typedC() {int  c=3 ;}\n'));
     assert.ok(document.isDirty, 'the text is unsaved');
     const options = { tabSize: 4, insertSpaces: true };
     const lineA = lineIn(document.getText(), 'void typedA');
@@ -114,6 +114,14 @@ suite('Refactoring and formatting', () => {
     assert.ok(rangeEdits.length > 0 && await vscode.workspace.applyEdit(rangeApply), 'the range is laid out');
     assert.ok(document.getText().includes('int a = 1;'), 'the line in the range is laid out');
     assert.ok(document.getText().includes('int  b=2 ;'), 'the line outside the range is as typed');
+    const lineC = lineIn(document.getText(), 'void typedC');
+    const typedAt = new vscode.Position(lineC, document.lineAt(lineC).text.length);
+    const typeEdits = await ask<vscode.TextEdit[]>('onTypeFormatting', 'vscode.executeFormatOnTypeProvider', uri, typedAt, ';', options);
+    const typeApply = new vscode.WorkspaceEdit();
+    typeApply.set(uri, typeEdits);
+    assert.ok(typeEdits.length > 0 && await vscode.workspace.applyEdit(typeApply), 'the line just typed is laid out');
+    assert.ok(document.getText().includes('int c = 3;'), 'the line just typed is laid out');
+    assert.ok(document.getText().includes('int  b=2 ;'), 'the other line is still as typed');
     const allEdits = await ask<vscode.TextEdit[]>('formatting', 'vscode.executeFormatDocumentProvider', uri, options);
     const allApply = new vscode.WorkspaceEdit();
     allApply.set(uri, allEdits);

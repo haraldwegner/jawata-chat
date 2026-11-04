@@ -16,6 +16,16 @@ const TYPED = [
   '        return valueTyped * stepTyped;',
   '    }',
   '',
+  '    interface TypedShape {',
+  '        int sizeOf();',
+  '    }',
+  '',
+  '    static class TypedSquare implements TypedShape {',
+  '        public int sizeOf() {',
+  '            return 4;',
+  '        }',
+  '    }',
+  '',
 ].join('\n');
 
 function lineIn(text: string, marker: string): number {
@@ -110,6 +120,10 @@ suite('Structure, colour and hints', () => {
     assert.strictEqual(document.getText(chain[0]), 'scaled', 'the innermost range is the name under the cursor');
     assert.ok(chain.length >= 4, `the selection widens through the enclosing nodes: ${chain.length} ranges`);
     assert.ok(chain.every((r, i) => i === 0 || r.contains(chain[i - 1])), 'each range holds the one inside it');
+    // the editor widens by its own words and brackets when the server answers nothing, so the chain must hold a range only the server's
+    // syntax tree has: the whole typed method, from its doc comment to its closing brace
+    assert.ok(chain.some(r => r.start.line === totalLine - 1 && r.end.line === returnLine + 1),
+      `the selection widens to the whole typed method, doc comment included (lines ${totalLine - 1}-${returnLine + 1}): ${JSON.stringify(chain.map(r => [r.start.line, r.end.line]))}`);
 
     // semantic tokens: the typed names get the type and modifiers the compiler binds them to
     const legend = await ask<vscode.SemanticTokensLegend>('legend', a => !!a && a.tokenTypes.length > 0, 'vscode.provideDocumentSemanticTokensLegend', uri);
@@ -134,6 +148,23 @@ suite('Structure, colour and hints', () => {
     const titleOn = (line: number) => lenses.find(l => l.range.start.line === line)?.command?.title;
     assert.strictEqual(titleOn(stepLine), '1 reference', 'the called method counts its call');
     assert.strictEqual(titleOn(totalLine), '0 references', 'the method nothing calls counts none');
+
+    // clicking a lens: the editor runs the command the lens carries, and the places shown are the ones the lens counted
+    const stepLens = lenses.find(l => l.range.start.line === stepLine);
+    const clicked = await vscode.commands.executeCommand<vscode.Location[]>(stepLens!.command!.command, ...(stepLens!.command!.arguments ?? []));
+    assert.ok(clicked.some(l => l.range.start.line === returnLine), `clicking "1 reference" shows the call on line ${returnLine}: ${JSON.stringify(clicked)}`);
+
+    // an interface is counted for its implementations too, and a click on that lens shows the implementing class
+    const shapeLine = lineIn(text, 'interface TypedShape');
+    const squareLine = lineIn(text, 'class TypedSquare');
+    const implementationLenses = await ask<vscode.CodeLens[]>('codeLensImplementations',
+      a => !!a && a.some(l => l.range.start.line === shapeLine && /implementation/.test(l.command?.title ?? '')),
+      'vscode.executeCodeLensProvider', uri, 100);
+    const implementations = implementationLenses.find(l => l.range.start.line === shapeLine && /implementation/.test(l.command?.title ?? ''));
+    assert.strictEqual(implementations!.command!.title, '1 implementation', 'the interface counts its one implementing class');
+    const shown = await vscode.commands.executeCommand<vscode.Location[]>(implementations!.command!.command, ...(implementations!.command!.arguments ?? []));
+    assert.ok(shown.some(l => l.range.start.line >= squareLine && l.range.start.line <= squareLine + 4),
+      `clicking "1 implementation" shows the implementing class near line ${squareLine}: ${JSON.stringify(shown)}`);
 
     assert.strictEqual(fs.readFileSync(uri.fsPath, 'utf8'), saved, 'the file on disk is as it was');
     } finally {

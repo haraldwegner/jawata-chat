@@ -60,19 +60,27 @@ function libraryContent(): vscode.Disposable {
   });
 }
 
+/** What a lens click does: asks the editor's provider for the places, shows them in the references view and returns them. */
+async function showPlaces(provider: string, uri: string, line: number, character: number): Promise<vscode.Location[]> {
+  const target = vscode.Uri.parse(uri);
+  const position = new vscode.Position(line, character);
+  const locations = (await vscode.commands.executeCommand<vscode.Location[]>(provider, target, position)) ?? [];
+  await vscode.commands.executeCommand('editor.action.showReferences', target, position, locations);
+  return locations;
+}
+
 /** @public called by the editor */
 export function activate(context: vscode.ExtensionContext): Promise<void> {
   context.subscriptions.push(
     libraryContent(),
     vscode.commands.registerCommand('jawataJava.showLog', () => { channel?.show(); }),
     vscode.commands.registerCommand('jawataJava.restartServer', async () => { await stop(); await start(context); }),
-    // the command a code lens carries ("3 references"): the places the editor's own reference search finds, shown in the references view
-    vscode.commands.registerCommand('jawata.showReferences', async (uri: string, line: number, character: number) => {
-      const target = vscode.Uri.parse(uri);
-      const position = new vscode.Position(line, character);
-      const locations = await vscode.commands.executeCommand<vscode.Location[]>('vscode.executeReferenceProvider', target, position);
-      await vscode.commands.executeCommand('editor.action.showReferences', target, position, locations ?? []);
-    }),
+    // the commands a code lens carries ("3 references", "2 implementations"): the places the editor's own search finds, shown in the
+    // references view, and answered to the caller so a click can be checked in a test
+    vscode.commands.registerCommand('jawata.showReferences', (uri: string, line: number, character: number) =>
+      showPlaces('vscode.executeReferenceProvider', uri, line, character)),
+    vscode.commands.registerCommand('jawata.showImplementations', (uri: string, line: number, character: number) =>
+      showPlaces('vscode.executeImplementationProvider', uri, line, character)),
   );
   return start(context);
 }

@@ -43,13 +43,19 @@ suite('Live agent rows', () => {
 
 		try {
 			if (mode === 'stop') {
-				await vscode.commands.executeCommand('jawataChat.sendPrompt', prompt);
+				// sendPrompt returns when the turn ends, so it is not awaited here: the hire is stopped while the turn is running
+				const turn = Promise.resolve(vscode.commands.executeCommand('jawataChat.sendPrompt', prompt));
 				const seen = new Set<string>();
+				const timeline: { ms: number; states: string[] }[] = [];
+				const t0 = Date.now();
+				const sampler = setInterval(() => { timeline.push({ ms: Date.now() - t0, states: chat.snapshot().hires.map(h => h.state) }); }, 200);
+				found.timeline = timeline;
 				const running = await waitFor('a hire that has not ended', () => { for (const h of chat.snapshot().hires) { seen.add(h.state); } return chat.snapshot().hires.find(h => !ended(h)); }, 120000).catch(e => { found.statesSeen = [...seen]; throw e; });
 				found.statesSeen = [...seen];
 				found.running = running;
 				await chat.handle({ type: 'stopHire', planId: running.planId });
 				found.afterStop = await waitFor('the hire ended after the stop', () => chat.snapshot().hires.find(h => h.planId === running.planId && ended(h)), 60000);
+				await turn;
 			} else if (mode === 'two') {
 				await vscode.commands.executeCommand('jawataChat.sendPrompt', prompt);
 				const hires = await waitFor('two finished hires', () => { const h = chat.snapshot().hires; return h.length >= 2 && h.every(ended) ? h : null; }, 240000);
@@ -86,6 +92,11 @@ suite('Live agent rows', () => {
 			}
 		} finally {
 			found.finalHires = chat.snapshot().hires;
+			try {
+				await vscode.commands.executeCommand('jawataChat.openRecording');
+				const recording = vscode.window.activeTextEditor?.document.uri.fsPath;
+				if (recording && recording.endsWith('.jsonl')) { fs.mkdirSync(out, { recursive: true }); fs.copyFileSync(recording, path.join(out, `rows-${mode}-recording.jsonl`)); }
+			} catch (e) { found.recordingError = String(e); }
 			write();
 		}
 	});

@@ -27,7 +27,7 @@ suite('Live agent turn', () => {
 		await vscode.commands.executeCommand('jawataChat.connectAgent', 'agent');
 
 		// the person accepts every proposal
-		const stop = answerProposals((await vscode.extensions.getExtension<JawataChatApi | undefined>('jawata.jawata-chat')!.activate())!.chat, ['allow-once']);
+		const stop = answerProposals((await vscode.extensions.getExtension<JawataChatApi | undefined>('jawata.jawata-chat')!.activate())!.chat, [process.env.JAWATA_LIVE_ANSWER ?? 'allow-once']);
 		try {
 			await vscode.commands.executeCommand('jawataChat.sendPrompt', prompt);
 		} finally {

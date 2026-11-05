@@ -19,7 +19,8 @@ export interface HireMeta {
   planId: string;
   seat: string;
   brain: string;
-  model: string;
+  /** Absent when the seat's file names no model (the brain's own default runs): the agent never invents one, the chat shows a blank. */
+  model?: string;
   state: HireState;
   elapsedMs: number;
   tokens: number;
@@ -64,7 +65,7 @@ const HIRE_FIELDS: Record<keyof HireMeta, 'string' | 'number'> = {
   level: 'number', toolSteps: 'number', contextTokens: 'number', verdict: 'string',
 };
 /** The fields a hire may leave out. */
-const OPTIONAL_HIRE_FIELDS: readonly string[] = ['brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict'];
+const OPTIONAL_HIRE_FIELDS: readonly string[] = ['brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict', 'model'];
 
 /** E4's reply: the stop was taken. */
 export interface HireStopReply { ok: boolean }

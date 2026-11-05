@@ -160,6 +160,7 @@ test('a hire needs its seat command and its task, may leave out its cost and its
   assert.deepEqual(hireViolations(full), [], 'cost and parent are optional');
   assert.ok(hireViolations({ ...full, task: undefined }).some((v) => /task is missing/.test(v)));
   assert.ok(hireViolations({ ...full, seatCommand: undefined }).some((v) => /seatCommand is missing/.test(v)));
+  assert.ok(hireViolations({ ...full, model: undefined }).some((v) => /model is missing/.test(v)), 'which model ran a hire is required, not optional');
   assert.ok(hireViolations({ ...full, costUsd: 'free' }).some((v) => /costUsd is not a number/.test(v)));
   const ask = (params) => [{ dir: 'send', msg: { jsonrpc: '2.0', id: 1, method: '_jawata/hire/brain', params } }];
   assert.ok(checkLevel1(ask({ planId: 'p', brain: 'b' })).some((v) => /needs a brain and a model/.test(v)));

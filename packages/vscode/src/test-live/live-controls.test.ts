@@ -46,16 +46,34 @@ suite('Live agent controls', () => {
 		found.brains = brains;
 		assert.ok(brains.length > 0, 'the agent offers at least one brain');
 
-		await chat.handle({ type: 'chooseBrain', planId: hire.planId, brain: brains[0].brain, model: brains[0].model });
-		found.afterChoice = await waitFor('the hire after the choice', () => chat.snapshot().hires.find(h => h.planId === hire.planId && h.brain === brains[0].brain));
+		// a brain other than the one the hire ran on, so the change is visible in the hire the agent answers with
+		const other = brains.find(b => b.brain !== hire.brain) ?? brains[0];
+		found.brainChosen = other;
+		await chat.handle({ type: 'chooseBrain', planId: hire.planId, brain: other.brain, model: other.model });
+		found.afterChoice = await waitFor('the hire after the choice', () => chat.snapshot().hires.find(h => h.planId === hire.planId && h.brain === other.brain));
+		assert.notStrictEqual(other.brain, hire.brain, 'the registry offers a second brain, so the choice shows');
 
 		const options = chat.snapshot().session?.configOptions ?? [];
 		const seatOption = options.find(o => o.id === `seat-model:${seat}`);
 		found.seatOptionBefore = seatOption;
 		assert.ok(seatOption, `the session offers a seat-model option for ${seat}`);
-		await chat.handle({ type: 'setConfigOption', configId: seatOption.id, value: brains[0].brain });
-		found.seatOptionAfter = await waitFor('the seat option changed', () => chat.snapshot().session?.configOptions?.find(o => o.id === seatOption.id && o.currentValue === brains[0].brain));
+		await chat.handle({ type: 'setConfigOption', configId: seatOption.id, value: other.brain });
+		found.seatOptionAfter = await waitFor('the seat option changed', () => chat.snapshot().session?.configOptions?.find(o => o.id === seatOption.id && o.currentValue === other.brain));
 		await chat.handle({ type: 'setConfigOption', configId: seatOption.id, value: 'seat-file' });
+
+		// the arm switch of plan-execution mode (CR1): the select option `autonomy`, set on and off by the person's channel
+		found.autonomyBefore = chat.snapshot().session?.configOptions?.find(o => o.id === 'autonomy');
+		assert.ok(found.autonomyBefore, 'the session offers the autonomy option');
+		await chat.handle({ type: 'setConfigOption', configId: 'autonomy', value: 'on' });
+		found.autonomyOn = await waitFor('autonomy on', () => chat.snapshot().session?.configOptions?.find(o => o.id === 'autonomy' && o.currentValue === 'on'));
+		await chat.handle({ type: 'setConfigOption', configId: 'autonomy', value: 'off' });
+		found.autonomyOff = await waitFor('autonomy off', () => chat.snapshot().session?.configOptions?.find(o => o.id === 'autonomy' && o.currentValue === 'off'));
+
+		// the agent's list of its sessions (R6): this conversation is among them
+		await chat.handle({ type: 'listSessions' });
+		const history = await waitFor('the session list', () => chat.snapshot().history);
+		found.history = { count: history.sessions.length, first: history.sessions[0] };
+		assert.ok(history.sessions.length > 0, 'the agent lists the conversation it holds');
 
 		await chat.handle({ type: 'askSide', text: 'Reply with exactly the one word: side' });
 		found.side = await waitFor('the side answer', () => { const s = chat.snapshot().side; return s && s.entries.length > 0 && !s.processing ? s : null; }, 120000);

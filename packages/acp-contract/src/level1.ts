@@ -33,6 +33,8 @@ export interface HireMeta {
   /** The hire that hired this one; absent for a root (a PM, one per sprint). The panel is a tree built from it (S23). */
   parentPlanId?: string;
   brainSessionId?: string;
+  /** 28h item c: the engine's own plan id for this hire, which the hire's journal row is written under (`planId` above is the brain's tool call); absent until the hire has answered, so a recorded outcome can be joined to the journal. */
+  enginePlan?: string;
   /** 28h S9: how many hires sit above this one (0 for a root), counted by the agent from the hires it saw. */
   level?: number;
   /** 28h S9: the tool calls the hire's brain has made so far; the agent's count while it runs, the hire's own once it has answered. */
@@ -62,10 +64,10 @@ export const AUTONOMY_VALUES = ['off', 'on'] as const;
 const HIRE_FIELDS: Record<keyof HireMeta, 'string' | 'number'> = {
   planId: 'string', seat: 'string', brain: 'string', model: 'string', state: 'string',
   elapsedMs: 'number', tokens: 'number', costUsd: 'number', seatCommand: 'string', task: 'string', parentPlanId: 'string', brainSessionId: 'string',
-  level: 'number', toolSteps: 'number', contextTokens: 'number', verdict: 'string',
+  level: 'number', toolSteps: 'number', contextTokens: 'number', verdict: 'string', enginePlan: 'string',
 };
 /** The fields a hire may leave out. */
-const OPTIONAL_HIRE_FIELDS: readonly string[] = ['brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict'];
+const OPTIONAL_HIRE_FIELDS: readonly string[] = ['brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict', 'enginePlan'];
 
 /** E4's reply: the stop was taken. */
 export interface HireStopReply { ok: boolean }

@@ -41,6 +41,7 @@ suite('Live agent rows', () => {
 			fs.writeFileSync(path.join(out, `rows-${mode}.json`), JSON.stringify(found, null, 2));
 		};
 
+		let sampler: ReturnType<typeof setInterval> | undefined;
 		try {
 			if (mode === 'stop') {
 				// sendPrompt returns when the turn ends, so it is not awaited here: the hire is stopped while the turn is running
@@ -48,7 +49,7 @@ suite('Live agent rows', () => {
 				const seen = new Set<string>();
 				const timeline: { ms: number; states: string[] }[] = [];
 				const t0 = Date.now();
-				const sampler = setInterval(() => { timeline.push({ ms: Date.now() - t0, states: chat.snapshot().hires.map(h => h.state) }); }, 200);
+				sampler = setInterval(() => { timeline.push({ ms: Date.now() - t0, states: chat.snapshot().hires.map(h => h.state) }); }, 200);
 				found.timeline = timeline;
 				const running = await waitFor('a hire that has not ended', () => { for (const h of chat.snapshot().hires) { seen.add(h.state); } return chat.snapshot().hires.find(h => !ended(h)); }, 120000).catch(e => { found.statesSeen = [...seen]; throw e; });
 				found.statesSeen = [...seen];
@@ -91,6 +92,7 @@ suite('Live agent rows', () => {
 				assert.fail(`unknown JAWATA_LIVE_MODE ${mode}`);
 			}
 		} finally {
+			clearInterval(sampler);
 			found.finalHires = chat.snapshot().hires;
 			try {
 				await vscode.commands.executeCommand('jawataChat.openRecording');

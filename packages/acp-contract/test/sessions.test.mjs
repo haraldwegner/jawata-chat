@@ -150,7 +150,10 @@ test('no recording the repository keeps holds a local path, a local user name or
   for (const file of kept) {
     const text = readFileSync(file, 'utf8');
     assert.ok(!/\/tmp\/|\/home\/|\/Users\/|-home-|-Users-/i.test(text), `${file.pathname} holds a local path`);
-    assert.ok(!text.toLowerCase().includes(userInfo().username.toLowerCase()), `${file.pathname} holds this machine's user name`);
+    // The user name is looked for where a leak would put it (a path segment, a mangled folder name, an e-mail address, a ~name), not as a word
+    // anywhere: on a CI runner the user is called "runner", which is also a word in an agent's own text ("Tool Runner").
+    const user = userInfo().username.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.ok(!new RegExp(`[/\\\\@~-]${user}(?![a-z0-9_])|(?<![a-z0-9_])${user}@`, 'i').test(text), `${file.pathname} holds this machine's user name`);
     assert.doesNotThrow(() => promoteRecording(readSession(file)), `${file.pathname} passes the promotion guard (chunked text included)`);
   }
 });

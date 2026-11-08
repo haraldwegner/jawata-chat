@@ -22,7 +22,9 @@
     "vscode": "^1.101.0"
   },
   "icon": "resources/icon.png",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -234,6 +236,29 @@
                 "type": "string"
               },
               "description": "Environment variables the agent program is started with, added to the editor's own."
+            }
+          }
+        },
+        "jawataChat.studio": {
+          "type": "object",
+          "scope": "machine",
+          "description": "How the chat starts the jawata studio: the program to run, its arguments (the deploy writes --background, which shows no window) and handoffDir. When this window has folders open and handoffDir is set, the studio is started with --editor-folder for each folder, every time the window starts and whether or not the engine's service answers: the studio then finds or makes the jawata workspace that holds those folders (asking you only when a workspace matches only some of them, and then waiting for your answer at most 10 minutes) and tells this window which engine to use (its answer is waited for at most 330 seconds, because the studio gives its own engine 300 seconds to start; after that the setting's address is used with a warning); that engine's address and key are used by this window's programs only and are never written to a setting. Without handoffDir the studio is started only when the engine's service does not answer at the address in jawataChat.agent (its env JAWATA_URL). The studio's deploy to VS Code fills this in; do not set it by hand unless you know the studio's start command. Without it the studio is not started and the extension goes on as if it were not there. The studio is started detached, so it keeps running when the editor closes. It is a machine setting: a workspace cannot set it.",
+          "default": {},
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "The studio program to start, as the deploy wrote it"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Its command-line arguments, as the deploy wrote them"
+            },
+            "handoffDir": {
+              "type": "string",
+              "description": "An absolute folder the studio writes its answer into: for the folders this window has open, the file <handoffDir>/<id>.json says which engine (address and key) serves them. The deploy writes it. Without it the window's folders are not handed to the studio and the engine address in jawataChat.agent is used as it is."
             }
           }
         },

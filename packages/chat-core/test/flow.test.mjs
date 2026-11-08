@@ -238,3 +238,26 @@ test('P15: two connects started together are one: one agent, one session/new (a 
     assert.equal(c.host.agents.alive, 1, 'no orphaned agent');
   } finally { c.dispose(); }
 });
+
+test('a host that has a ready port is waited for before any program is started, and one without it starts at once', async () => {
+  const a = agent();
+  const c = chatWith(a.run);
+  try {
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    c.host.agents.ready = () => gate;
+    const connecting = c.chat.flow.connect();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(c.host.agents.spawned, 0, 'nothing is started while the host is getting ready');
+    release();
+    await connecting;
+    assert.equal(c.host.agents.spawned, 1);
+    assert.deepEqual(a.log, ['session/new']);
+  } finally { c.dispose(); }
+  const plain = chatWith(agent().run);
+  try {
+    assert.equal(plain.host.agents.ready, undefined);
+    await plain.chat.flow.connect();
+    assert.equal(plain.host.agents.spawned, 1);
+  } finally { plain.dispose(); }
+});

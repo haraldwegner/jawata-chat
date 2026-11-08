@@ -35,6 +35,12 @@ export interface AgentHandle {
  * never sees one, and keeps its own register of the agents it started.
  */
 export interface AgentHost {
+  /**
+   * Optional. Settles when the host is done getting ready for an agent to be started (the editors' extensions use it to wait for the
+   * service the agent's program talks to). The core awaits it before it starts a program; it must always settle and must not reject:
+   * a host that could not get ready says so itself and lets the start go on as it would without this port.
+   */
+  ready?(): Promise<void>;
   spawnAgent(name: string, config: AgentConfigEntry, cwd?: string): AgentHandle;
   killAgent(agentId: string): boolean;
   /** Told when an agent's program has ended, by its own account or because it was killed. Stop being told with the returned handle. */
@@ -161,7 +167,7 @@ export const HOST_CALLS: {
   readonly fs: KindsOf<FsPort>; readonly terminal: KindsOf<TerminalPort>; readonly log: KindsOf<Log>; readonly notifier: KindsOf<Notifier>;
   readonly actions: KindsOf<HostActions>; readonly sinks: CallKind; readonly clientInfo: CallKind;
 } = {
-  agents: { spawnAgent: 'at-once', killAgent: 'at-once', onClosed: 'listener', onError: 'listener' },
+  agents: { ready: 'promise', spawnAgent: 'at-once', killAgent: 'at-once', onClosed: 'listener', onError: 'listener' },
   settings: { agents: 'at-once', workspaceCwd: 'at-once', agentSetup: 'at-once' },
   chooser: { confirm: 'promise', chooseAuthMethod: 'promise', confirmAuthMethod: 'promise' },
   fs: { readTextFile: 'promise', writeTextFile: 'promise' },

@@ -1,0 +1,143 @@
+name: Release
+
+# jawata chat and jawata Java are released TOGETHER, from one tag, as two .vsix files on one GitHub release.
+#
+# HOW THE TAG AND THE TWO PACKAGE VERSIONS ARE KEPT EQUAL
+#   packages/vscode/package.json       "version"   (jawata-chat, the chat extension)
+#   packages/vscode-java/package.json  "version"   (jawata-java, the Java extension)
+#   the tag                            v<that version>
+# They are set by hand, in ONE commit, before the tag is pushed:
+#     npm version <X.Y.Z> --no-git-tag-version -w packages/vscode -w packages/vscode-java
+#     (write docs/release-notes/v<X.Y.Z>.md, commit, then: git tag v<X.Y.Z> && git push origin v<X.Y.Z>)
+# (npm version also updates package-lock.json; commit it with them.) Nothing derives one version from another, so the FIRST step of this
+# workflow compares them (scripts/release-versions.mjs, held by test/release-versions.test.mjs) and FAILS the run if the tag differs from
+# either package or the two packages differ from each other.
+# That step runs before anything is built, so a wrong tag costs seconds and publishes nothing. The .vsix file names come from the packages
+# (vsce names a file <name>-<version>.vsix), and a later step checks that exactly jawata-chat-<version>.vsix and jawata-java-<version>.vsix exist.
+#
+# A workflow_dispatch run is a DRY RUN: it does everything up to and including building the two .vsix files, uploads them as workflow
+# artifacts, and publishes nothing, because every step that touches a release is gated on a tag (startsWith(github.ref, 'refs/tags/')).
+# It checks that the two packages agree with each other, since a branch has no tag to compare with.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      # the tag of a tag run; empty on a dispatch run
+      TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # Before anything is built: the tag and both package versions are one version (see the top of this file).
+      - name: Check the tag and the two package versions are equal
+        id: version
+        run: |
+          set -euo pipefail
+          node scripts/release-versions.mjs ${TAG:+"$TAG"} | tee -a "$GITHUB_OUTPUT"
+
+      # A tag run publishes with notes, so the notes must exist before the long steps run. A dispatch run needs no notes.
+      - name: Check the release notes exist
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          NOTES="docs/release-notes/${TAG}.md"
+          [ -s "$NOTES" ] || { echo "::error::no release notes at ${NOTES}; write them before tagging"; exit 1; }
+          echo "notes: $NOTES ($(wc -c < "$NOTES") bytes)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build every package
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      # The repository's own test script: the commit hook test, knip, the root tests and every package's tests. The chat extension's tests
+      # run inside a real VS Code (downloaded by @vscode/test-cli into the package's .vscode-test folder), which needs a display.
+      - name: Test
+        run: xvfb-run -a npm test
+
+      # --no-dependencies: both extensions are webpack bundles (vscode:prepublish builds them), and in an npm workspace vsce's own dependency
+      # listing walks the repository root and fails; the bundle holds what the extension needs. --out names the file explicitly.
+      - name: Build the two .vsix files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p vsix
+          (cd packages/vscode && npx vsce package --no-dependencies --out "../../vsix/jawata-chat-${VERSION}.vsix")
+          (cd packages/vscode-java && npx vsce package --no-dependencies --out "../../vsix/jawata-java-${VERSION}.vsix")
+          echo "built:"
+          ls -l vsix
+          found="$(ls vsix | sort | tr '\n' ' ')"
+          expected="jawata-chat-${VERSION}.vsix jawata-java-${VERSION}.vsix "
+          [ "$found" = "$expected" ] || { echo "::error::expected exactly: ${expected}but vsix/ holds: ${found}"; exit 1; }
+
+      # On a dispatch run this is the whole output. On a tag run it keeps the files the release was made from.
+      - name: Upload the .vsix files as workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: vsix
+          path: vsix/*.vsix
+          if-no-files-found: error
+
+      # From here on only a tag run. The release is made as a DRAFT with both files, then published as latest in one step, so it is never
+      # live with a file missing (the pattern of the studio's release workflow). The body is the notes file, set from the file and read back.
+      - name: Create the release as a draft with both .vsix files
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" vsix/*.vsix \
+            --draft \
+            --verify-tag \
+            --title "jawata chat and jawata Java ${TAG}" \
+            --notes-file "docs/release-notes/${TAG}.md"
+
+      - name: Publish the release as latest
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false --latest
+
+      # What a published release must be, read back from GitHub and not assumed from the commands above: not a draft, not a prerelease, the
+      # notes as the body, exactly the two files attached, and /releases/latest pointing at this tag.
+      - name: Verify the release is published, complete and latest
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          [ "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" -q .draft)" = "false" ] || { echo "::error::${TAG} is still a draft"; exit 1; }
+          [ "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" -q .prerelease)" = "false" ] || { echo "::error::${TAG} is marked a prerelease"; exit 1; }
+          published="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" -q .body)"
+          [ "$published" = "$(cat "docs/release-notes/${TAG}.md")" ] || { echo "::error::the published body does not match docs/release-notes/${TAG}.md"; exit 1; }
+          assets="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" -q '.assets[].name' | sort | tr '\n' ' ')"
+          expected="jawata-chat-${VERSION}.vsix jawata-java-${VERSION}.vsix "
+          [ "$assets" = "$expected" ] || { echo "::error::release assets are: ${assets}; expected: ${expected}"; exit 1; }
+          latest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" -q .tag_name)"
+          echo "releases/latest -> ${latest} (expected ${TAG})"
+          [ "$latest" = "$TAG" ] || { echo "::error::releases/latest points at ${latest}, not ${TAG}"; exit 1; }
+          echo "published: ${TAG} with ${assets}"

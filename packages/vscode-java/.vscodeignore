@@ -12,6 +12,9 @@ test/**
 tsconfig*.json
 webpack.config.js
 eslint.config.mjs
+.vscode-test
+.vscode-test/**
+.vscode-test*.mjs
 
 # the repository's own files
 .gitignore

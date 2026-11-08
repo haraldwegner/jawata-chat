@@ -49,6 +49,7 @@ export class AgentSupply {
     const config = this.host.settings.agents()[name];
     if (!config) { throw new Error(`Unknown agent: ${name}.`); }
 
+    await this.host.agents.ready?.();
     const handle = this.host.agents.spawnAgent(name, config, this.host.settings.workspaceCwd());
     let connection: ConnectionInfo;
     try {

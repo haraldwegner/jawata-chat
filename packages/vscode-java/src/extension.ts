@@ -2,12 +2,40 @@ import * as vscode from 'vscode';
 import { LanguageClient, type LanguageClientOptions, type ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
 import { launchOf, rivalNotice, rivalsOf, type ServerSetting } from './launch';
+import { addressOf, editorFoldersOf, nodePorts, StudioStart, toldToThePerson, type StudioOutcome, type StudioSetting } from './studio';
 
 /** The editor's name for this extension's log and for the client the editor shows in its output list. */
 const NAME = 'jawata Java';
 
 let client: LanguageClient | undefined;
 let channel: vscode.OutputChannel | undefined;
+
+/** The folders the window has open (the ones on disk), by their real paths. */
+function windowFolders(): string[] {
+  return editorFoldersOf((vscode.workspace.workspaceFolders ?? []).filter(folder => folder.uri.scheme === 'file').map(folder => folder.uri.fsPath));
+}
+
+let studioStart: StudioStart | undefined;
+
+/**
+ * The launcher is a pipe to the engine's service, so the service has to answer before the language client starts: the window's folders are
+ * handed to the studio when `jawataJava.studio` carries `handoffDir` (the studio says which engine this window uses), and otherwise the
+ * studio is started from `jawataJava.studio` and waited for (at most two minutes) when the address does not answer. Says in the log what it
+ * found and tells the person when the studio was needed and could not be brought up; never rejects, so the start goes on as it did before
+ * whatever happened. The outcome may carry the engine's key: it is not written down here, only handed to the launch.
+ */
+async function lookAfterStudio(log: vscode.OutputChannel): Promise<StudioOutcome> {
+  const config = vscode.workspace.getConfiguration('jawataJava');
+  studioStart?.dispose();
+  const studio = studioStart = new StudioStart(nodePorts(
+    (text, job) => Promise.resolve(vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: text, cancellable: false }, job)),
+    undefined,
+    text => { void vscode.window.showInformationMessage(`jawata Java: ${text}`); }));
+  const outcome = await studio.ensure(addressOf(config.get<ServerSetting>('server')), config.get<StudioSetting>('studio'), windowFolders());
+  log.appendLine(`studio: ${outcome.kind}: ${outcome.why}`);
+  if (toldToThePerson(outcome)) { void vscode.window.showWarningMessage(`jawata Java: ${outcome.why}`); }
+  return outcome;
+}
 
 /** Starts the launcher the person named and connects the editor's language client to it; reports what is wrong with the setting instead of starting something else. */
 async function start(context: vscode.ExtensionContext): Promise<void> {
@@ -18,7 +46,8 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     log.appendLine(rivalNotice(rivals));
     void vscode.window.showWarningMessage(rivalNotice(rivals));
   }
-  const launch = launchOf(config.get<ServerSetting>('server'));
+  const studio = await lookAfterStudio(log);
+  const launch = launchOf(config.get<ServerSetting>('server'), studio.engine);
   if (!launch.ok) {
     log.appendLine(launch.why);
     void vscode.window.showWarningMessage(launch.why);
@@ -87,5 +116,6 @@ export function activate(context: vscode.ExtensionContext): Promise<void> {
 
 /** @public called by the editor */
 export async function deactivate(): Promise<void> {
+  studioStart?.dispose();
   await stop();
 }

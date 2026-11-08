@@ -7,6 +7,8 @@
     ]
   },
   "include": [
-    "src/launch.ts"
+    "src/launch.ts",
+    "src/studio.ts",
+    "src/extension.ts"
   ]
 }

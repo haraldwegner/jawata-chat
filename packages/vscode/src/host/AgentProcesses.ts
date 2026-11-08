@@ -4,6 +4,7 @@ import { Readable, Writable } from 'node:stream';
 import { ndJsonStream } from '@agentclientprotocol/sdk';
 import { Emitter, type AgentClosed, type AgentConfigEntry, type AgentFailed, type AgentHandle, type AgentHost, type Disposable } from '@jawata/chat-core';
 import { launchFor } from './launch';
+import { withEngine, type EngineAnswer, type StudioOutcome } from '../studio';
 import { log, logError } from '../utils/Logger';
 
 /** How long an agent is given to end after it is asked to, before it is ended by force. */
@@ -55,11 +56,25 @@ class ChildAgent {
 export class AgentProcesses extends Emitter implements AgentHost {
   private readonly agents = new Map<string, ChildAgent>();
   private count = 0;
+  private readiness: Promise<void> = Promise.resolve();
+  private engine: EngineAnswer | undefined;
+
+  /**
+   * Holds every agent start back until `ready` has settled (the studio being brought up); a rejection is not waited on, since the start then goes on as before.
+   * When the studio named an engine for this window, every agent started after that has its address and key in its environment instead of the setting's; they are kept here, in memory, and nowhere else.
+   */
+  holdUntil(ready: Promise<StudioOutcome | void>): void {
+    this.readiness = ready.then(outcome => { this.engine = outcome?.engine; }, () => undefined);
+  }
+
+  ready(): Promise<void> {
+    return this.readiness;
+  }
 
   spawnAgent(name: string, config: AgentConfigEntry, cwd?: string): AgentHandle {
     const id = `agent_${++this.count}`;
     log(`agent ${name} (${id}) is being started with: ${[config.command, ...(config.args ?? [])].join(' ')}`);
-    const agent = new ChildAgent(id, name, config, cwd || undefined, {
+    const agent = new ChildAgent(id, name, { ...config, env: withEngine(config.env, this.engine) }, cwd || undefined, {
       stderr: line => { log(`agent ${name} wrote: ${line}`); },
       failed: error => { logError(`agent ${name} reported an error`, error); this.emit('agent-error', { agentId: id, error } satisfies AgentFailed); },
       ended: (code, signal) => {

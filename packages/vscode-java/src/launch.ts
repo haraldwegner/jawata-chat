@@ -1,3 +1,5 @@
+import { withEngine, type EngineAnswer } from './studio';
+
 /** The `jawataJava.server` setting as the person writes it. */
 export interface ServerSetting {
   command?: string;
@@ -13,8 +15,11 @@ export type Launch =
 /** The one argument that makes the launcher forward a language client's messages; without it the program would be the agent's pipe or the engine itself. */
 const LSP_FLAG = '--lsp';
 
-/** Reads the setting. Nothing is guessed: a missing command or a missing `--lsp` is said, not defaulted. */
-export function launchOf(setting: ServerSetting | undefined): Launch {
+/**
+ * Reads the setting. Nothing is guessed: a missing command or a missing `--lsp` is said, not defaulted. When the studio named an engine for
+ * this window, its address and key replace `JAWATA_URL` and `JAWATA_KEY` in the environment of this launch and of no other.
+ */
+export function launchOf(setting: ServerSetting | undefined, engine?: EngineAnswer): Launch {
   const command = setting?.command?.trim() ?? '';
   if (command === '') {
     return { ok: false, why: 'Set jawataJava.server.command to the program that runs the jawata launcher (for example java with -jar <jawata.jar> --lsp --url <the engine address>).' };
@@ -23,7 +28,7 @@ export function launchOf(setting: ServerSetting | undefined): Launch {
   if (!args.includes(LSP_FLAG)) {
     return { ok: false, why: `jawataJava.server.args has no ${LSP_FLAG}, so the launcher would not forward the language server's messages.` };
   }
-  return { ok: true, command, args, env: setting?.env ?? {} };
+  return { ok: true, command, args, env: withEngine(setting?.env, engine) ?? {} };
 }
 
 /** Which of the `rivals` (extensions that run a Java language server of their own) are among the `installed` extension identifiers; identifiers compare without regard to case. */

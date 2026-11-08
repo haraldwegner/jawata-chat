@@ -10,6 +10,8 @@ import { ChatWebviewProvider } from './ui/ChatWebviewProvider';
 import { PageSwitch } from './ui/PageSwitch';
 import { VIEW_OF, chosenPlace, type Place } from './ui/places';
 import { log, disposeChannels, setRecordingDir } from './utils/Logger';
+import { nodePorts, StudioStart } from './studio';
+import { lookAfterStudio } from './host/lookAfterStudio';
 
 /** How long the editor needs, after the placement setting changes, to bring the views of the chosen place into being. */
 const PLACEMENT_SETTLE_MS = 300;
@@ -36,6 +38,10 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   setRecordingDir(recordingsDir);
 
   const host = createVscodeHost(extensionVersion);
+  // the engine's service must answer before an agent that talks to it is started: if it does not, the studio is started and waited for here,
+  // in the background, and the first agent start waits for it (28h S21 (d))
+  const studioStart = new StudioStart(nodePorts((text, job) => host.notifier.progress(text, job), undefined, text => { void vscode.window.showInformationMessage(`jawata chat: ${text}`); }));
+  host.agents.holdUntil(lookAfterStudio(studioStart));
   const built = createChat(host);
   const sessionManager = built.sessions;
   const chat = built.controller;
@@ -67,6 +73,7 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
       .map(([name, run]) => vscode.commands.registerCommand(`jawataChat.${name}`, run)),
     {
       dispose: () => {
+        studioStart.dispose();
         built.dispose();
         host.terminal.dispose();
         disposeChannels();

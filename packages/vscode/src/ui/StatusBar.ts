@@ -3,6 +3,22 @@ import type { SessionManager } from '@jawata/chat-core';
 
 const CHANGES = ['agent-connected', 'agent-disconnected', 'active-session-changed', 'agent-closed'] as const;
 
+/**
+ * The words of the status bar item and of its mouseover. The item carries no icon of its own: a built-in icon is a generic robot, which says
+ * nothing about jawata, and an icon of ours needs its own icon font. Only the failed state keeps the built-in error mark, because it is a warning.
+ *
+ * @public the editor test (src/test/status-bar.test.ts) calls it to check the words; the production check of unused exports does not read tests
+ */
+export function statusLine(failed: boolean, agentName: string | undefined): { text: string; tooltip: string } {
+  if (failed) {
+    return { text: '$(error) jawata chat: error', tooltip: 'The agent reported an error; the log has it. Click to connect again.' };
+  }
+  if (agentName) {
+    return { text: `jawata chat: ${agentName}`, tooltip: `Connected to ${agentName}` };
+  }
+  return { text: 'jawata chat: not connected', tooltip: 'Click to connect to the agent set in jawataChat.agent' };
+}
+
 /** One item in the status bar: who the chat is connected to, or that it is not, or that the agent failed. */
 export class StatusBar implements vscode.Disposable {
   private readonly item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -19,20 +35,10 @@ export class StatusBar implements vscode.Disposable {
 
   private show(failed: boolean): void {
     this.failed = failed;
-    const session = this.sessions.getActiveSession();
-    if (this.failed) {
-      this.item.text = '$(error) jawata chat: error';
-      this.item.tooltip = 'The agent reported an error; the log has it. Click to connect again.';
-      this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-    } else if (session) {
-      this.item.text = `$(hubot) jawata chat: ${session.agentDisplayName}`;
-      this.item.tooltip = `Connected to ${session.agentDisplayName}`;
-      this.item.backgroundColor = undefined;
-    } else {
-      this.item.text = '$(hubot) jawata chat: not connected';
-      this.item.tooltip = 'Click to connect to the agent set in jawataChat.agent';
-      this.item.backgroundColor = undefined;
-    }
+    const line = statusLine(this.failed, this.sessions.getActiveSession()?.agentDisplayName);
+    this.item.text = line.text;
+    this.item.tooltip = line.tooltip;
+    this.item.backgroundColor = this.failed ? new vscode.ThemeColor('statusBarItem.errorBackground') : undefined;
     this.item.show();
   }
 

@@ -126,7 +126,9 @@ const RULES: Rule[] = [
   ['.brain-wrap', 'position: relative; display: inline-block;'],
   ['.brain-btn', 'font: inherit; font-size: 0.9em; padding: 0 6px; border-radius: 4px; cursor: pointer; color: var(--jc-quiet); background: transparent; border: 1px solid var(--jc-edge);'],
   ['.brain-btn:hover', 'background: var(--jc-mine);'],
-  ['.brain-menu', 'position: absolute; z-index: 6; right: 0; top: 100%; min-width: 170px; margin-top: 2px; padding: 3px 0; border: 1px solid var(--jc-edge); border-radius: 6px; background: var(--jc-raised);'],
+  // Anchored to the left of its row and capped in width and height (D54 (a)): with every model a brain offers as an entry the list is long, and
+  // anchored to the right it ran off the left of the narrow panel while the entries below the window could not be reached.
+  ['.brain-menu', 'position: absolute; z-index: 6; left: 0; top: 100%; min-width: 170px; width: max-content; max-width: min(340px, calc(100vw - 24px)); max-height: 60vh; overflow-y: auto; overflow-x: hidden; overflow-wrap: anywhere; margin-top: 2px; padding: 3px 0; border: 1px solid var(--jc-edge); border-radius: 6px; background: var(--jc-raised);'],
   ['.brain-menu-wait', 'padding: 3px 10px; color: var(--jc-quiet);'],
   ['.brain-item', 'padding: 3px 10px; cursor: pointer; white-space: nowrap;'],
   ['.brain-item:hover', 'background: var(--jc-mine);'],

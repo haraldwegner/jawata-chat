@@ -79,6 +79,7 @@ test('the screen shows the host\'s reading, says nothing leaves the machine, and
   assert.notEqual(root.querySelector('summary').title, '', 'the fold has its mouseover');
   assert.match(root.querySelector('label').title, /recording itself keeps running/);
   assert.match(root.querySelector('p[title]').title, /seen 3 or more times/);
+  assert.match(root.querySelector('h3').title, /Ranked by repeats/);
 });
 
 test('the switch asks the host and shows what the host then says', async () => {

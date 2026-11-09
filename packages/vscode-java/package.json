@@ -2,7 +2,7 @@
   "name": "jawata-java",
   "displayName": "jawata Java",
   "description": "Java language support from the one jawata engine: problems from unsaved text, navigation and completion, without a second Java server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "jawata",
   "license": "AGPL-3.0-only",
   "repository": {
@@ -34,6 +34,11 @@
       {
         "command": "jawataJava.restartServer",
         "title": "jawata Java: Restart Language Server"
+      },
+      {
+        "command": "jawataJava.refreshProjects",
+        "title": "Refresh",
+        "icon": "$(refresh)"
       }
     ],
     "configuration": {
@@ -98,6 +103,30 @@
           "description": "Identifiers of other extensions that run a Java language server of their own. If one of them is installed, jawata Java says so, because the editor would then run two Java servers over the same files; switch the other one off for this workspace."
         }
       }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "jawataJava.projects",
+          "name": "Java Projects",
+          "contextualTitle": "Java Projects"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "jawataJava.projects",
+        "contents": "No Java project is loaded in this window's jawata workspace yet. Once one is, press Refresh above."
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "jawataJava.refreshProjects",
+          "when": "view == jawataJava.projects",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {

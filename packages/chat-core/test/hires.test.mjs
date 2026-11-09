@@ -126,7 +126,7 @@ test('R12: a page that comes late or reloads is given the agents as they stand (
   const c = await playedTree();
   try {
     c.port.toView.length = 0;
-    await c.port.deliver({ type: 'ready', contractVersion: 8 });
+    await c.port.deliver({ type: 'ready', contractVersion: 9 });
     const snapshot = c.port.toView.find(m => m.type === 'snapshot');
     assert.deepEqual(snapshot.state.hires.map(x => x.planId), ['p-pm', 'p-ce', 'p-dev']);
     assert.deepEqual(workingTree(snapshot.state.hires).map(r => r.hire.planId), ['p-pm']);

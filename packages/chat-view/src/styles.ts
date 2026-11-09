@@ -113,6 +113,7 @@ const RULES: Rule[] = [
   ['.mismatch', 'flex: none; margin: var(--jc-gap) var(--jc-pad) 0; padding: 8px 10px; border: 1px solid var(--jc-bad); border-radius: var(--jc-round); color: var(--jc-bad);'],
   ['.user-files', 'display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;'],
   ['.agents', 'flex: none; max-height: 40%; overflow-y: auto; margin: var(--jc-gap) var(--jc-pad) 0; padding: 8px 10px; border: 1px solid var(--jc-edge); border-radius: var(--jc-round); background: var(--jc-raised);'],
+  ['.agents.agents-panel', 'flex: 1; max-height: none; min-height: 0; margin: 0; border: 0; border-radius: 0;'],
   ['.agents-title', 'font-weight: 600; margin-bottom: 4px;'],
   ['.hire-row', 'display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;'],
   ['.hire', 'padding: 3px 0; border-top: 1px solid var(--jc-edge);'],
@@ -125,8 +126,7 @@ const RULES: Rule[] = [
   ['.brain-wrap', 'position: relative; display: inline-block;'],
   ['.brain-btn', 'font: inherit; font-size: 0.9em; padding: 0 6px; border-radius: 4px; cursor: pointer; color: var(--jc-quiet); background: transparent; border: 1px solid var(--jc-edge);'],
   ['.brain-btn:hover', 'background: var(--jc-mine);'],
-  ['.brain-menu', 'position: absolute; z-index: 6; left: 0; top: 100%; min-width: 170px; margin-top: 2px; padding: 3px 0; border: 1px solid var(--jc-edge); border-radius: 6px; background: var(--jc-raised);'],
-  ['.brain-menu-head', 'padding: 2px 10px; font-size: 0.85em; text-transform: uppercase; color: var(--jc-quiet);'],
+  ['.brain-menu', 'position: absolute; z-index: 6; right: 0; top: 100%; min-width: 170px; margin-top: 2px; padding: 3px 0; border: 1px solid var(--jc-edge); border-radius: 6px; background: var(--jc-raised);'],
   ['.brain-menu-wait', 'padding: 3px 10px; color: var(--jc-quiet);'],
   ['.brain-item', 'padding: 3px 10px; cursor: pointer; white-space: nowrap;'],
   ['.brain-item:hover', 'background: var(--jc-mine);'],
@@ -199,6 +199,16 @@ const RULES: Rule[] = [
   ['.side-open-btn', 'font: inherit; font-size: 0.85em; padding: 1px 8px; border-radius: 4px; cursor: pointer; color: var(--jc-quiet); background: transparent; border: 1px solid var(--jc-edge);'],
   ['.side-open-btn:hover', 'background: var(--jc-mine);'],
   ['.side-thread', 'display: flex; flex-direction: column; gap: 4px; margin: 4px 8px; padding: 6px 8px; border: 1px solid var(--jc-edge); border-radius: 6px; background: var(--jc-raised); max-height: 40%;'],
+  ['.side-thread.side-panel', 'flex: 1; min-height: 0; max-height: none; height: 100%; margin: 0; border: 0; border-radius: 0;'],
+  ['.side-panel .side-entries', 'flex: 1;'],
+  ['.tool-btn', 'font: inherit; padding: 1px 8px; border-radius: 4px; cursor: pointer; color: var(--jc-text); background: transparent; border: 1px solid var(--jc-edge);'],
+  ['.tool-btn:hover', 'background: var(--jc-mine);'],
+  ['.tool-btn:disabled', 'opacity: 0.5; cursor: default;'],
+  ['.principal-brain', 'color: var(--jc-quiet); font-size: 0.9em;'],
+  ['.working', 'flex: none; display: flex; align-items: center; gap: 8px; padding: 2px var(--jc-pad); color: var(--jc-quiet);'],
+  ['.working-dots i', 'display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: var(--jc-accent); animation: jc-pulse 1.2s infinite;'],
+  ['.working-dots i:nth-child(2)', 'animation-delay: 0.2s;'],
+  ['.working-dots i:nth-child(3)', 'animation-delay: 0.4s;'],
   ['.side-head', 'display: flex; align-items: center; justify-content: space-between;'],
   ['.side-title', 'font-size: 0.85em; text-transform: uppercase; color: var(--jc-quiet);'],
   ['.side-close-btn', 'font: inherit; font-size: 0.85em; padding: 1px 8px; border-radius: 4px; cursor: pointer; color: var(--jc-text); background: transparent; border: 1px solid var(--jc-edge);'],
@@ -233,6 +243,7 @@ const RULES: Rule[] = [
 
 const MOTION = `
 @keyframes jc-spin { to { transform: rotate(360deg); } }
+@keyframes jc-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 @keyframes jc-dots { to { width: 1.2em; } }
 @media (prefers-reduced-motion: reduce) {
   ${SCOPE} .spinner { animation: none; }

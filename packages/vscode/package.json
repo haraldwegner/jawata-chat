@@ -2,7 +2,7 @@
   "name": "jawata-chat",
   "displayName": "jawata chat",
   "description": "jawata's own chat for ACP agents",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "jawata",
   "license": "AGPL-3.0-only",
   "repository": {
@@ -40,6 +40,11 @@
           "id": "jawata-chat-secondary",
           "title": "jawata chat",
           "icon": "resources/icon.svg"
+        },
+        {
+          "id": "jawata-control",
+          "title": "Agent Control",
+          "icon": "resources/icon.svg"
         }
       ],
       "panel": [
@@ -55,8 +60,7 @@
         {
           "id": "jawata-chat-view",
           "name": "Chat",
-          "type": "webview",
-          "when": "config.jawataChat.placement == 'left'"
+          "type": "webview"
         }
       ],
       "jawata-chat-secondary": [
@@ -73,6 +77,19 @@
           "name": "Chat",
           "type": "webview",
           "when": "config.jawataChat.placement == 'bottom'"
+        }
+      ],
+      "jawata-control": [
+        {
+          "id": "jawata-agents-view",
+          "name": "Agent Control",
+          "type": "webview"
+        },
+        {
+          "id": "jawata-btw-view",
+          "name": "btw",
+          "type": "webview",
+          "when": "jawataChat.btwOpen"
         }
       ]
     },
@@ -139,6 +156,11 @@
         "title": "jawata chat: Side question"
       },
       {
+        "command": "jawataChat.closeSide",
+        "title": "Close this side discussion and forget it. The main chat is not touched.",
+        "icon": "$(close)"
+      },
+      {
         "command": "jawataChat.attachFile",
         "title": "jawata chat: Attach File to Prompt",
         "icon": "$(attach)"
@@ -155,6 +177,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "jawataChat.closeSide",
+          "when": "view == jawata-btw-view",
+          "group": "navigation"
+        },
         {
           "command": "jawataChat.newConversation",
           "when": "view =~ /^jawata-chat-view/",
@@ -280,7 +307,7 @@
             "bottom",
             "center"
           ],
-          "default": "left",
+          "default": "center",
           "enumDescriptions": [
             "The left side bar (the activity bar)",
             "The right (secondary) side bar",

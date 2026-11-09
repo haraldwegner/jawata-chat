@@ -51,8 +51,8 @@ export const HIRE_METHODS = ['_jawata/hire/stop', '_jawata/hire/transcript', '_j
 /** The brains and models the agent offers (S23); asked with no params. PROVISIONAL until 28h names it. */
 export const BRAIN_LIST_METHOD = '_jawata/brains';
 
-/** E6: one model option per seat, `seat-model:<seat>`, category `model`. */
-export const SEAT_MODEL_PREFIX = 'seat-model:';
+/** D53: the brain of the principal is one option, category `model`; a seat's default is set in the studio and a running hire's on its row. */
+export const PRINCIPAL_BRAIN_OPTION_ID = 'principal-brain';
 
 /**
  * CR1 (provisional until 28h's D19 names the field): whether the session's autocontinue grant is armed is one select option, `autonomy`,
@@ -149,7 +149,7 @@ export function checkLevel1(lines: RecordedLine[]): string[] {
     }
     const options = msg.result?.configOptions ?? u?.configOptions ?? [];
     for (const o of options) {
-      if (typeof o?.id === 'string' && o.id.startsWith(SEAT_MODEL_PREFIX)) {
+      if (o?.id === PRINCIPAL_BRAIN_OPTION_ID) {
         if (o.category !== 'model') { out.push(`${at}: option ${o.id}: category is ${JSON.stringify(o.category)}, not "model"`); }
         if (o.type !== 'select') { out.push(`${at}: option ${o.id}: type is ${JSON.stringify(o.type)}, not "select"`); }
       }

@@ -25,7 +25,7 @@ suite('The editor supplies exactly the theme inputs the view reads', () => {
 	const EXPECTED: Record<string, string> = {
 		font: '--vscode-font-family', size: '--vscode-font-size', mono: '--vscode-editor-font-family',
 		text: '--vscode-foreground', ground: '--vscode-sideBar-background', raised: '--vscode-editorWidget-background',
-		edge: '--vscode-panel-border', field: '--vscode-input-background', 'field-text': '--vscode-input-foreground',
+		edge: '--vscode-panel-border', muted: '--vscode-descriptionForeground', page: '--vscode-editor-background', field: '--vscode-input-background', 'field-text': '--vscode-input-foreground',
 		accent: '--vscode-button-background', 'on-accent': '--vscode-button-foreground',
 		mine: '--vscode-button-secondaryBackground', 'mine-text': '--vscode-button-secondaryForeground',
 		ok: '--vscode-testing-iconPassed', bad: '--vscode-errorForeground', warn: '--vscode-editorWarning-foreground',

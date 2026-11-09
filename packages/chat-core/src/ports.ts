@@ -107,6 +107,18 @@ export interface TerminalPort {
 export interface HostActions {
   /** Open the place where the agent is configured. */
   configureAgent(): Promise<void>;
+  /** Show the side discussion's panel. */
+  showSide(): void;
+  /** Close the side discussion's panel. */
+  hideSide(): void;
+  /** Let the person pick files to attach. A picture comes with its bytes, so the agent receives the picture and not a path; none when they cancelled. */
+  chooseFiles(): Promise<ChosenFile[]>;
+}
+
+/** A file the person picked. `image` is there for a picture. */
+export interface ChosenFile {
+  path: string;
+  image?: { mimeType: string; data: string };
 }
 
 /** How the core tells the person what is going on and what went wrong. */
@@ -174,7 +186,7 @@ export const HOST_CALLS: {
   terminal: { createTerminal: 'promise', terminalOutput: 'promise', waitForTerminalExit: 'promise', killTerminal: 'promise', releaseTerminal: 'promise' },
   log: { log: 'notice', logError: 'notice' },
   notifier: { progress: 'promise', info: 'notice', error: 'notice' },
-  actions: { configureAgent: 'promise' },
+  actions: { configureAgent: 'promise', showSide: 'notice', hideSide: 'notice', chooseFiles: 'promise' },
   sinks: 'at-once',
   clientInfo: 'at-once',
 };

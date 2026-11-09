@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AUTONOMY_OPTION, autonomyOf, type ViewIntent, type ViewState } from '@jawata/chat-core/view';
-import { AutonomyButton, Picker, pickersFor } from './Pickers.js';
+import { AutonomyButton, principalBrainOf } from './Pickers.js';
 
 /** How long the person stops typing before the core is told what the draft is. */
 const DRAFT_PAUSE_MS = 250;
@@ -26,8 +26,6 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   const [hint, setHint] = useState<string | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashClosed, setSlashClosed] = useState(false);
-  const [openPicker, setOpenPicker] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<Record<string, string>>({});
   const field = useRef<HTMLTextAreaElement>(null);
   /** Whether the person has typed in this page: until then, the draft the core holds (from before a reload) is what the field takes. */
   const touched = useRef(false);
@@ -58,14 +56,6 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     el.style.height = Math.min(el.scrollHeight, MAX_FIELD_HEIGHT) + 'px';
   }, [text]);
 
-  // a choice shows at once; the agent's answer replaces it
-  useEffect(() => { setChosen({}); }, [session?.configOptions, session?.modes, session?.models]);
-  useEffect(() => {
-    const close = () => setOpenPicker(null);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, []);
-
   const typingCommand = text.startsWith('/') && !text.includes(' ');
   const matching = typingCommand && commands.length > 0 && !slashClosed
     ? commands.filter(c => c.name.toLowerCase().startsWith(text.slice(1).toLowerCase()))
@@ -76,9 +66,34 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   const slashOpen = filtered.length > 0;
   const disabled = !session || state.loading;
 
+  const openSide = (question?: string) => {
+    send({ type: 'openSide', ...(question ? { text: question } : {}) });
+  };
+
+  /** What is in the field becomes the side discussion's first message: the button and the shortcut are the same act (D53 (b)). */
+  const askFromTheField = () => {
+    const question = text.trim();
+    if (question) {
+      touched.current = true;
+      send({ type: 'keepDraft', text: '' });
+      setText('');
+    }
+    openSide(question || undefined);
+  };
+
   const submit = (value: string) => {
     const body = value.trim();
     if (!body) { return; }
+    // `/btw` is the side discussion: what follows it is its first question, and it is not sent to this conversation
+    const btw = /^\/btw(?:\s+([\s\S]*))?$/.exec(body);
+    if (btw) {
+      openSide(btw[1]?.trim());
+      touched.current = true;
+      send({ type: 'keepDraft', text: '' });
+      setText('');
+      setHint(null);
+      return;
+    }
     const files = state.attachments.map(a => a.path);
     send({ type: 'sendPrompt', text: body, ...(files.length > 0 ? { files } : {}) });
     touched.current = true;
@@ -100,6 +115,11 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      askFromTheField(); // the editor's own binding only opens the panel: it cannot read this field
+      return;
+    }
     if (slashOpen) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setSlashIndex(i => Math.min(i + 1, filtered.length - 1)); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSlashIndex(i => Math.max(i - 1, 0)); return; }
@@ -112,13 +132,31 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     }
   };
 
-  const pickers = session ? pickersFor(session, chosen, {
-    setConfigOption: (configId, value) => send({ type: 'setConfigOption', configId, value }),
-    setMode: modeId => send({ type: 'setMode', modeId }),
-    setModel: modelId => send({ type: 'setModel', modelId }),
-  }) : [];
-
   const autonomy = session ? autonomyOf(session) : null;
+  const brain = principalBrainOf(session);
+
+  /** A picture pasted into the field is attached; anything else is pasted as usual. */
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const item = [...e.clipboardData.items].find(i => i.kind === 'file' && i.type.startsWith('image/'));
+    const file = item?.getAsFile();
+    if (!item || !file) { return; }
+    e.preventDefault();
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = String(reader.result).split(',')[1] ?? '';
+      send({ type: 'attachPasted', name: file.name || 'screenshot.png', mimeType: item.type, data });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  /** Show the list of seats and skills, as typing `/` does. */
+  const openList = () => {
+    touched.current = true;
+    setText('/');
+    setSlashClosed(false);
+    setSlashIndex(0);
+    field.current?.focus();
+  };
 
   const placeholder = hint ?? (commands.length > 0 ? 'Type a message or / for commands...' : 'Type a message...');
 
@@ -161,19 +199,19 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
       ) : null}
       <div className="input-toolbar">
         <div className="picker-row">
-          {pickers.map(p => (
-            <Picker key={p.id} model={p} open={openPicker === p.id}
-              onToggle={() => setOpenPicker(o => (o === p.id ? null : p.id))}
-              onChoose={value => { setOpenPicker(null); if (value !== p.current) { setChosen(c => ({ ...c, [p.id]: value })); p.choose(value); } }} />
-          ))}
           {autonomy ? <AutonomyButton armed={autonomy.armed} onPress={value => send({ type: 'setConfigOption', configId: AUTONOMY_OPTION, value })} /> : null}
+          <button className="tool-btn" disabled={disabled} title="Attach a file or picture to your next message. You can also paste a screenshot into the field." onClick={() => send({ type: 'chooseFiles' })}>+</button>
+          <button className="tool-btn" disabled={disabled} title="Lists the seats and skills you can start. Typing / does the same." onClick={openList}>/</button>
+          <button className="tool-btn" disabled={disabled} title="Opens the btw panel on the right, a separate conversation with its own agent. This one goes on and is not told. Ctrl+Alt+S."
+            onClick={askFromTheField}>Side question</button>
         </div>
         <span className="toolbar-spacer" />
+        {brain ? <span className="principal-brain" title="The brain of the principal in this conversation. Its default is set in jawata studio, Seats view.">{brain.label}</span> : null}
       </div>
       <div className="input-editor-wrap">
         <textarea ref={field} placeholder={placeholder} rows={2} value={text} disabled={disabled}
           onChange={e => { touched.current = true; setText(e.target.value); setSlashClosed(false); setSlashIndex(0); if (!e.target.value.startsWith('/')) { setHint(null); } }}
-          onKeyDown={onKeyDown} />
+          onKeyDown={onKeyDown} onPaste={onPaste} />
       </div>
       <div className="input-send-row">
         {state.processing ? <button className="send-stop-btn stop" title="Stop the running answer (Esc)" onClick={() => send({ type: 'cancelTurn' })}>■ Stop</button> : null}

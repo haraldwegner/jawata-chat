@@ -16,7 +16,7 @@
   "messages": [
     {
       "type": "state",
-      "contractVersion": 8,
+      "contractVersion": 9,
       "activeSessionId": "47d05e79-dc0a-44c8-a184-9dac31dfd6aa",
       "session": {
         "sessionId": "sessionId#1",

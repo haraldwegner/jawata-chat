@@ -65,11 +65,11 @@ test('R4 (shape only): two hires overlap, one compacts, both end done; a stop an
   assert.deepEqual(asked, ['_jawata/hire/stop', '_jawata/hire/transcript']);
 });
 
-test('R5 (shape only): one model option per seat, and the change names one seat', () => {
+test('R5 (shape only): one option for the principal\'s brain, and the change names it', () => {
   const s = session('R5');
-  const ids = s.find((l) => l.msg.result?.configOptions).msg.result.configOptions.filter((o) => o.id.startsWith('seat-model:')).map((o) => o.id);
-  assert.deepEqual(ids, ['seat-model:architect', 'seat-model:test-writer']);
-  assert.equal(s.find((l) => l.msg.method === 'session/set_config_option').msg.params.configId, 'seat-model:test-writer');
+  const ids = s.find((l) => l.msg.result?.configOptions).msg.result.configOptions.filter((o) => o.category === 'model').map((o) => o.id);
+  assert.deepEqual(ids, ['principal-brain']);
+  assert.equal(s.find((l) => l.msg.method === 'session/set_config_option').msg.params.configId, 'principal-brain');
 });
 
 test('R11 (shape only): the autonomy option is armed by a change, the answer shows on, then it is ended and the answer shows off', () => {

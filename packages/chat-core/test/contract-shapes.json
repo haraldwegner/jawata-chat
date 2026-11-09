@@ -1051,5 +1051,246 @@
         "planId"
       ]
     }
+  },
+  "9": {
+    "messages": [
+      "brainList",
+      "clearChat",
+      "configOptionsUpdate",
+      "draft",
+      "error",
+      "file-attached",
+      "file-detached",
+      "hireChanged",
+      "hireTranscript",
+      "loadSessionEnd",
+      "loadSessionStart",
+      "modelsUpdate",
+      "modesUpdate",
+      "permissionRequest",
+      "permissionResolved",
+      "promptEnd",
+      "promptQueued",
+      "promptStart",
+      "sessionInfoUpdate",
+      "sessionList",
+      "sessionUpdate",
+      "sideAsked",
+      "sideClosed",
+      "sideEnd",
+      "sideError",
+      "sideUpdate",
+      "snapshot",
+      "state",
+      "userPrompt"
+    ],
+    "intents": [
+      "answerPermission",
+      "askSide",
+      "attachPasted",
+      "cancelTurn",
+      "chooseBrain",
+      "chooseFiles",
+      "closeSide",
+      "configureAgent",
+      "connectAgent",
+      "detachFile",
+      "disconnectAgent",
+      "keepDraft",
+      "listBrains",
+      "listSessions",
+      "openSession",
+      "openSide",
+      "openTranscript",
+      "pageFailed",
+      "ready",
+      "sendNow",
+      "sendPrompt",
+      "setConfigOption",
+      "setMode",
+      "setModel",
+      "stopHire"
+    ],
+    "state": [
+      "attachments",
+      "brains",
+      "contractVersion",
+      "draft",
+      "draftResets",
+      "entries",
+      "hires",
+      "history",
+      "loading",
+      "plan",
+      "processing",
+      "proposals",
+      "queued",
+      "session",
+      "side",
+      "transcripts"
+    ],
+    "messageFields": {
+      "brainList": [
+        "brains"
+      ],
+      "clearChat": [],
+      "configOptionsUpdate": [
+        "configOptions"
+      ],
+      "draft": [
+        "text"
+      ],
+      "error": [
+        "message"
+      ],
+      "file-attached": [
+        "name",
+        "path"
+      ],
+      "file-detached": [
+        "path"
+      ],
+      "hireChanged": [
+        "hire"
+      ],
+      "hireTranscript": [
+        "planId",
+        "turns"
+      ],
+      "loadSessionEnd": [
+        "ok"
+      ],
+      "loadSessionStart": [],
+      "modelsUpdate": [
+        "models"
+      ],
+      "modesUpdate": [
+        "modes"
+      ],
+      "permissionRequest": [
+        "diffs",
+        "options",
+        "requestId",
+        "title"
+      ],
+      "permissionResolved": [
+        "requestId"
+      ],
+      "promptEnd": [
+        "stopReason",
+        "usage"
+      ],
+      "promptQueued": [
+        "files",
+        "text"
+      ],
+      "promptStart": [],
+      "sessionInfoUpdate": [
+        "title"
+      ],
+      "sessionList": [
+        "append",
+        "nextCursor",
+        "sessions",
+        "show"
+      ],
+      "sessionUpdate": [
+        "sessionId",
+        "update"
+      ],
+      "sideAsked": [
+        "text"
+      ],
+      "sideClosed": [],
+      "sideEnd": [
+        "stopReason"
+      ],
+      "sideError": [
+        "message"
+      ],
+      "sideUpdate": [
+        "update"
+      ],
+      "snapshot": [
+        "state"
+      ],
+      "state": [
+        "activeSessionId",
+        "contractVersion",
+        "session"
+      ],
+      "userPrompt": [
+        "files",
+        "text"
+      ]
+    },
+    "intentFields": {
+      "answerPermission": [
+        "optionId",
+        "requestId"
+      ],
+      "askSide": [
+        "text"
+      ],
+      "attachPasted": [
+        "data",
+        "mimeType",
+        "name"
+      ],
+      "cancelTurn": [],
+      "chooseBrain": [
+        "brain",
+        "model",
+        "planId"
+      ],
+      "chooseFiles": [],
+      "closeSide": [],
+      "configureAgent": [],
+      "connectAgent": [],
+      "detachFile": [
+        "path"
+      ],
+      "disconnectAgent": [],
+      "keepDraft": [
+        "text"
+      ],
+      "listBrains": [],
+      "listSessions": [
+        "cursor"
+      ],
+      "openSession": [
+        "sessionId"
+      ],
+      "openSide": [
+        "text"
+      ],
+      "openTranscript": [
+        "planId"
+      ],
+      "pageFailed": [
+        "message"
+      ],
+      "ready": [
+        "contractVersion"
+      ],
+      "sendNow": [],
+      "sendPrompt": [
+        "files",
+        "text"
+      ],
+      "setConfigOption": [
+        "configId",
+        "value"
+      ],
+      "setMode": [
+        "modeId"
+      ],
+      "setModel": [
+        "modelId"
+      ],
+      "stopHire": [
+        "planId"
+      ]
+    }
   }
 }

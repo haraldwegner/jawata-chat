@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D53 mock-up</title>
+<style>
+  :root { --bg:#181a1d; --panel:#1f2227; --line:#34383f; --text:#d7dae0; --muted:#8b929c; --accent:#2f81f7; --green:#3fb950; --chip:#2b2f36; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#0e1013; color:var(--text); font:13px/1.45 system-ui, "Segoe UI", sans-serif; }
+  h1 { font-size:18px; margin:18px 20px 2px; }
+  .caption { color:var(--muted); margin:0 20px 10px; max-width:1100px; }
+  .controls { margin:0 20px 10px; display:flex; gap:8px; }
+  button { font:inherit; color:var(--text); background:var(--chip); border:1px solid var(--line); border-radius:5px; padding:3px 9px; cursor:pointer; }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .window { margin:0 20px 26px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--bg); }
+  .titlebar { height:30px; background:#15171a; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
+  .ide { display:grid; grid-template-columns:230px 1fr 340px; height:640px; }
+  .left, .right { background:var(--panel); display:flex; flex-direction:column; min-height:0; }
+  .left { border-right:1px solid var(--line); }
+  .right { border-left:1px solid var(--line); }
+  .activity { display:flex; gap:12px; padding:8px 10px; border-bottom:1px solid var(--line); color:var(--muted); }
+  .activity span { width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; font-size:13px; }
+  .logo { background:var(--accent); color:#fff; font-weight:700; cursor:pointer; outline:2px solid #fff3; }
+  .section-title { font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); padding:7px 10px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .tree { padding:4px 10px; flex:1; color:var(--text); }
+  .tree div { padding:1px 0; }
+  .collapsed { padding:6px 10px; border-top:1px solid var(--line); color:var(--text); font-weight:600; font-size:12px; }
+  .center { display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .tab { padding:6px 12px; border-bottom:1px solid var(--line); background:#15171a; font-size:12px; }
+  .chat-head { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; border-bottom:1px solid var(--line); font-weight:600; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); margin-right:6px; }
+  .messages { flex:1; padding:14px 16px; overflow:auto; }
+  .msg-user { text-align:right; margin:10px 0; }
+  .msg-agent { margin:10px 0; }
+  .working { color:var(--muted); display:flex; gap:7px; align-items:center; margin-top:14px; }
+  .dots i { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-right:3px; animation:pulse 1.2s infinite; }
+  .dots i:nth-child(2){ animation-delay:.2s } .dots i:nth-child(3){ animation-delay:.4s }
+  @keyframes pulse { 0%,100%{opacity:.25} 50%{opacity:1} }
+  .input-wrap { position:relative; padding:8px 12px 12px; border-top:1px solid var(--line); }
+  .row { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
+  .brain { margin-left:auto; color:var(--muted); font-size:12px; cursor:help; }
+  textarea { width:100%; height:52px; resize:none; background:#14161a; color:var(--text); border:1px solid var(--line); border-radius:5px; padding:6px 8px; font:inherit; }
+  .send { display:flex; justify-content:flex-end; margin-top:6px; }
+  .send button { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .popup { position:absolute; bottom:112px; left:12px; width:430px; max-height:320px; overflow:auto; background:#25282e; border:1px solid var(--line); border-radius:6px; padding:5px; display:none; box-shadow:0 8px 24px #0009; }
+  .popup.open { display:block; }
+  .group { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:5px 7px 2px; }
+  .item { padding:3px 7px; border-radius:4px; display:flex; gap:9px; cursor:pointer; }
+  .item:hover { background:#31353d; }
+  .item b { min-width:96px; font-weight:600; }
+  .item span { color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ac { flex:1; overflow:auto; padding:8px 10px; min-height:0; }
+  .ac-title { font-weight:600; margin-bottom:7px; }
+  .none { color:var(--muted); }
+  .agent { border-left:2px solid var(--line); padding:3px 0 5px 8px; margin:4px 0; }
+  .agent .l1 { display:flex; gap:7px; align-items:center; }
+  .agent .l1 b { font-weight:600; }
+  .agent .l2 { color:var(--muted); display:flex; gap:9px; font-size:12px; align-items:center; }
+  .agent .task { color:var(--text); font-size:12px; margin-top:2px; }
+  .state { color:var(--green); font-size:12px; }
+  .agent .stop { margin-left:auto; padding:0 7px; font-size:12px; }
+  .braintag { color:#b6c6e6; cursor:pointer; text-decoration:underline dotted; }
+  .menu { display:none; background:#25282e; border:1px solid var(--line); border-radius:5px; padding:3px; margin-top:4px; width:210px; font-size:12px; }
+  .menu.open { display:block; }
+  .menu div { padding:2px 7px; cursor:pointer; border-radius:3px; }
+  .menu div:hover { background:#31353d; }
+  .outline { border-top:1px solid var(--line); padding:6px 10px; max-height:100px; color:var(--muted); font-size:12px; }
+  .btw { border-top:1px solid var(--line); display:flex; flex-direction:column; height:230px; }
+  .btw.closed { display:none; }
+  .btw-body { flex:1; overflow:auto; padding:7px 10px; font-size:12px; }
+  .btw-input { display:flex; gap:6px; padding:7px 10px; }
+  .btw-input input { flex:1; background:#14161a; color:var(--text); border:1px solid var(--line); border-radius:4px; padding:4px 6px; font:inherit; }
+  .studio { margin:0 20px 30px; border:1px solid var(--line); border-radius:8px; background:#0b1020; padding:16px 18px; }
+  .studio h2 { margin:0 0 10px; font-size:16px; }
+  .wf-head { display:flex; justify-content:space-between; align-items:center; }
+  .wf-head h2 { margin:0; }
+  .wf-actions { display:flex; gap:8px; align-items:center; }
+  .wf-msg { color:#f0883e; font-size:12px; }
+  #wfLock.unlocked { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .org { overflow-x:auto; padding:6px 0 4px; }
+  .org ul { display:flex; justify-content:center; list-style:none; margin:0; padding:12px 0 0; position:relative; }
+  .org li { position:relative; padding:12px 6px 0; display:flex; flex-direction:column; align-items:center; }
+  .org li::before, .org li::after { content:""; position:absolute; top:0; right:50%; width:50%; height:12px; border-top:1px solid #3a4560; }
+  .org li::after { right:auto; left:50%; border-left:1px solid #3a4560; }
+  .org li:only-child::before, .org li:only-child::after { display:none; }
+  .org li:only-child { padding-top:0; }
+  .org li:first-child::before, .org li:last-child::after { border:0 none; }
+  .org li:last-child::before { border-right:1px solid #3a4560; }
+  .org ul ul::before { content:""; position:absolute; top:0; left:50%; height:12px; border-left:1px solid #3a4560; }
+  .org > ul { padding-top:0; }
+  .org > ul > li { padding-top:0; }
+  .org > ul > li::before, .org > ul > li::after { display:none; }
+  .box { position:relative; width:172px; border:1px solid #2f3a55; border-radius:5px; background:#121830; padding:2px 16px 2px 7px; display:flex; align-items:center; justify-content:space-between; gap:6px; line-height:1.3; }
+  .box .n { font-weight:600; font-size:11.5px; white-space:nowrap; }
+  .box .r { border:1px solid rgba(148,163,184,.45); border-radius:999px; padding:0 6px; font-size:10px; }
+  .box .fold { position:absolute; top:3px; right:4px; color:var(--muted); cursor:pointer; font-size:10px; }
+  .stack { display:flex; flex-direction:column; gap:3px; }
+  .box.changed { border-color:var(--accent); }
+  .org.unlocked .box { cursor:grab; }
+  .org.unlocked .box .r { cursor:pointer; color:#b6c6e6; }
+  .box.over { outline:2px solid var(--accent); }
+  .root-wrap { position:relative; }
+  .helpers-box { position:absolute; left:calc(100% + 12px); top:0; display:flex; gap:5px; align-items:center; }
+  .helpers-box .h { border:1px dashed #3a4560; border-radius:6px; padding:3px 7px; font-size:11px; color:#b6c6e6; white-space:nowrap; cursor:help; }
+  .helpers-box .lbl { color:var(--muted); font-size:11px; }
+  .wf-menu { display:none; position:fixed; background:#25282e; border:1px solid var(--line); border-radius:6px; padding:7px; font-size:12px; z-index:9; box-shadow:0 8px 24px #0009; }
+  .wf-menu select { background:#121830; color:var(--text); border:1px solid #2a3142; border-radius:5px; font:inherit; margin:4px 0 7px; display:block; }
+</style>
+</head>
+<body>
+
+<h1>D53 mock-up: VS Code with jawata</h1>
+<p class="caption">A picture to look at before anything is built; nothing here is real. Mouse over anything underlined or a button for its explanation. The blue "J" stands in for the real jawata logo. In Eclipse the right side is the same two panels, in the right stack.</p>
+<div class="controls">
+  <button id="s0" onclick="setState(0)">Nothing running</button>
+  <button id="s1" class="on" onclick="setState(1)">Agents running</button>
+  <button onclick="toggleBtw()">Open or close btw</button>
+</div>
+
+<div class="window">
+  <div class="titlebar">jawata-dev (Workspace)</div>
+  <div class="ide">
+
+    <div class="left">
+      <div class="activity">
+        <span>▤</span><span>⌕</span><span>⑂</span><span>▷</span>
+        <span class="logo" title="jawata: click opens the chat">J</span>
+      </div>
+      <div class="section-title">Explorer</div>
+      <div class="tree">
+        <div>▾ jawata-studio</div>
+        <div>▸ jawata-mcp</div>
+        <div>▸ jawata-chat</div>
+        <div>▸ jawata-eclipse</div>
+      </div>
+      <div class="collapsed" title="jawata's own view: projects, packages, classes and libraries, from the engine">▸ Java Projects</div>
+      <div class="collapsed" title="Microsoft's Maven view, kept as a manual helper">▸ Maven</div>
+    </div>
+
+    <div class="center">
+      <div class="tab">jawata chat</div>
+      <div class="chat-head"><span><span class="dot"></span>jawata</span><span><button>History</button> <button>Disconnect</button></span></div>
+      <div class="messages">
+        <div class="msg-user">Are you there?</div>
+        <div class="msg-agent">Yes. I'm jawata, the principal of this workspace. What would you like to work on?</div>
+        <div class="msg-user">Clean up the retry policy in the order service.</div>
+        <div class="working" id="work" title="The agent is working on your message."><span class="dots"><i></i><i></i><i></i></span> 12s</div>
+      </div>
+      <div class="input-wrap">
+        <div class="popup" id="plus">
+          <div class="item" title="Choose a file or picture"><b>Upload from computer</b></div>
+          <div class="item" title="Paste into the message field"><b>Paste a screenshot</b></div>
+        </div>
+        <div class="popup" id="slash">
+          <div class="group">Seats</div>
+          <div class="item"><b>/main</b><span>runs several steps as a workflow</span></div>
+          <div class="item"><b>/refactor</b><span>architect: reviews the design</span></div>
+          <div class="item"><b>/cover</b><span>writes tests for untested code</span></div>
+          <div class="item"><b>/javadocs</b><span>documents public API</span></div>
+          <div class="item"><b>/debug</b><span>diagnoses one bug</span></div>
+          <div class="item"><b>/profile</b><span>measures where the time goes</span></div>
+          <div class="item"><b>/ux</b><span>judges a screen as its user</span></div>
+          <div class="item"><b>/catalogue</b><span>writes what each member is for</span></div>
+          <div class="item"><b>/pm</b><span>plans work and hands it out</span></div>
+          <div class="item"><b>/report</b><span>drafts a bug report</span></div>
+          <div class="item"><b>/review</b><span>keeps the knowledge store healthy</span></div>
+          <div class="item"><b>/rottenmeier</b><span>names what the agent did wrong</span></div>
+          <div class="group">Skills</div>
+          <div class="item"><b>/sprint</b><span>spec and plan with an audit</span></div>
+          <div class="item"><b>/btw</b><span>opens the side discussion</span></div>
+          <div class="item"><b>/memorize</b><span>keeps what this session learned</span></div>
+        </div>
+        <div class="row">
+          <button title="On: the agent carries on while a step waits for its gate. Off: it stops at the end of each turn.">⏸ Autocontinue off</button>
+          <button title="Attach a file or picture to your next message. You can also paste a screenshot into the field." onclick="popup('plus')">+</button>
+          <button title="Lists the seats and skills you can start. Typing / does the same." onclick="popup('slash')">/</button>
+          <button title="Opens the btw panel on the right, a separate conversation with its own agent. This one goes on and is not told. Ctrl+Alt+S." onclick="openBtw()">Side question</button>
+          <span class="brain" title="The brain of the principal in this conversation. Its default is set in jawata studio, Seats view.">claude · sonnet</span>
+        </div>
+        <textarea placeholder="Type a message or / for commands..."></textarea>
+        <div class="send"><button>Send</button></div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="section-title">Agent Control</div>
+      <div class="ac">
+        <div id="ac0" style="display:none">
+          <div class="ac-title">0 agents working</div>
+          <div class="none">No agents are working.</div>
+        </div>
+        <div id="ac1">
+          <div class="ac-title">3 agents working · 1 finished</div>
+          <div class="agent">
+            <div class="l1"><b>principal</b><span class="cmd">/main</span><span class="state">running</span><span>42s</span></div>
+            <div class="l2"><span class="braintag" onclick="menu('m0')" title="Click to pick another brain. From your next message.">claude · sonnet ▾</span><span>3.1k tokens</span></div>
+            <div class="menu" id="m0"><div>cursor · auto</div><div>claude · opus</div><div>copilot · auto</div></div>
+          </div>
+          <div class="agent" style="margin-left:14px">
+            <div class="l1"><b>pm</b><span class="cmd">/pm</span><span class="state">running</span><span>1m 12s</span><button class="stop" title="Ends this agent. The principal is told.">Stop</button></div>
+            <div class="l2"><span class="braintag" onclick="menu('m1')" title="Click to replace this agent's brain: it is stopped and the same task restarts on the new one, with the transcript so far.">claude · sonnet ▾</span><span>15.0k tokens</span><span>$0.31</span></div>
+            <div class="menu" id="m1"><div>cursor · auto</div><div>claude · opus</div><div>copilot · auto</div></div>
+            <div class="task">Plan the retry policy change</div>
+          </div>
+          <div class="agent" style="margin-left:28px">
+            <div class="l1"><b>chief-engineer</b><span class="cmd">/chief-engineer</span><span class="state">running</span><span>38s</span><button class="stop">Stop</button></div>
+            <div class="l2"><span class="braintag">claude · opus ▾</span><span>6.4k tokens</span></div>
+            <div class="task">Decide how RetryPolicy moves into the order object</div>
+          </div>
+        </div>
+      </div>
+      <div class="section-title">Outline</div>
+      <div class="outline">OrderService · retry() · schedule() · cancel()</div>
+      <div class="btw" id="btw">
+        <div class="section-title"><span>btw</span><span style="cursor:pointer" title="Closes this side discussion and forgets it. The main chat is not touched." onclick="toggleBtw()">✕</span></div>
+        <div class="btw-body">
+          <div class="msg-user">Does the retry also apply to amends?</div>
+          <div class="msg-agent">Yes, through the same path in OrderService.</div>
+        </div>
+        <div class="btw-input"><input placeholder="Ask a side question..."><button>Ask</button></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<h1>Studio: Workflow</h1>
+<p class="caption">An org chart, locked by default. Unlock it to change the tree: drag a seat onto another seat and everything under it moves along; click a role to change it; right-click a seat for where its failures go. Try dragging pm onto developer to see a refused move.</p>
+<div class="studio">
+  <div class="wf-head">
+    <h2 title="Who hires whom. A seat sits under the seat that hires it.">Workflow</h2>
+    <div class="wf-actions">
+      <span class="wf-msg" id="wfMsg"></span>
+      <button id="wfReset" style="display:none" title="Returns every seat to today's tree." onclick="wfResetAll()">Back to default</button>
+      <button id="wfLock" title="Locked: the tree can only be read. Unlocked: you can change it." onclick="wfToggleLock()">Locked</button>
+    </div>
+  </div>
+  <div class="org" id="org"></div>
+  <div class="wf-menu" id="wfMenu"></div>
+</div>
+
+<script>
+  function setState(n){
+    document.getElementById('ac0').style.display = n ? 'none' : 'block';
+    document.getElementById('ac1').style.display = n ? 'block' : 'none';
+    document.getElementById('work').style.display = n ? 'flex' : 'none';
+    document.getElementById('s0').className = n ? '' : 'on';
+    document.getElementById('s1').className = n ? 'on' : '';
+  }
+  function toggleBtw(){ document.getElementById('btw').classList.toggle('closed'); }
+  function openBtw(){ document.getElementById('btw').classList.remove('closed'); }
+  function popup(id){
+    ['plus','slash'].forEach(function(p){
+      var el = document.getElementById(p);
+      if (p === id) { el.classList.toggle('open'); } else { el.classList.remove('open'); }
+    });
+  }
+  function menu(id){ document.getElementById(id).classList.toggle('open'); }
+  // The Workflow mock-up: the org chart, drawn from today's tree.
+  var WF_DEFAULT = {
+    main:['',' /main','top',''], architect:['main','/refactor','reviewer',''], ux:['main','/ux','reviewer',''],
+    'spec-editor':['main','','reviewer',''], 'spec-auditor':['main','','reviewer',''], consultant:['main','','reviewer',''],
+    pm:['main','/pm','lead',''], debugger:['pm','/debug','reviewer',''], profiler:['pm','/profile','reviewer',''],
+    'test-manager':['pm','/test-manager','lead',''], 'test-writer':['test-manager','/cover','worker',''],
+    'chief-engineer':['pm','/chief-engineer','lead',''], developer:['chief-engineer','','worker','senior-developer'],
+    'senior-developer':['chief-engineer','','worker',''], 'javadoc-writer':['chief-engineer','/javadocs','worker',''],
+    cataloguer:['chief-engineer','/catalogue','reviewer','']
+  };
+  var WF_HELPERS = [['observer','The hook starts it beside the work, every few calls.'],['/report','You type it when you want a bug report drafted.'],['/review','You type it, and it also runs on its own schedule.'],['/rottenmeier','It starts when you are rude or interrupt, or when you type it.']];
+  var ROLE_ORDER = {lead:0, worker:1, reviewer:2, top:3};
+  var wf = JSON.parse(JSON.stringify(WF_DEFAULT));
+  var folded = {}, unlocked = false, dragged = null;
+  function kids(p){ return Object.keys(wf).filter(function(k){ return wf[k][0] === p; }).sort(function(a,b){ return ROLE_ORDER[wf[a][2]] - ROLE_ORDER[wf[b][2]] || 0; }); }
+  function isUnder(k, p){ while (wf[k] && wf[k][0]) { k = wf[k][0]; if (k === p) return true; } return false; }
+  function msg(t){ document.getElementById('wfMsg').textContent = t || ''; }
+  function box(k){
+    var s = wf[k], changed = s[0] !== WF_DEFAULT[k][0] || s[2] !== WF_DEFAULT[k][2] || s[3] !== WF_DEFAULT[k][3];
+    var fold = kids(k).length ? '<span class="fold" onclick="wfFold(\'' + k + '\')">' + (folded[k] ? '▸' : '▾') + '</span>' : '';
+    var role = s[2] === 'top' ? '' : '<span class="r" onclick="wfRole(event,\'' + k + '\')" title="Lead decides, worker changes code, reviewer only reads.">' + s[2] + '</span>';
+    var tip = k + (s[1].trim() ? ', you type ' + s[1].trim() : '') + (s[3] ? '. If it fails, goes to ' + s[3] : '');
+    return '<div class="box' + (changed ? ' changed' : '') + '" data-seat="' + k + '"' + (unlocked && k !== 'main' ? ' draggable="true"' : '') + ' oncontextmenu="wfMenu(event,\'' + k + '\')" title="' + tip + '"><span class="n">' + k + '</span>' + role + fold + '</div>';
+  }
+  // Seats with nothing under them go in one column below their parent, so only branches take width.
+  function childrenOf(k){
+    var c = folded[k] ? [] : kids(k);
+    var branches = c.filter(function(x){ return kids(x).length; });
+    var leaves = c.filter(function(x){ return !kids(x).length; });
+    var parts = branches.map(branch);
+    if (leaves.length) parts.push('<li><div class="stack">' + leaves.map(box).join('') + '</div></li>');
+    return parts.length ? '<ul>' + parts.join('') + '</ul>' : '';
+  }
+  function branch(k){ return '<li>' + box(k) + childrenOf(k) + '</li>'; }
+  function wfDraw(){
+    var helpers = '<div class="helpers-box"><span class="lbl">Helpers</span>' + WF_HELPERS.map(function(h){ return '<span class="h" title="' + h[1] + '">' + h[0] + '</span>'; }).join('') + '</div>';
+    var org = document.getElementById('org');
+    org.className = 'org' + (unlocked ? ' unlocked' : '');
+    org.innerHTML = '<ul><li><div class="root-wrap">' + box('main') + helpers + '</div>' + childrenOf('main') + '</li></ul>';
+    org.querySelectorAll('.box').forEach(function(b){
+      var seat = b.getAttribute('data-seat');
+      b.addEventListener('dragstart', function(){ dragged = seat; });
+      b.addEventListener('dragover', function(e){ if (unlocked) { e.preventDefault(); b.classList.add('over'); } });
+      b.addEventListener('dragleave', function(){ b.classList.remove('over'); });
+      b.addEventListener('drop', function(e){ e.preventDefault(); b.classList.remove('over'); wfMove(dragged, seat); });
+    });
+  }
+  function wfMove(k, to){
+    if (!k || k === to) return;
+    if (isUnder(to, k)) { msg('Refused by the engine: ' + k + ' cannot go under ' + to + ', which reports to it.'); return; }
+    wf[k][0] = to; msg(''); wfDraw();
+  }
+  function wfFold(k){ folded[k] = !folded[k]; wfDraw(); }
+  function wfRole(e, k){
+    e.stopPropagation(); if (!unlocked) return;
+    var order = ['lead','worker','reviewer']; wf[k][2] = order[(order.indexOf(wf[k][2]) + 1) % 3]; wfDraw();
+  }
+  function wfMenu(e, k){
+    e.preventDefault(); if (!unlocked || k === 'main') return;
+    var m = document.getElementById('wfMenu'), others = Object.keys(wf).filter(function(x){ return x !== k; });
+    m.innerHTML = '<div>If ' + k + ' fails, goes to</div><select onchange="wfFail(\'' + k + '\', this.value)"><option value="">nowhere</option>' + others.map(function(o){ return '<option' + (wf[k][3] === o ? ' selected' : '') + '>' + o + '</option>'; }).join('') + '</select><button onclick="wfBack(\'' + k + '\')">Back to default</button>';
+    m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; m.style.display = 'block';
+  }
+  function wfFail(k, v){ wf[k][3] = v; wfDraw(); document.getElementById('wfMenu').style.display = 'none'; }
+  function wfBack(k){ wf[k] = WF_DEFAULT[k].slice(); wfDraw(); document.getElementById('wfMenu').style.display = 'none'; }
+  function wfResetAll(){ wf = JSON.parse(JSON.stringify(WF_DEFAULT)); msg(''); wfDraw(); }
+  function wfToggleLock(){
+    unlocked = !unlocked;
+    var b = document.getElementById('wfLock');
+    b.textContent = unlocked ? 'Unlocked' : 'Locked'; b.className = unlocked ? 'unlocked' : '';
+    document.getElementById('wfReset').style.display = unlocked ? '' : 'none';
+    document.getElementById('wfMenu').style.display = 'none';
+    msg(''); wfDraw();
+  }
+  document.addEventListener('click', function(e){ var m = document.getElementById('wfMenu'); if (!m.contains(e.target)) m.style.display = 'none'; });
+  wfDraw();
+  if (location.hash === '#unlocked') wfToggleLock();
+</script>
+</body>
+</html>

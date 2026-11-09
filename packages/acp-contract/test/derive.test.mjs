@@ -35,10 +35,10 @@ test('a command group outside seat, skill, utility, and an unknown jawata method
   assert.match(checkLevel1([{ dir: 'send', msg: { jsonrpc: '2.0', id: 1, method: '_jawata/hire/explode', params: {} } }])[0], /method/);
 });
 
-test('a seat-model option must be a model option', () => {
+test('the principal-brain option must be a model option', () => {
   const opts = (o) => ({ dir: 'recv', msg: { jsonrpc: '2.0', id: 1, result: { configOptions: [o] } } });
-  assert.deepEqual(checkLevel1([opts({ id: 'seat-model:architect', category: 'model', type: 'select' })]), []);
-  assert.match(checkLevel1([opts({ id: 'seat-model:architect', category: 'mode', type: 'select' })])[0], /category/);
+  assert.deepEqual(checkLevel1([opts({ id: 'principal-brain', category: 'model', type: 'select' })]), []);
+  assert.match(checkLevel1([opts({ id: 'principal-brain', category: 'mode', type: 'select' })])[0], /category/);
 });
 
 test('Level 1 is strict about what it names: unknown hire fields and jawata keys, a wrong kind, missing request params, a wrong option type', () => {
@@ -49,7 +49,7 @@ test('Level 1 is strict about what it names: unknown hire fields and jawata keys
   const thinkHire = { dir: 'recv', msg: { jsonrpc: '2.0', method: 'session/update', params: { update: { sessionUpdate: 'tool_call', kind: 'think', _meta: { 'jawata/hire': hire() } } } } };
   assert.match(checkLevel1([thinkHire])[0], /kind/);
   assert.match(checkLevel1([{ dir: 'send', msg: { jsonrpc: '2.0', id: 1, method: '_jawata/hire/stop', params: {} } }])[0], /planId/);
-  assert.match(checkLevel1([{ dir: 'recv', msg: { jsonrpc: '2.0', id: 1, result: { configOptions: [{ id: 'seat-model:x', category: 'model', type: 'text' }] } } }])[0], /select/);
+  assert.match(checkLevel1([{ dir: 'recv', msg: { jsonrpc: '2.0', id: 1, result: { configOptions: [{ id: 'principal-brain', category: 'model', type: 'text' }] } } }])[0], /select/);
 });
 
 test('the replies to a stop and to a transcript request are checked', () => {
@@ -91,10 +91,10 @@ test('seatModels makes one model option per seat and points a recorded change at
     JSON.stringify({ dir: 'recv', msg: { jsonrpc: '2.0', id: 1, result: { sessionId: 's', configOptions: [{ id: 'model', category: 'model', type: 'select', currentValue: 'a', options: [] }, { id: 'mode', category: 'mode', type: 'select' }] } } }),
     JSON.stringify({ dir: 'send', msg: { jsonrpc: '2.0', id: 2, method: 'session/set_config_option', params: { sessionId: 's', configId: 'model', value: 'b' } } }),
   ].join('\n'));
-  const out = deriveSession(base, [{ op: 'seatModels', seats: ['architect', 'test-writer'], select: 'test-writer' }]);
+  const out = deriveSession(base, [{ op: 'principalBrain' }]);
   const ids = out[0].msg.result.configOptions.map((o) => o.id);
-  assert.deepEqual(ids, ['seat-model:architect', 'seat-model:test-writer', 'mode']);
-  assert.equal(out[1].msg.params.configId, 'seat-model:test-writer');
+  assert.deepEqual(ids, ['principal-brain', 'mode']);
+  assert.equal(out[1].msg.params.configId, 'principal-brain');
 });
 
 test('autonomy adds the off/on option, points the recorded change at it and shows the new value in the answer', () => {

@@ -20,6 +20,8 @@ const INPUTS: Record<string, string> = {
 	'mine-text': '--vscode-button-secondaryForeground',
 	mono: '--vscode-editor-font-family',
 	link: '--vscode-textLink-foreground',
+	muted: '--vscode-descriptionForeground',
+	page: '--vscode-editor-background',
 };
 
 /**

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { LanguageClient, type LanguageClientOptions, type ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
 import { launchOf, rivalNotice, rivalsOf, type ServerSetting } from './launch';
+import { ProjectsView } from './projectsView';
 import { addressOf, editorFoldersOf, nodePorts, StudioStart, toldToThePerson, type StudioOutcome, type StudioSetting } from './studio';
 
 /** The editor's name for this extension's log and for the client the editor shows in its output list. */
@@ -16,6 +17,7 @@ function windowFolders(): string[] {
 }
 
 let studioStart: StudioStart | undefined;
+let projects: ProjectsView | undefined;
 
 /**
  * The launcher is a pipe to the engine's service, so the service has to answer before the language client starts: the window's folders are
@@ -68,6 +70,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
   context.subscriptions.push({ dispose: () => { void client?.stop(); } });
   await client.start();
   log.appendLine('jawata Java language server connected.');
+  void projects?.refresh().catch(e => log.appendLine(`Java Projects: ${String(e)}`));
 }
 
 async function stop(): Promise<void> {
@@ -100,7 +103,10 @@ async function showPlaces(provider: string, uri: string, line: number, character
 
 /** @public called by the editor */
 export function activate(context: vscode.ExtensionContext): Promise<void> {
+  projects = new ProjectsView(() => client);
   context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('jawataJava.projects', projects),
+    vscode.commands.registerCommand('jawataJava.refreshProjects', () => projects?.refresh()),
     libraryContent(),
     vscode.commands.registerCommand('jawataJava.showLog', () => { channel?.show(); }),
     vscode.commands.registerCommand('jawataJava.restartServer', async () => { await stop(); await start(context); }),

@@ -179,6 +179,9 @@ export function fakeHost(run: AgentRunner, cwd = '/workspace'): FakeHost {
     log: { log: (m) => { logged.push(m); }, logError: (m, e) => { logged.push(`ERROR ${m} ${e instanceof Error ? e.message : String(e ?? '')}`); } },
     actions: {
       configureAgent: async () => { asked.push('configureAgent'); },
+      showSide: () => { asked.push('showSide'); },
+      hideSide: () => { asked.push('hideSide'); },
+      chooseFiles: async () => { asked.push('chooseFiles'); return []; },
     },
     sinks: () => [sink],
     clientInfo: { name: 'chat-core-test', version: '0' },

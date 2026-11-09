@@ -77,13 +77,12 @@ export function chatCommands(parts: Parts): Record<string, Command> {
      * The chat is shown first, since the answer comes in the side thread of the page.
      */
     askSide: async (text?: unknown) => {
-      const asked = typeof text === 'string' && text.length > 0
-        ? text
-        : await vscode.window.showInputBox({ title: 'jawata chat: Side question', placeHolder: 'A short question, answered apart from the conversation' });
-      if (!asked) { return; }
-      await showChat();
-      await chat.handle({ type: 'askSide', text: asked });
+      const asked = typeof text === 'string' && text.length > 0 ? text : undefined;
+      await chat.handle({ type: 'openSide', ...(asked ? { text: asked } : {}) });
     },
+
+    /** The side discussion's own close (D53 (b)): its conversation ends and its panel goes; the rest of the side bar stays as it was. */
+    closeSide: () => chat.handle({ type: 'closeSide' }),
 
     configureAgent: () => vscode.commands.executeCommand('workbench.action.openSettings', 'jawataChat.agent'),
 

@@ -103,7 +103,7 @@ test('setModel: the agent is asked to set the model option', async () => {
   const c = await connected('R5');
   try {
     await c.port.deliver({ type: 'setModel', modelId: 'opus' });
-    assert.deepEqual(c.sent('session/set_config_option').map(p => [p.configId, p.value]), [['seat-model:architect', 'opus']]);
+    assert.deepEqual(c.sent('session/set_config_option').map(p => [p.configId, p.value]), [['principal-brain', 'opus']]);
   } finally { c.dispose(); }
 });
 
@@ -270,6 +270,57 @@ test('listBrains and chooseBrain: the agent is asked for its brains and for a ch
     await c.port.deliver({ type: 'chooseBrain', planId: 'p-pm', brain: 'codex', model: 'gpt-5' });
     assert.deepEqual(types(c.port).filter(t => t === 'brainList' || t === 'hireChanged'), ['brainList', 'hireChanged']);
     assert.deepEqual(c.sent('_jawata/hire/brain'), [{ planId: 'p-pm', brain: 'codex', model: 'gpt-5' }]);
+  } finally { c.dispose(); }
+});
+
+test('openSide shows the panel; text it carries is the side question', async () => {
+  const c = await connected('R13');
+  try {
+    await c.port.deliver({ type: 'openSide' });
+    assert.deepEqual(c.host.asked, ['showSide']);
+    assert.equal(c.sent('session/prompt').length, 0, 'nothing is asked without text');
+    await c.port.deliver({ type: 'openSide', text: 'a question' });
+    assert.equal(c.sent('session/prompt').at(-1).prompt[0].text, 'a question');
+  } finally { c.dispose(); }
+});
+
+test('closing the side discussion closes its panel', async () => {
+  const c = await connected('R13');
+  try {
+    await c.port.deliver({ type: 'closeSide' });
+    assert.deepEqual(c.host.asked, ['hideSide']);
+  } finally { c.dispose(); }
+});
+
+test('chooseFiles attaches what was picked; a picture goes with the prompt as the picture and not as a path', async () => {
+  const c = await connected('R1');
+  try {
+    c.host.actions.chooseFiles = async () => [{ path: '/w/notes.txt' }, { path: '/w/shot.png', image: { mimeType: 'image/png', data: 'AAA' } }];
+    await c.port.deliver({ type: 'chooseFiles' });
+    await c.port.deliver({ type: 'attachPasted', name: 'screenshot.png', mimeType: 'image/png', data: 'BBB' });
+    const attached = c.port.toView.filter(m => m.type === 'file-attached');
+    assert.deepEqual(attached.map(m => m.name), ['notes.txt', 'shot.png', 'screenshot.png']);
+    await c.port.deliver({ type: 'sendPrompt', text: 'look', files: attached.map(m => m.path) });
+    const blocks = c.sent('session/prompt').at(-1).prompt;
+    assert.deepEqual(blocks.map(b => b.type), ['text', 'resource_link', 'image', 'image']);
+    assert.deepEqual(blocks.filter(b => b.type === 'image').map(b => b.data), ['AAA', 'BBB']);
+    assert.deepEqual(c.port.toView.find(m => m.type === 'userPrompt').files, ['notes.txt', 'shot.png', 'screenshot.png'], 'the thread names a pasted picture, not its key');
+  } finally { c.dispose(); }
+});
+
+test('a panel beside the chat is told what the chat is told, and what it asks is handled', async () => {
+  const c = await connected('R1');
+  try {
+    const told = [];
+    let hear;
+    c.chat.attachPanel({ post: m => told.push(m), onMessage: h => { hear = h; return { dispose() {} }; }, onDispose: () => ({ dispose() {} }) });
+    await hear(READY_INTENT);
+    assert.deepEqual(told.map(m => m.type), ['snapshot'], 'a panel is given what it has missed');
+    told.length = 0;
+    await c.port.deliver({ type: 'sendPrompt', text: 'hello' });
+    assert.ok(told.some(m => m.type === 'userPrompt'), 'a panel hears the conversation');
+    await hear({ type: 'keepDraft', text: 'x' });
+    assert.ok(c.port.toView.some(m => m.type === 'draft'), 'what a panel asks is handled like the page\'s');
   } finally { c.dispose(); }
 });
 

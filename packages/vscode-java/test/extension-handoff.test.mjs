@@ -39,6 +39,7 @@ function editor({ settings, folders }) {
       showWarningMessage: (m) => { warnings.push(m); return Promise.resolve(undefined); },
       showInformationMessage: (m) => { infos.push(m); return Promise.resolve(undefined); },
       withProgress: (_o, job) => job(),
+      registerTreeDataProvider: () => ({ dispose() {} }),
     },
     workspace: {
       getConfiguration: config,
@@ -48,6 +49,7 @@ function editor({ settings, folders }) {
     extensions: { all: [] },
     commands: { registerCommand: () => ({ dispose() {} }), executeCommand: () => Promise.resolve(undefined) },
     ProgressLocation: { Notification: 15 },
+    EventEmitter: class { event = () => ({ dispose() {} }); fire() {} },
     Uri: { parse: (s) => s },
     Position: class {},
   };

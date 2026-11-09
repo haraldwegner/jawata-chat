@@ -24,6 +24,11 @@ export class PageSwitch {
     });
   }
 
+  /** Brings the chat to a page the editor already holds open: it takes the seat and is given the state. */
+  show(place: Place, host: PageHost): void {
+    if (this.holder !== host && this.seat(place, host)) { void this.chat.catchUp(); }
+  }
+
   private seat(place: Place, host: PageHost): boolean {
     const taken = this.chat.attachPage(new WebviewViewPort(host, this.onReady && (() => this.onReady?.(place))));
     if (taken) { this.holder = host; }

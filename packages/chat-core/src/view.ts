@@ -32,7 +32,7 @@ export interface Disposable {
  * 8: the Agent Control panel (CR2): the hires are a tree and carry a seat command, a task and an optional cost; the person can ask for the
  *    brains on offer and replace an agent's (`listBrains`, `chooseBrain`; `brainList`, `hireChanged`; the state's `brains`).
  */
-export const VIEW_CONTRACT_VERSION = 8;
+export const VIEW_CONTRACT_VERSION = 9;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -138,6 +138,12 @@ export type ViewIntent =
   | { type: 'askSide'; text: string }
   /** Close the side thread. */
   | { type: 'closeSide' }
+  /** Open the side discussion's panel; `text`, when there is any, is its first question. */
+  | { type: 'openSide'; text?: string }
+  /** Let the person pick files to attach to the next prompt. */
+  | { type: 'chooseFiles' }
+  /** A picture pasted into the message field; `data` is its bytes in base64. */
+  | { type: 'attachPasted'; name: string; mimeType: string; data: string }
   /** Ask which brains and models the agent offers. */
   | { type: 'listBrains' }
   /** Replace the brain and model of one hire. */
@@ -214,6 +220,9 @@ export const VIEW_INTENT_FIELDS = {
   openSession: ['sessionId'],
   askSide: ['text'],
   closeSide: [],
+  openSide: ['text'],
+  chooseFiles: [],
+  attachPasted: ['name', 'mimeType', 'data'],
   listBrains: [],
   chooseBrain: ['planId', 'brain', 'model'],
   answerPermission: ['requestId', 'optionId'],
@@ -243,9 +252,11 @@ export function isViewIntent(value: unknown): value is ViewIntent {
   const v = value as Record<string, unknown>;
   switch (v.type) {
     case 'ready': return v.contractVersion === undefined || typeof v.contractVersion === 'number';
-    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': case 'listBrains': return true;
+    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': case 'chooseFiles': case 'listBrains': return true;
     case 'chooseBrain': return isString(v.planId) && isString(v.brain) && isString(v.model);
     case 'askSide': return isString(v.text);
+    case 'openSide': return v.text === undefined || isString(v.text);
+    case 'attachPasted': return isString(v.name) && isString(v.mimeType) && isString(v.data);
     case 'detachFile': return isString(v.path);
     case 'stopHire': case 'openTranscript': return isString(v.planId);
     case 'keepDraft': return isString(v.text);

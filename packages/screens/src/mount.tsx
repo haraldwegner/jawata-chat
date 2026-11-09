@@ -6,7 +6,7 @@ import { SCREENS_CSS } from './screen.js';
 import type { ScreenHandle, ScreenProps } from './screen.js';
 
 /** The screens by the name a host opens them with. */
-const SCREENS: Readonly<Record<string, FunctionComponent<ScreenProps>>> = { reporting: Reporting };
+const SCREENS: ReadonlyMap<string, FunctionComponent<ScreenProps>> = new Map([['reporting', Reporting]]);
 
 /**
  * Shows one screen.
@@ -22,7 +22,7 @@ export function mountScreen(element: Element, port: ScreensPort, name: string): 
   document.head.appendChild(style);
   document.documentElement.dataset.theme = port.theme();
   const handle: ScreenHandle = { refresh: () => Promise.resolve() };
-  const Screen = SCREENS[name];
+  const Screen = SCREENS.get(name);
   createRoot(element).render(Screen ? <Screen port={port} handle={handle} /> : <p className="screen-error">jawata has no screen named {name}.</p>);
   return handle;
 }

@@ -76,10 +76,31 @@ test('the screen shows the host\'s reading, says nothing leaves the machine, and
   assert.match(root.querySelector('code + span, li code').textContent, /PROJECT_NOT_LOADED/);
   assert.equal(root.querySelector('details').open, false, 'details are closed until opened');
   assert.equal(document.documentElement.dataset.theme, 'dark');
-  assert.notEqual(root.querySelector('summary').title, '', 'the fold has its mouseover');
-  assert.match(root.querySelector('label').title, /recording itself keeps running/);
-  assert.match(root.querySelector('p[title]').title, /seen 3 or more times/);
-  assert.match(root.querySelector('h3').title, /Ranked by repeats/);
+  // the mouseovers, word for word as the ux report's section 5 keeps them
+  assert.equal(root.querySelector('summary').title, 'The figures behind the sentence above.');
+  assert.equal(root.querySelector('label').title, 'Stops the periodic reminder that failures are piling up. The recording itself keeps running and this page still shows everything.');
+  assert.equal(root.querySelector('p[title]').title, 'A failure shape is a kind of error that repeats: tool, kind of failure and error code, counted per workspace. Worth reporting means seen 3 or more times and not yet filed; type /report in any client to file it.');
+  assert.equal(root.querySelector('h3').title, 'Ranked by repeats. Three or more repeats that nobody has filed are what the count in the sentence above counts.');
+  assert.equal(root.querySelector('h3').textContent, 'Failure shapes');
+  assert.equal(root.querySelector('summary').textContent, 'Details');
+  assert.equal(root.querySelector('label').textContent, 'Go silent about failures');
+});
+
+test('every failure shape is listed with its count, and a filed one says so', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  mountScreen(root, fakeHost(status([shape('a/b/C', 4), shape('d/e/F', 7, true)])), 'reporting');
+  await shown(root);
+  const rows = [...root.querySelectorAll('.screen-list li')].map(li => li.textContent);
+  assert.deepEqual(rows, ['d/e/F7xfiled', 'a/b/C4x'], 'most repeated first, each with its count, only the filed one flagged');
+});
+
+test('with no failure recorded the details say so', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  mountScreen(root, fakeHost(status([])), 'reporting');
+  await shown(root);
+  assert.equal(root.querySelector('details p').textContent, 'No failures recorded.');
 });
 
 test('the switch asks the host and shows what the host then says', async () => {

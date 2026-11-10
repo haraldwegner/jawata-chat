@@ -56,6 +56,20 @@ test('R12: the working agents stand as a tree, the pm at the root; an agent that
   } finally { v.dispose(); }
 });
 
+test('28h S24 (D55): a hire that carries a name shows it beside its role, as `Claudia · pm`, and one without a name shows the role alone', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const first = structuredClone(hireUpdates.find(u => u.sessionUpdate === 'tool_call' && u._meta['jawata/hire'].planId === 'p-pm'));
+    await post(v, first);
+    const label = () => v.$('.hire[data-plan-id="p-pm"] .hire-seat').textContent.replace(/\s+/g, ' ').trim();
+    assert.equal(label(), 'pm (/pm)', 'no name: the role alone');
+    first._meta['jawata/hire'].name = 'Claudia';
+    await post(v, { ...first, sessionUpdate: 'tool_call_update' });
+    assert.equal(label(), 'Claudia · pm (/pm)');
+  } finally { v.dispose(); }
+});
+
 test('R12: a row shows the seat with its command, the brain, state, time, tokens, the task in full and a cost only when the agent sent one; every part has a mouseover', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {

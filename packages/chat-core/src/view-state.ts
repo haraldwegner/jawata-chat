@@ -27,6 +27,8 @@ export interface ToolCallView {
 export interface HireView {
   planId: string;
   seat: string;
+  /** The name the engine gave this hire for its conversation; absent from an older engine's cards. */
+  name?: string;
   /** The command the person types for this seat, for example `/refactor`; empty when the agent sent none. */
   seatCommand: string;
   /** What the hire was asked to do. */
@@ -73,6 +75,7 @@ export function hireFromEntry(h: Record<string, unknown>): HireView | undefined 
   return {
     planId: h.planId, seat: str(h.seat), seatCommand: str(h.seatCommand), task: str(h.task), brain: str(h.brain), model: str(h.model),
     state: str(h.state) || 'running', elapsedMs: num(h.elapsedMs), tokens: num(h.tokens),
+    ...(typeof h.name === 'string' && h.name !== '' ? { name: h.name } : {}),
     ...(typeof h.costUsd === 'number' ? { costUsd: h.costUsd } : {}),
     ...(typeof h.parentPlanId === 'string' ? { parentPlanId: h.parentPlanId } : {}),
     ...(typeof h.brainSessionId === 'string' ? { brainSessionId: h.brainSessionId } : {}),

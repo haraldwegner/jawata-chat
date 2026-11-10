@@ -59,7 +59,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
         <button className="hire-fold" aria-expanded={unfolded} aria-label={`Show or fold what ${hire.seat} said`}
           title="Show or fold what this agent and its program said. You cannot type into it." onClick={onFold}>{unfolded ? '▾' : '▸'}</button>
         <span className="hire-seat" title={hire.seatCommand ? `The role this agent plays. Type ${hire.seatCommand} in a message to use the same role yourself.` : 'The role this agent plays'}>
-          {hire.seat}{hire.seatCommand ? <> <span className="hire-cmd">{`(${hire.seatCommand})`}</span></> : null}
+          {hire.name ? <><span className="hire-name" title="The name this agent has in this conversation, so that several of one role can be told apart">{hire.name}</span>{' · '}</> : null}{hire.seat}{hire.seatCommand ? <> <span className="hire-cmd">{`(${hire.seatCommand})`}</span></> : null}
         </span>
         <BrainPicker hire={hire} state={state} send={send} open={menuOpen} onToggle={onMenu} />
         <span className="hire-state" title={STATE_WORDS[hire.state] ?? hire.state}>{hire.state}</span>

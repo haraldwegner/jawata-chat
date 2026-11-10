@@ -155,6 +155,13 @@ test('the sessions README marks every derived file SHAPE ONLY', () => {
   }
 });
 
+test('28h S24 (D55): a hire may carry a name, a card without one is accepted, and a name that is not a string is refused', () => {
+  const base = { planId: 'p', seat: 'pm', brain: 'b', model: 'm', state: 'running', elapsedMs: 1, tokens: 1, seatCommand: '/pm', task: 't' };
+  assert.deepEqual(hireViolations({ ...base, name: 'Claudia' }), [], 'name is a field of the contract');
+  assert.deepEqual(hireViolations(base), [], 'an older engine sends no name, and that is accepted');
+  assert.ok(hireViolations({ ...base, name: 5 }).some((v) => /name is not a string/.test(v)));
+});
+
 test('a hire needs its seat command and its task, may leave out its cost and its parent, and a brain request needs a brain and a model', () => {
   const full = { planId: 'p', seat: 's', brain: 'b', model: 'm', state: 'running', elapsedMs: 1, tokens: 1, seatCommand: '/s', task: 't' };
   assert.deepEqual(hireViolations(full), [], 'cost and parent are optional');

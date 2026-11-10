@@ -2,7 +2,7 @@
 // transcript are the extension requests the contract names, sent by intent. R4 is derived (shape only) from a real Claude turn.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialViewState, isWorking, reduce, workingTree } from '../dist/view-state.js';
+import { hireFromEntry, initialViewState, isWorking, reduce, workingTree } from '../dist/view-state.js';
 import { chatOn } from './play.mjs';
 
 const working = (s) => s.hires.filter(isWorking).length;
@@ -156,4 +156,10 @@ test('R12: the brains the agent offers are asked for and told to the page; choos
     assert.equal(`${pm.brain}/${pm.model}`, 'codex/gpt-5', 'the row shows what the agent answered');
     assert.equal(c.chat.snapshot().hires.length, 3, 'one row per hire still');
   } finally { c.dispose(); }
+});
+
+test('28h S24 (D55): a hire card with a name keeps it, and a card without one, or with a name that is empty or not text, has none', () => {
+  const base = { planId: 'p', seat: 'pm', brain: 'cursor', model: 'm', state: 'running', elapsedMs: 0, tokens: 0, seatCommand: '', task: '' };
+  assert.equal(hireFromEntry({ ...base, name: 'Claudia' }).name, 'Claudia');
+  for (const card of [base, { ...base, name: '' }, { ...base, name: 5 }]) { assert.equal('name' in hireFromEntry(card), false); }
 });

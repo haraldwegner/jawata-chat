@@ -142,7 +142,7 @@ suite('Stage 25', () => {
       try {
         const threads = (await session.customRequest('threads')).threads as { id: number }[];
         for (const t of threads) {
-          const frames = (await session.customRequest('stackTrace', { threadId: t.id, levels: 5 })).stackFrames as { id: number; name: string; line: number }[];
+          const frames = (await session.customRequest('stackTrace', { threadId: t.id, levels: 5 })).stackFrames as { id: number; name: string; line: number; source?: { path?: string } }[];
           if (frames.length > 0) { return { threadId: t.id, frames }; }
         }
       } catch { /* a thread that is running has no stack to read yet */ }
@@ -151,6 +151,10 @@ suite('Stage 25', () => {
     measured.breakpointStopMs = Date.now() - began;
     assert.equal(stop.frames[0].name, 'com.example.debug.DebugTarget.computeSignal');
     assert.equal(stop.frames[0].line, seam + 1, 'it stopped on the breakpoint line');
+    assert.equal(stop.frames[0].source?.path, target.fsPath, 'the stop names the file the editor opens');
+    for (const frame of stop.frames.filter(f => f.name.startsWith('com.example.debug.DebugTarget.'))) {
+      assert.equal(frame.source?.path, target.fsPath, `the frame ${frame.name} names its file`);
+    }
     const scopes = (await session.customRequest('scopes', { frameId: stop.frames[0].id })).scopes as { name: string; variablesReference: number }[];
     const variables: Record<string, string> = {};
     for (const scope of scopes) {

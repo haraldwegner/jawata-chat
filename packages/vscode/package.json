@@ -2,7 +2,7 @@
   "name": "jawata-chat",
   "displayName": "jawata chat",
   "description": "jawata's own chat for ACP agents",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "jawata",
   "license": "AGPL-3.0-only",
   "repository": {

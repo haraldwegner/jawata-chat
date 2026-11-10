@@ -106,8 +106,13 @@ async function showPlaces(provider: string, uri: string, line: number, character
   return locations;
 }
 
+/** What the extension hands to a test that runs in the same window: the engine's own requests (tests, profile), which no editor provider carries. */
+export interface ExtensionApi {
+  request(method: string, params: unknown): Promise<unknown>;
+}
+
 /** @public called by the editor */
-export function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(context: vscode.ExtensionContext): Promise<ExtensionApi> {
   projects = new ProjectsView(() => client);
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('jawataJava.projects', projects),
@@ -126,7 +131,10 @@ export function activate(context: vscode.ExtensionContext): Promise<void> {
     vscode.commands.registerCommand('jawata.showImplementations', (uri: string, line: number, character: number) =>
       showPlaces('vscode.executeImplementationProvider', uri, line, character)),
   );
-  return start(context);
+  await start(context);
+  return {
+    request: (method, params) => (client ? client.sendRequest<unknown>(method, params) : Promise.reject(new Error('the jawata language server is not running'))),
+  };
 }
 
 /** @public called by the editor */

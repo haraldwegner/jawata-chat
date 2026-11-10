@@ -120,6 +120,8 @@ export function testingOf(clientOf: () => LanguageClient | undefined): vscode.Di
         testRun.failed(item, message);
       } else if (outcome.cancelled) {
         testRun.skipped(item);
+      } else if (outcome.doubt) {
+        testRun.errored(item, new vscode.TestMessage(outcome.doubt));
       } else {
         testRun.passed(item);
       }

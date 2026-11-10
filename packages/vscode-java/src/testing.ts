@@ -37,7 +37,16 @@ export function treeOf(listed: readonly ListedClass[]): TestNode[] {
 }
 
 /** What a finished run did to each item: the ids that passed, and for each failed id the message and the line to show it at. */
-export interface Outcome { failed: Map<string, { message: string; line?: number }>; ranIds: string[]; cancelled: boolean }
+export interface Outcome { failed: Map<string, { message: string; line?: number }>; ranIds: string[]; cancelled: boolean; doubt?: string }
+
+/** Why a run that names no failure still cannot be shown as passed: it ran no tests, hit its time limit or did not end as a finished run. */
+function doubtOf(result: RunResult): string | undefined {
+  if (result.summary.cancelled === true) { return undefined; }
+  if (result.summary.timedOut === true) { return 'the run hit its time limit before the tests finished'; }
+  if (result.state !== 'FINISHED') { return `the run ended as ${result.state || 'unknown'}, not as a finished run`; }
+  if (result.summary.total === 0) { return 'the engine found no tests to run for this item'; }
+  return undefined;
+}
 
 /**
  * Reads a run's answer against the items it was started for. A failure names its class by qualified name and its method by name, possibly with
@@ -52,8 +61,9 @@ export function outcomeOf(started: readonly TestNode[], result: RunResult): Outc
   for (const failure of result.failures) {
     const method = failure.testMethod.replace(/\(.*$/, '').replace(/\[.*$/, '');
     const id = method === '' ? failure.testClass : `${failure.testClass}#${method}`;
-    const at = known.has(id) ? id : failure.testClass;
+    // a failure that names nothing listed lands on the item the run was started for, so it is shown red and never dropped
+    const at = known.has(id) ? id : known.has(failure.testClass) ? failure.testClass : started[0]?.id ?? failure.testClass;
     if (!failed.has(at)) { failed.set(at, { message: failure.message, line: failure.line }); }
   }
-  return { failed, ranIds: [...known], cancelled: result.summary.cancelled === true };
+  return { failed, ranIds: [...known], cancelled: result.summary.cancelled === true, doubt: doubtOf(result) };
 }

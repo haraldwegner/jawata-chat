@@ -46,6 +46,20 @@ test('a failure in a method the list does not hold, such as a dynamic test, is p
   assert.deepEqual([...outcome.failed.keys()], ['com.x.FooTest']);
 });
 
+test('a run that ran no tests, timed out or did not end as finished carries a doubt, so it is not shown green', () => {
+  const tree = treeOf(listed);
+  assert.match(outcomeOf(tree, { state: 'FINISHED', summary: { total: 0 }, failures: [] }).doubt, /no tests/);
+  assert.match(outcomeOf(tree, { state: 'FINISHED', summary: { total: 2, timedOut: true }, failures: [] }).doubt, /time limit/);
+  assert.match(outcomeOf(tree, { state: 'ERROR', summary: { total: 1 }, failures: [] }).doubt, /ERROR/);
+  assert.equal(outcomeOf(tree, { state: 'FINISHED', summary: { total: 2, passed: 2 }, failures: [] }).doubt, undefined, 'a finished run with tests and no failure has no doubt');
+  assert.equal(outcomeOf(tree, { state: 'CANCELLED', summary: { cancelled: true }, failures: [] }).doubt, undefined, 'a cancelled run is skipped, not errored');
+});
+
+test('a failure whose class the list does not hold lands on the item the run was started for instead of being dropped', () => {
+  const outcome = outcomeOf(treeOf(listed), { state: 'FINISHED', summary: {}, failures: [{ testClass: 'FooTest', testMethod: 'adds', status: 'FAILED', message: 'boom' }] });
+  assert.deepEqual([...outcome.failed.keys()], ['com.x.FooTest']);
+});
+
 test('a cancelled run says so, which is not the same as a passing one', () => {
   const outcome = outcomeOf(treeOf(listed), { state: 'CANCELLED', summary: { cancelled: true }, failures: [] });
   assert.equal(outcome.cancelled, true);

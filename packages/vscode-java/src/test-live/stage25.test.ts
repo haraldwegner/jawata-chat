@@ -3,7 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-import type { ExtensionApi } from '../extension';
+import type { activate } from '../extension';
+
+/** What the extension hands a test in the same window: whatever `activate` returns. */
+type ExtensionApi = Awaited<ReturnType<typeof activate>>;
 
 /** The place in the scratch tree a family of refactoring is asked at, and the text that shows it was applied. */
 const POLL_MS = 300;

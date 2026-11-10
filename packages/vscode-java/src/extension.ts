@@ -107,7 +107,7 @@ async function showPlaces(provider: string, uri: string, line: number, character
 }
 
 /** What the extension hands to a test that runs in the same window: the engine's own requests (tests, profile), which no editor provider carries. */
-export interface ExtensionApi {
+interface ExtensionApi {
   request(method: string, params: unknown): Promise<unknown>;
 }
 

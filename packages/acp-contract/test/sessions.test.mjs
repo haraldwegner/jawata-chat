@@ -4,14 +4,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { userInfo } from 'node:os';
-import { promoteRecording, readSession } from '../dist/index.js';
+import { checkLevel1, promoteRecording, readSession } from '../dist/index.js';
 
 const path = (rel) => new URL(rel, import.meta.url);
 const session = (name) => readSession(path(`../sessions/${name}.jsonl`));
 const updates = (s, kind) => s.filter((l) => update(l) === kind);
 const update = (l) => l.msg.params?.update?.sessionUpdate;
 
-for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'R12', 'R13', 'bases/hires', 'bases/model']) {
+for (const name of ['R1', 'R1-jawata', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'R12', 'R13', 'bases/hires', 'bases/model']) {
   test(`${name}: parses as a recorded session`, () => {
     assert.ok(session(name).length > 0);
   });
@@ -26,6 +26,13 @@ test('R1: a prompt sent and an answer streamed', () => {
   const s = session('R1');
   assert.ok(s.some((l) => l.dir === 'send' && l.msg.method === 'session/prompt'));
   assert.ok(s.some((l) => l.dir === 'recv' && update(l) === 'agent_message_chunk'));
+});
+
+test('R1-jawata: the same turn as R1 from the jawata agent itself, streamed through its launcher and accepted by the Level-1 check', () => {
+  const s = session('R1-jawata');
+  assert.ok(s.some((l) => l.dir === 'send' && l.msg.method === 'session/prompt'));
+  assert.ok(s.some((l) => l.dir === 'recv' && update(l) === 'agent_message_chunk'));
+  assert.deepEqual(checkLevel1(s), []);
 });
 
 test('R2: a tool call shown and its permission request answered', () => {

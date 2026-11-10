@@ -21,6 +21,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "src/test-live"
+    "src/test-live",
+    "src/webview"
   ]
 }

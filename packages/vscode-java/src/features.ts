@@ -7,7 +7,7 @@ import type { EngineAnswer } from './studio';
 import { outcomeOf, treeOf, type ListedClass, type RunResult, type TestNode } from './testing';
 
 /** The debug type the extension contributes; the editor's launch configurations name it. */
-export const DEBUG_TYPE = 'jawata';
+const DEBUG_TYPE = 'jawata';
 
 /** The engine session of the person's run, as the debug adapter told the editor in its `jawata/session` event; the profile page asks about it. */
 let personsSession: string | undefined;

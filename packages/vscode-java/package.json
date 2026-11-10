@@ -40,6 +40,10 @@
         "command": "jawataJava.refreshProjects",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "jawataJava.profile",
+        "title": "jawata Java: Profile the Running Program"
       }
     ],
     "configuration": {
@@ -214,7 +218,8 @@
     "test:live": "npm run compile-live && npm run compile && vscode-test --config .vscode-test.live.mjs"
   },
   "dependencies": {
-    "vscode-languageclient": "9.0.1"
+    "vscode-languageclient": "9.0.1",
+    "@jawata/profile-view": "*"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",

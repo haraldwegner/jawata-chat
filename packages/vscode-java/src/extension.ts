@@ -3,6 +3,7 @@ import { LanguageClient, type LanguageClientOptions, type ServerOptions, Transpo
 
 import { debuggerOf, refactoringOf, testingOf } from './features';
 import { launchOf, rivalNotice, rivalsOf, type ServerSetting } from './launch';
+import { profilePageOf } from './profilePanel';
 import { ProjectsView } from './projectsView';
 import { addressOf, editorFoldersOf, nodePorts, StudioStart, toldToThePerson, type EngineAnswer, type StudioOutcome, type StudioSetting } from './studio';
 
@@ -115,6 +116,7 @@ export function activate(context: vscode.ExtensionContext): Promise<void> {
     debuggerOf(() => vscode.workspace.getConfiguration('jawataJava').get<ServerSetting>('server'), () => engine),
     testingOf(() => client),
     refactoringOf(() => client),
+    profilePageOf(context.extensionUri, () => client),
     vscode.commands.registerCommand('jawataJava.showLog', () => { channel?.show(); }),
     vscode.commands.registerCommand('jawataJava.restartServer', async () => { await stop(); await start(context); }),
     // the commands a code lens carries ("3 references", "2 implementations"): the places the editor's own search finds, shown in the

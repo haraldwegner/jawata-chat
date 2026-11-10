@@ -10,6 +10,8 @@
     "src/launch.ts",
     "src/studio.ts",
     "src/testing.ts",
+    "src/profileHost.ts",
+    "src/profileSource.ts",
     "src/refactorPrompt.ts",
     "src/extension.ts"
   ]

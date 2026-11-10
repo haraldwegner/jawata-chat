@@ -1,0 +1,33 @@
+{
+  "name": "@jawata/profile-view",
+  "private": true,
+  "version": "0.0.0",
+  "license": "AGPL-3.0-only",
+  "description": "The profile page in React: shows the hot methods the engine ranked and opens one's source; knows no host, only a ProfileSource",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "npm run build && node --test --test-timeout=60000 \"test/**/*.test.mjs\""
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "jsdom": "^26.0.0",
+    "typescript": "7.0.2"
+  }
+}

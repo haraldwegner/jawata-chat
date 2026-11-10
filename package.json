@@ -10,7 +10,7 @@
     "test": "sh scripts/test-commit-hook.sh && npm run knip && node --test \"test/**/*.test.mjs\" && npm test --workspaces --if-present",
     "build": "node scripts/build.mjs",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "tsc --noEmit -p packages/acp-contract && tsc --noEmit -p packages/chat-core && tsc --noEmit -p packages/chat-view && tsc --noEmit -p packages/vscode && tsc --noEmit -p packages/vscode/tsconfig.webview.json && tsc --noEmit -p packages/vscode-java",
+    "typecheck": "tsc --noEmit -p packages/acp-contract && tsc --noEmit -p packages/chat-core && tsc --noEmit -p packages/chat-view && tsc --noEmit -p packages/vscode && tsc --noEmit -p packages/vscode/tsconfig.webview.json && tsc --noEmit -p packages/profile-view && tsc --noEmit -p packages/vscode-java && tsc --noEmit -p packages/vscode-java/tsconfig.webview.json",
     "pack": "node scripts/build.mjs --pack",
     "prepare": "sh scripts/install-hooks.sh",
     "knip": "knip --production"

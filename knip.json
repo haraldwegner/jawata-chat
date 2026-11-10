@@ -13,8 +13,11 @@
       "project": ["src/**/*.ts!", "!src/test/**", "!src/test-live/**", "!src/test-visual/**"]
     },
     "packages/vscode-java": {
-      "entry": ["src/extension.ts!"],
+      "entry": ["src/extension.ts!", "src/webview/profile.ts!"],
       "project": ["src/**/*.ts!", "!src/test-live/**"]
+    },
+    "packages/profile-view": {
+      "project": ["src/**/*.{ts,tsx}!"]
     },
     "packages/chat-core": {
       "project": ["src/**/*.ts!"],

@@ -1,10 +1,10 @@
 /** What the engine's `jawata/tests/list` answers: a test class with its methods, each with the scope that runs it. */
-export interface ListedTest { name: string; label: string; line: number; scope: TestScope }
+interface ListedTest { name: string; label: string; line: number; scope: TestScope }
 export interface ListedClass { name: string; uri: string; line: number; framework: string; scope: TestScope; tests: ListedTest[] }
-export interface TestScope { kind: 'class' | 'method' | 'package'; typeName?: string; methodName?: string; packageName?: string }
+interface TestScope { kind: 'class' | 'method' | 'package'; typeName?: string; methodName?: string; packageName?: string }
 
 /** One failure in the engine's `jawata/tests/run` answer; `line` is zero-based and present when the engine found the test's own frame. */
-export interface RunFailure { testClass: string; testMethod: string; status: string; message: string; line?: number }
+interface RunFailure { testClass: string; testMethod: string; status: string; message: string; line?: number }
 export interface RunResult {
   state: string;
   summary: { total?: number; passed?: number; failed?: number; skipped?: number; cancelled?: boolean; timedOut?: boolean };
@@ -15,12 +15,12 @@ export interface RunResult {
 export interface TestNode { id: string; label: string; uri?: string; line?: number; scope: TestScope; children: TestNode[] }
 
 /** The id of a class's item: its qualified name, which is what a failure names it by. */
-export function classIdOf(scope: TestScope): string {
+function classIdOf(scope: TestScope): string {
   return scope.typeName ?? scope.packageName ?? '';
 }
 
 /** The id of a method's item. */
-export function methodIdOf(scope: TestScope): string {
+function methodIdOf(scope: TestScope): string {
   return `${classIdOf(scope)}#${scope.methodName ?? ''}`;
 }
 

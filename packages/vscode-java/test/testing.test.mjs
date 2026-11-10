@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
 
-const { treeOf, outcomeOf, methodIdOf } = createRequire(import.meta.url)('../out/testing.js');
+const { treeOf, outcomeOf } = createRequire(import.meta.url)('../out/testing.js');
 
 const listed = [{
   name: 'FooTest', uri: 'file:///w/FooTest.java', line: 9, framework: 'JUnit5', scope: { kind: 'class', typeName: 'com.x.FooTest' },
@@ -18,7 +18,6 @@ test('the Testing tree has a class per item, named by its qualified name, with i
   assert.equal(tree[0].id, 'com.x.FooTest');
   assert.equal(tree[0].label, 'FooTest');
   assert.deepEqual(tree[0].children.map(c => [c.id, c.label, c.line]), [['com.x.FooTest#adds', 'adding works', 12], ['com.x.FooTest#subtracts', 'subtracts', 20]]);
-  assert.equal(methodIdOf(tree[0].children[1].scope), 'com.x.FooTest#subtracts');
 });
 
 test('a failure is put on its method with the message and line, and what did not fail is left for the host to mark passed', () => {

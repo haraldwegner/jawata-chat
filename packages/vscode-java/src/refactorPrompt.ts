@@ -1,5 +1,5 @@
 /** What the engine's code action says to ask before a refactoring can be staged, and what to send back to stage it. */
-export interface Question { name: string; prompt: string; choices: string[] }
+interface Question { name: string; prompt: string; choices: string[] }
 export interface Asking { id: string; uri: string; line: number; column: number; inputs: Question[] }
 
 /** How a host asks one question: a pick from `choices` when there are some, free text otherwise; undefined when the person cancelled. */

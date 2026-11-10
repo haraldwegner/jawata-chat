@@ -31,6 +31,20 @@ export function launchOf(setting: ServerSetting | undefined, engine?: EngineAnsw
   return { ok: true, command, args, env: withEngine(setting?.env, engine) ?? {} };
 }
 
+/** The one argument that makes the launcher carry a debug adapter's messages instead of a language client's. */
+const DAP_FLAG = '--dap';
+
+/**
+ * What to run for the person's debugger: the same launcher, engine and environment as the language server, with the debug flag where the language
+ * flag was. The debugger is the engine's own face, so it needs no setting of its own; a setting the language server would refuse is refused in the
+ * same words.
+ */
+export function debugLaunchOf(setting: ServerSetting | undefined, engine?: EngineAnswer): Launch {
+  const launch = launchOf(setting, engine);
+  if (!launch.ok) { return launch; }
+  return { ...launch, args: launch.args.map(arg => (arg === LSP_FLAG ? DAP_FLAG : arg)) };
+}
+
 /** Which of the `rivals` (extensions that run a Java language server of their own) are among the `installed` extension identifiers; identifiers compare without regard to case. */
 export function rivalsOf(installed: readonly string[], rivals: readonly string[]): string[] {
   const present = new Set(installed.map(id => id.toLowerCase()));

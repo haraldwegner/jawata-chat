@@ -9,6 +9,8 @@
   "include": [
     "src/launch.ts",
     "src/studio.ts",
+    "src/testing.ts",
+    "src/refactorPrompt.ts",
     "src/extension.ts"
   ]
 }

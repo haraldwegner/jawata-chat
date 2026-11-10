@@ -22,7 +22,8 @@
   "icon": "resources/icon.png",
   "activationEvents": [
     "onStartupFinished",
-    "onLanguage:java"
+    "onLanguage:java",
+    "onDebugResolve:jawata"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -127,7 +128,79 @@
           "group": "navigation"
         }
       ]
-    }
+    },
+    "breakpoints": [
+      {
+        "language": "java"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "jawata",
+        "label": "jawata Java",
+        "languages": [
+          "java"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "mainClass",
+              "classpath"
+            ],
+            "properties": {
+              "mainClass": {
+                "type": "string",
+                "description": "The main class to run, fully qualified (for example com.example.App)."
+              },
+              "classpath": {
+                "type": "string",
+                "description": "The classpath the program runs with: the project output folders and its libraries, separated as the operating system separates classpaths."
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Program arguments."
+              },
+              "jvmArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Extra JVM options."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working folder of the program."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "jawata",
+            "request": "launch",
+            "name": "jawata Java: run a main class",
+            "mainClass": "",
+            "classpath": ""
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "jawata Java: Launch",
+            "description": "Run a main class under the jawata engine's debugger",
+            "body": {
+              "type": "jawata",
+              "request": "launch",
+              "name": "jawata Java",
+              "mainClass": "${1:com.example.App}",
+              "classpath": "${2:target/classes}"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "webpack",

@@ -32,6 +32,9 @@ function editor({ settings, folders }) {
   const infos = [];
   const clients = [];
   const subscriptions = [];
+  const commandNames = [];
+  const debugFactories = {};
+  const controllers = [];
   const config = (section) => ({ get: (key, fallback) => settings[`${section}.${key}`] ?? fallback });
   const vscode = {
     window: {
@@ -47,11 +50,26 @@ function editor({ settings, folders }) {
       registerTextDocumentContentProvider: () => ({ dispose() {} }),
     },
     extensions: { all: [] },
-    commands: { registerCommand: () => ({ dispose() {} }), executeCommand: () => Promise.resolve(undefined) },
+    commands: { registerCommand: (name) => { commandNames.push(name); return { dispose() {} }; }, executeCommand: () => Promise.resolve(undefined) },
     ProgressLocation: { Notification: 15 },
     EventEmitter: class { event = () => ({ dispose() {} }); fire() {} },
     Uri: { parse: (s) => s },
     Position: class {},
+    Range: class {},
+    Location: class {},
+    TestMessage: class {},
+    TestRunProfileKind: { Run: 1 },
+    Disposable: class { constructor(fn) { this.dispose = fn ?? (() => {}); } static from(...parts) { return new this(() => parts.forEach(p => p?.dispose?.())); } },
+    DebugAdapterExecutable: class { constructor(command, args, options) { this.command = command; this.args = args; this.options = options; } },
+    debug: {
+      registerDebugAdapterDescriptorFactory: (type, factory) => { debugFactories[type] = factory; return { dispose() {} }; },
+      registerDebugConfigurationProvider: () => ({ dispose() {} }),
+      onDidReceiveDebugSessionCustomEvent: () => ({ dispose() {} }),
+      onDidTerminateDebugSession: () => ({ dispose() {} }),
+    },
+    tests: {
+      createTestController: (id) => { controllers.push(id); return { items: { replace() {} }, createRunProfile() {}, dispose() {} }; },
+    },
   };
   class LanguageClient {
     constructor(id, name, server, options) { this.server = server; this.options = options; clients.push(this); }
@@ -65,10 +83,11 @@ function editor({ settings, folders }) {
     if (request === 'vscode-languageclient/node') { return { LanguageClient, TransportKind: { stdio: 0 } }; }
     return load.call(this, request, ...rest);
   };
-  delete require.cache[require.resolve('../out/extension.js')];
+  // every module that imports the editor's API holds the stand-in it was first loaded with, so each is loaded afresh with this one
+  for (const loaded of ['extension', 'features', 'projectsView']) { delete require.cache[require.resolve(`../out/${loaded}.js`)]; }
   const extension = require('../out/extension.js');
   Module._load = load;
-  return { extension, log, warnings, infos, clients, context: { subscriptions } };
+  return { extension, log, warnings, infos, clients, commandNames, debugFactories, controllers, context: { subscriptions } };
 }
 
 function setup(steps, withHandoff = true) {
@@ -99,6 +118,22 @@ test('jawata Java hands the window\'s folders to the studio and starts the langu
   assert.ok(!everythingSaid.includes(SECRET), 'the key is not in the log, a warning or a message');
   assert.ok(!everythingSaid.includes(mine), 'nor is the address');
   assert.ok(e.log.some(l => l.startsWith('studio: ready:')), e.log.join('\n'));
+  await e.extension.deactivate();
+});
+
+test('the extension contributes the debugger, the Testing view and the refactor command itself, and the debugger runs the launcher with --dap against the engine the studio named', async () => {
+  const mine = await engineService();
+  const s = setup([{ afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }]);
+  const server = { command: 'java', args: ['-jar', 'jawata.jar', '--lsp'], env: { KEEP: '1' } };
+  const e = editor({ settings: { 'jawataJava.server': server, 'jawataJava.studio': s.studio }, folders: [s.dir] });
+  await e.extension.activate(e.context);
+  assert.deepEqual(e.controllers, ['jawataJava'], 'one Testing controller');
+  assert.ok(e.commandNames.includes('jawata.refactor'), 'the command the engine\'s code actions carry is registered');
+  assert.ok(e.debugFactories.jawata, 'the debugger type the package contributes has an adapter');
+  const adapter = e.debugFactories.jawata.createDebugAdapterDescriptor({});
+  assert.deepEqual(adapter.args, ['-jar', 'jawata.jar', '--dap']);
+  assert.equal(adapter.options.env.JAWATA_URL, mine, 'the debugger goes to the studio\'s engine, as the language server does');
+  assert.equal(adapter.options.env.KEEP, '1');
   await e.extension.deactivate();
 });
 

@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 import { LanguageClient, type LanguageClientOptions, type ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
+import { debuggerOf, refactoringOf, testingOf } from './features';
 import { launchOf, rivalNotice, rivalsOf, type ServerSetting } from './launch';
 import { ProjectsView } from './projectsView';
-import { addressOf, editorFoldersOf, nodePorts, StudioStart, toldToThePerson, type StudioOutcome, type StudioSetting } from './studio';
+import { addressOf, editorFoldersOf, nodePorts, StudioStart, toldToThePerson, type EngineAnswer, type StudioOutcome, type StudioSetting } from './studio';
 
 /** The editor's name for this extension's log and for the client the editor shows in its output list. */
 const NAME = 'jawata Java';
@@ -18,6 +19,8 @@ function windowFolders(): string[] {
 
 let studioStart: StudioStart | undefined;
 let projects: ProjectsView | undefined;
+/** The engine the studio named for this window, which the language server's launcher and the debugger's launcher both run against. */
+let engine: EngineAnswer | undefined;
 
 /**
  * The launcher is a pipe to the engine's service, so the service has to answer before the language client starts: the window's folders are
@@ -49,6 +52,7 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
     void vscode.window.showWarningMessage(rivalNotice(rivals));
   }
   const studio = await lookAfterStudio(log);
+  engine = studio.engine;
   const launch = launchOf(config.get<ServerSetting>('server'), studio.engine);
   if (!launch.ok) {
     log.appendLine(launch.why);
@@ -108,6 +112,9 @@ export function activate(context: vscode.ExtensionContext): Promise<void> {
     vscode.window.registerTreeDataProvider('jawataJava.projects', projects),
     vscode.commands.registerCommand('jawataJava.refreshProjects', () => projects?.refresh()),
     libraryContent(),
+    debuggerOf(() => vscode.workspace.getConfiguration('jawataJava').get<ServerSetting>('server'), () => engine),
+    testingOf(() => client),
+    refactoringOf(() => client),
     vscode.commands.registerCommand('jawataJava.showLog', () => { channel?.show(); }),
     vscode.commands.registerCommand('jawataJava.restartServer', async () => { await stop(); await start(context); }),
     // the commands a code lens carries ("3 references", "2 implementations"): the places the editor's own search finds, shown in the

@@ -2,7 +2,7 @@
   "name": "jawata-java",
   "displayName": "jawata Java",
   "description": "Java language support from the one jawata engine: problems from unsaved text, navigation and completion, without a second Java server",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "jawata",
   "license": "AGPL-3.0-only",
   "repository": {

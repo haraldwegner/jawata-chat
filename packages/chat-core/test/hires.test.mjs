@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { hireFromEntry, initialViewState, isWorking, reduce, workingTree } from '../dist/view-state.js';
 import { chatOn } from './play.mjs';
+import { VIEW_CONTRACT_VERSION } from '../dist/view.js';
 
 const working = (s) => s.hires.filter(isWorking).length;
 
@@ -126,7 +127,7 @@ test('R12: a page that comes late or reloads is given the agents as they stand (
   const c = await playedTree();
   try {
     c.port.toView.length = 0;
-    await c.port.deliver({ type: 'ready', contractVersion: 9 });
+    await c.port.deliver({ type: 'ready', contractVersion: VIEW_CONTRACT_VERSION });
     const snapshot = c.port.toView.find(m => m.type === 'snapshot');
     assert.deepEqual(snapshot.state.hires.map(x => x.planId), ['p-pm', 'p-ce', 'p-dev']);
     assert.deepEqual(workingTree(snapshot.state.hires).map(r => r.hire.planId), ['p-pm']);

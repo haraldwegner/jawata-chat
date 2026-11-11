@@ -12,7 +12,8 @@ import { WebviewViewPort } from './ui/ViewPort';
 import type { PageHost } from './ui/chatPage';
 import { forgetEditorTheme, saveEditorTheme, type EditorTheme } from './editorTheme';
 import { VIEW_OF, chosenPlace, type Place } from './ui/places';
-import { log, disposeChannels, setRecordingDir } from './utils/Logger';
+import { log, logError, disposeChannels, setRecordingDir } from './utils/Logger';
+import { InputHistoryFile } from './host/InputHistoryFile';
 import { nodePorts, StudioStart } from './studio';
 import { lookAfterStudio } from './host/lookAfterStudio';
 
@@ -40,7 +41,9 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   const recordingsDir = vscode.Uri.joinPath(context.globalStorageUri, 'recordings').fsPath;
   setRecordingDir(recordingsDir);
 
-  const host = createVscodeHost(extensionVersion);
+  // what the person typed in the chat is theirs across windows and restarts: it is kept in the extension's storage for this user (D56 (g))
+  const inputHistory = new InputHistoryFile(vscode.Uri.joinPath(context.globalStorageUri, 'input-history.json').fsPath, logError);
+  const host = createVscodeHost(extensionVersion, inputHistory);
   // the engine's service must answer before an agent that talks to it is started: if it does not, the studio is started and waited for here,
   // in the background, and the first agent start waits for it (28h S21 (d))
   const studioStart = new StudioStart(nodePorts((text, job) => host.notifier.progress(text, job), undefined, text => { void vscode.window.showInformationMessage(`jawata chat: ${text}`); }));

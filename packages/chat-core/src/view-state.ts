@@ -201,6 +201,8 @@ export interface ViewState {
   draft: string;
   /** How many times the chat was cleared or a new conversation begun, which takes the draft: a page that sees this change empties its field. */
   draftResets: number;
+  /** What the person typed in the chat and sent, newest first; it belongs to the person, so no clear, load or other conversation takes it. */
+  inputHistory: string[];
   /** The side thread, if one is open; null when none is. It belongs to the conversation: a cleared, loaded or other conversation has none. */
   side: SideView | null;
 }
@@ -209,7 +211,7 @@ export interface ViewState {
 const noAgents = () => ({ hires: [] as HireView[], transcripts: {} as Record<string, TranscriptTurn[]>, proposals: [] as ProposalView[] });
 
 export function initialViewState(): ViewState {
-  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0, side: null, brains: null };
+  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0, inputHistory: [], side: null, brains: null };
 }
 
 /**
@@ -415,7 +417,7 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
       if (message.contractVersion !== VIEW_CONTRACT_VERSION) { return { ...state, mismatch: message.contractVersion }; }
       // the state of the same session changes what is shown about it; another session, or none, begins a conversation afresh
       const same = (message.session?.sessionId ?? null) === (state.session?.sessionId ?? null);
-      return { ...(same ? state : { ...initialViewState(), history: state.history, draft: state.draft, draftResets: state.draftResets }), contractVersion: message.contractVersion, session: message.session };
+      return { ...(same ? state : { ...initialViewState(), history: state.history, draft: state.draft, draftResets: state.draftResets, inputHistory: state.inputHistory }), contractVersion: message.contractVersion, session: message.session };
     }
     case 'snapshot':
       return message.state.contractVersion === VIEW_CONTRACT_VERSION ? message.state : { ...state, mismatch: message.state.contractVersion };
@@ -452,6 +454,8 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
       return { ...state, entries: [], plan: null, processing: false, attachments: [], queued: [], side: null, ...noAgents(), draft: '', draftResets: state.draftResets + 1 };
     case 'draft':
       return { ...state, draft: message.text };
+    case 'inputHistory':
+      return { ...state, inputHistory: message.entries };
     case 'sessionList': {
       const before = message.append && state.history ? state.history.sessions : [];
       return { ...state, history: { sessions: [...before, ...message.sessions], nextCursor: message.nextCursor } };

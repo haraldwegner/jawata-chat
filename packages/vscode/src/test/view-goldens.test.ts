@@ -89,7 +89,8 @@ suite('View goldens', function () {
 		assert.strictEqual(port.revealed, 1);
 	});
 
-	test('a prompt sent with the sendPrompt command reaches the page as the page\'s own send does', async () => {
+	test('a prompt sent with the sendPrompt command reaches the page as the page\'s own send does; only the page\'s joins the input history (D56 (g))', async () => {
+		const typed: unknown[] = [];
 		const sentBy = async (how: (port: RecordingPort) => Promise<void>): Promise<unknown> => {
 			await vscode.commands.executeCommand('jawataChat.disconnectAgent');
 			const port = new RecordingPort();
@@ -99,12 +100,14 @@ suite('View goldens', function () {
 			await vscode.commands.executeCommand('jawataChat.connectAgent', 'agent');
 			await how(port);
 			await new Promise(r => setTimeout(r, 200));
-			return goldenBody(port.toView);
+			typed.push(port.toView.filter((m: any) => m.type === 'inputHistory').map((m: any) => m.entries[0]));
+			return goldenBody(port.toView.filter((m: any) => m.type !== 'inputHistory'));
 		};
 		const byCommand = await sentBy(async () => { await vscode.commands.executeCommand('jawataChat.sendPrompt', 'x'); });
 		const byPage = await sentBy(async port => { await port.deliver({ type: 'sendPrompt', text: 'x' }); });
 		assert.deepStrictEqual(byCommand, byPage);
 		assert.ok(JSON.stringify(byCommand).includes('promptStart'), 'the turn began on the page');
+		assert.deepStrictEqual(typed, [[], ['x']], 'what a command sends was not typed by the person; what the page sends was');
 	});
 
 	test('R1: the page is told a prompt and a streamed answer', () => checkGolden('R1'));

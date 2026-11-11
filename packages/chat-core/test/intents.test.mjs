@@ -50,6 +50,8 @@ test('sendPrompt: the turn is begun, run on the agent and ended, and the prompt 
   const c = await connected('R1');
   try {
     await c.port.deliver({ type: 'sendPrompt', text: 'hello there' });
+    assert.deepEqual(c.port.toView[0], { type: 'inputHistory', entries: ['hello there'] }, 'what the person typed is kept for the input\'s arrows (D56 (g))');
+    c.port.toView.shift();
     const t = types(c.port);
     assert.deepEqual(c.port.toView[0], { type: 'userPrompt', text: 'hello there', files: [] }, 'the page is told the prompt, so it can show it');
     assert.equal(t[1], 'promptStart');
@@ -65,17 +67,19 @@ test('sendPrompt without a session: the page is told there is none', async () =>
   const c = opened('R1');
   try {
     await c.port.deliver({ type: 'sendPrompt', text: 'hello' });
-    assert.deepEqual(c.port.toView.map(m => [m.type, m.message]), [['error', 'No active session. Create a session first.']]);
+    assert.deepEqual(c.port.toView.map(m => [m.type, m.message]), [['inputHistory', undefined], ['error', 'No active session. Create a session first.']]);
   } finally { c.dispose(); }
 });
 
-test('the prompt command and the page\'s own send are the same intent: the same stream', async () => {
+test('the prompt command and the page\'s own send are the same intent: the same stream, but for the input history only what was typed in the page joins', async () => {
   const viaPage = await connected('R1');
   const viaCommand = await connected('R1');
   try {
     await viaPage.port.deliver({ type: 'sendPrompt', text: 'same' });
     await viaCommand.chat.sendPrompt('same');
-    const strip = (port) => JSON.stringify(port.toView, (k, v) => (k === 'sessionId' || k === 'messageId' ? undefined : v));
+    assert.deepEqual(viaPage.port.toView.filter(m => m.type === 'inputHistory'), [{ type: 'inputHistory', entries: ['same'] }]);
+    assert.deepEqual(viaCommand.port.toView.filter(m => m.type === 'inputHistory'), [], 'a prompt a command sends was not typed by the person (D56 (g))');
+    const strip = (port) => JSON.stringify(port.toView.filter(m => m.type !== 'inputHistory'), (k, v) => (k === 'sessionId' || k === 'messageId' ? undefined : v));
     assert.equal(strip(viaCommand.port), strip(viaPage.port));
     assert.deepEqual(viaCommand.port.toView[0], { type: 'userPrompt', text: 'same', files: [] }, 'a prompt sent by the command is shown too');
     assert.equal(viaCommand.chat.hasChatContent, true);

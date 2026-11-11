@@ -207,6 +207,8 @@ const RULES: Rule[] = [
   ['.tool-btn:hover', 'background: var(--jc-mine);'],
   ['.tool-btn:disabled', 'opacity: 0.5; cursor: default;'],
   ['.principal-brain', 'color: var(--jc-quiet); font-size: 0.9em;'],
+  // the input row is at the bottom of the chat and its picker at the right: the menu opens upward and leftward, so it stays in the page (D56 (f))
+  ['.input-toolbar .brain-menu', 'top: auto; bottom: 100%; left: auto; right: 0; margin-top: 0; margin-bottom: 2px;'],
   ['.working', 'flex: none; display: flex; align-items: center; gap: 8px; padding: 2px var(--jc-pad); color: var(--jc-quiet);'],
   ['.working-dots i', 'display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: var(--jc-accent); animation: jc-pulse 1.2s infinite;'],
   ['.working-dots i:nth-child(2)', 'animation-delay: 0.2s;'],

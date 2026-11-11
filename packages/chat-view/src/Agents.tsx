@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { isWorking, workingTree } from '@jawata/chat-core/view';
 import type { HireView, ViewIntent, ViewState } from '@jawata/chat-core/view';
-import { principalBrainOf } from './Pickers.js';
+import { PrincipalBrainPicker, principalBrainOf } from './Pickers.js';
 import { useRunningSeconds } from './Working.js';
 
 /** Elapsed time as the person reads it: seconds under a minute, then minutes and seconds. */
@@ -94,21 +94,7 @@ function PrincipalRow({ state, send, menuOpen, onMenu }: { state: ViewState; sen
         <span className="hire-seat" title="jawata itself: it reads your message and hands the work to the other agents.">principal <span className="hire-cmd">/main</span></span>
         {state.processing ? <span className="hire-state" title={STATE_WORDS.running}>running</span> : <span className="hire-state" title="The principal is waiting for your next message.">waiting for you</span>}
         {state.processing ? <span className="hire-time" title="How long the principal has been at this message">{elapsed(seconds * 1000)}</span> : null}
-        {brain ? (
-          <span className="brain-wrap">
-            <button className="brain-btn" aria-haspopup="listbox" aria-expanded={menuOpen} title="The brain of the principal. Click to choose another; it takes over from your next message." onClick={onMenu}>{brain.label + ' ▾'}</button>
-            {menuOpen ? (
-              <div className="brain-menu" role="listbox" aria-label="Brain for the principal">
-                {brain.choices.map(c => (
-                  <div className="brain-item" role="option" aria-selected={c.value === brain.current} tabIndex={0} key={c.value}
-                    onClick={() => { onMenu(); if (c.value !== brain.current) { send({ type: 'setConfigOption', configId: brain.configId, value: c.value }); } }}>
-                    <span className="brain-check">{c.value === brain.current ? '✓' : ''}</span>{c.name}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </span>
-        ) : null}
+        {brain ? <PrincipalBrainPicker brain={brain} open={menuOpen} onToggle={onMenu} send={send} /> : null}
       </div>
     </div>
   );

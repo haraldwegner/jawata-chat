@@ -30,8 +30,11 @@ export class RecordingPort implements ViewPort {
   async deliver(message: unknown): Promise<void> { await this.handler?.(message); }
 }
 
-/** Left out of a golden: they differ between runs or carry the machine (draftResets counts the clears a run made before the one a golden is about). */
-export const IGNORED = ['cwd', 'updatedAt', 'draftResets'];
+/**
+ * Left out of a golden: they differ between runs or carry the machine (draftResets counts the clears a run made before the one a golden is
+ * about; inputHistory is what the person typed before, which an editor keeps between runs).
+ */
+export const IGNORED = ['cwd', 'updatedAt', 'draftResets', 'inputHistory'];
 /** Replaced by the order they first appear in: stable, and the pairing of a tool call with its updates stays checked. */
 export const IDS = ['sessionId', 'messageId', 'toolCallId', 'requestId'];
 /** Replaced by a digest of the payload and its length: a command list is about 60 KB and is the agent's, not ours. */
@@ -199,9 +202,9 @@ export class LoopbackPort extends RecordingPort {
   readonly page = { onMessage: this.link.page.onMessage, send: (intent: ViewIntent): void => { void this.deliver(intent); } };
 }
 
-/** A whole chat on an in-memory host whose agent is `run`: the sessions, the controller, and the port attached to it. */
-export function chatWith(run: AgentRunner, port: RecordingPort = new RecordingPort()) {
-  const host = fakeHost(run);
+/** A whole chat on an in-memory host whose agent is `run`: the sessions, the controller, and the port attached to it. `ports` are the optional ports the in-memory host has none of. */
+export function chatWith(run: AgentRunner, port: RecordingPort = new RecordingPort(), ports: Pick<HostPorts, 'inputHistory'> = {}) {
+  const host: FakeHost = { ...fakeHost(run), ...ports };
   const { chat: built, updates } = assembleChat(host);
   built.controller.attach(port);
   return { host, updates, sessions: built.sessions, chat: built.controller, port, dispose: () => built.dispose() };

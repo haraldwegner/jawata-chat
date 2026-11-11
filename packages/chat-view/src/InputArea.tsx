@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AUTONOMY_OPTION, autonomyOf, type ViewIntent, type ViewState } from '@jawata/chat-core/view';
-import { AutonomyButton, principalBrainOf } from './Pickers.js';
+import { AutonomyButton, PrincipalBrainPicker, principalBrainOf } from './Pickers.js';
 
 /** How long the person stops typing before the core is told what the draft is. */
 const DRAFT_PAUSE_MS = 250;
@@ -26,6 +26,13 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   const [hint, setHint] = useState<string | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashClosed, setSlashClosed] = useState(false);
+  const [brainMenuOpen, setBrainMenuOpen] = useState(false);
+  /** Where the arrows stand in what the person sent before (the core's `inputHistory`, newest first): -1 is what they are typing now. */
+  const [recalled, setRecalled] = useState(-1);
+  /** What was being typed when the arrows began to walk, so that walking back down returns to it. */
+  const typing = useRef('');
+  /** A text brought back by the arrows puts the caret at its end once it is in the field. */
+  const caretToEnd = useRef(false);
   const field = useRef<HTMLTextAreaElement>(null);
   /** Whether the person has typed in this page: until then, the draft the core holds (from before a reload) is what the field takes. */
   const touched = useRef(false);
@@ -39,6 +46,7 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     if (state.draftResets === resets.current) { return; }
     resets.current = state.draftResets;
     touched.current = false;
+    setRecalled(-1);
     setText('');
   }, [state.draftResets]);
   // the core keeps what is typed, a moment after the person stops, so a reloaded page has it back
@@ -54,6 +62,7 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     if (!el) { return; }
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, MAX_FIELD_HEIGHT) + 'px';
+    if (caretToEnd.current) { caretToEnd.current = false; el.setSelectionRange(el.value.length, el.value.length); }
   }, [text]);
 
   const typingCommand = text.startsWith('/') && !text.includes(' ');
@@ -96,6 +105,7 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     }
     const files = state.attachments.map(a => a.path);
     send({ type: 'sendPrompt', text: body, ...(files.length > 0 ? { files } : {}) });
+    setRecalled(-1);
     touched.current = true;
     send({ type: 'keepDraft', text: '' });
     setText('');
@@ -126,10 +136,39 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
       if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); pick(filtered[slashIndex]?.name ?? ''); return; }
       if (e.key === 'Escape') { e.preventDefault(); setSlashClosed(true); return; }
     }
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && walkHistory(e)) { return; }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submit(text);
     }
+  };
+
+  /**
+   * Up and down walk what the person sent before, newest first (D56 (g)): up only with the caret on the first line and down only on the
+   * last, so a text of several lines is still moved through as usual. A key the history used is kept from the rest of the page; one it did
+   * not use (no earlier message, the end of the walk, a selection) is left to the field. True when the history used it.
+   */
+  const walkHistory = (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    const el = e.currentTarget;
+    if (el.selectionStart !== el.selectionEnd) { return false; }
+    const history = state.inputHistory;
+    let next: number;
+    if (e.key === 'ArrowUp') {
+      if (el.value.slice(0, el.selectionStart).includes('\n') || recalled + 1 >= history.length) { return false; }
+      if (recalled === -1) { typing.current = text; }
+      next = recalled + 1;
+    } else {
+      if (el.value.slice(el.selectionEnd).includes('\n') || recalled === -1) { return false; }
+      next = recalled - 1;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    setRecalled(next);
+    touched.current = true;
+    caretToEnd.current = true;
+    setSlashClosed(true); // a command brought back is text to send again, not a list to choose from
+    setText(next === -1 ? typing.current : history[next]);
+    return true;
   };
 
   const autonomy = session ? autonomyOf(session) : null;
@@ -206,11 +245,11 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
             onClick={askFromTheField}>Side question</button>
         </div>
         <span className="toolbar-spacer" />
-        {brain ? <span className="principal-brain" title="The brain of the principal in this conversation. Its default is set in jawata studio, Seats view.">{brain.label}</span> : null}
+        {brain ? <PrincipalBrainPicker brain={brain} open={brainMenuOpen} onToggle={() => setBrainMenuOpen(o => !o)} send={send} className="principal-brain" /> : null}
       </div>
       <div className="input-editor-wrap">
         <textarea ref={field} placeholder={placeholder} rows={2} value={text} disabled={disabled}
-          onChange={e => { touched.current = true; setText(e.target.value); setSlashClosed(false); setSlashIndex(0); if (!e.target.value.startsWith('/')) { setHint(null); } }}
+          onChange={e => { touched.current = true; setRecalled(-1); setText(e.target.value); setSlashClosed(false); setSlashIndex(0); if (!e.target.value.startsWith('/')) { setHint(null); } }}
           onKeyDown={onKeyDown} onPaste={onPaste} />
       </div>
       <div className="input-send-row">

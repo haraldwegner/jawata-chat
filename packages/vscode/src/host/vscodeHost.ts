@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { extname } from 'node:path';
-import type { ChosenFile, HostActions, HostPorts, Settings, TrafficSink } from '@jawata/chat-core';
+import type { ChosenFile, HostActions, HostPorts, InputHistoryStore, Settings, TrafficSink } from '@jawata/chat-core';
 import { AgentProcesses } from './AgentProcesses';
 import { agentMap } from '../config/AgentConfig';
 import { WorkspaceFiles } from './WorkspaceFiles';
@@ -19,8 +19,11 @@ async function chosenFile(uri: vscode.Uri): Promise<ChosenFile> {
   return { path: uri.fsPath, image: { mimeType, data: Buffer.from(bytes).toString('base64') } };
 }
 
-/** The ports VS Code gives the chat core: settings, processes, quick picks, files, terminals, the output channels. */
-export function createVscodeHost(extensionVersion: string): HostPorts & { agents: AgentProcesses; terminal: TerminalHost } {
+/**
+ * The ports VS Code gives the chat core: settings, processes, quick picks, files, terminals, the output channels, and, when given, where
+ * what the person typed is kept between runs.
+ */
+export function createVscodeHost(extensionVersion: string, inputHistory?: InputHistoryStore): HostPorts & { agents: AgentProcesses; terminal: TerminalHost } {
   const settings: Settings = {
     agents: agentMap,
     agentSetup: 'the jawataChat.agent setting',
@@ -57,5 +60,6 @@ export function createVscodeHost(extensionVersion: string): HostPorts & { agents
       return sinks;
     },
     clientInfo: { name: 'vscode-jawata-chat', version: extensionVersion },
+    ...(inputHistory ? { inputHistory } : {}),
   };
 }

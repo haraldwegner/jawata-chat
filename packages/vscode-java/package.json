@@ -105,7 +105,7 @@
           "default": [
             "redhat.java"
           ],
-          "description": "Identifiers of other extensions that run a Java language server of their own. If one of them is installed, jawata Java says so, because the editor would then run two Java servers over the same files; switch the other one off for this workspace."
+          "description": "Identifiers of other extensions that run a Java language server of their own. If one of them is installed, jawata Java says so, because the editor would then run two Java servers over the same files, and offers to uninstall it together with the extensions that need it."
         }
       }
     },

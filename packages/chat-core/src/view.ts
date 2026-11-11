@@ -31,8 +31,9 @@ export interface Disposable {
  *    (`askSide`, `closeSide`; `sideAsked`, `sideUpdate`, `sideEnd`, `sideError`, `sideClosed`; the state's `side`).
  * 8: the Agent Control panel (CR2): the hires are a tree and carry a seat command, a task and an optional cost; the person can ask for the
  *    brains on offer and replace an agent's (`listBrains`, `chooseBrain`; `brainList`, `hireChanged`; the state's `brains`).
+ * 10: what the person typed and sent, kept across conversations for the input's arrows (28h D56 (g)): `inputHistory`, and the state's `inputHistory`.
  */
-export const VIEW_CONTRACT_VERSION = 9;
+export const VIEW_CONTRACT_VERSION = 10;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -87,6 +88,8 @@ export type ViewMessage =
   | { type: 'hireChanged'; hire: HireView }
   /** What the person has typed and not sent, as the core keeps it for them. */
   | { type: 'draft'; text: string }
+  /** What the person typed in the chat and sent, newest first, as the core keeps it for them across conversations: the page's arrows walk it. */
+  | { type: 'inputHistory'; entries: string[] }
   /** A page of the sessions the agent lists; `append` adds it to the list the page has, otherwise it replaces it. */
   | { type: 'sessionList'; sessions: PastSession[]; nextCursor: string | null; append: boolean; /** The list was asked for from outside the page (a command): the page shows it. */ show?: boolean }
   /** The agent proposes a change and waits: the page shows the diff with the choices, and answers with `answerPermission`. */
@@ -186,6 +189,7 @@ export const VIEW_MESSAGE_FIELDS = {
   brainList: ['brains'],
   hireChanged: ['hire'],
   draft: ['text'],
+  inputHistory: ['entries'],
   sessionList: ['sessions', 'nextCursor', 'append', 'show'],
   permissionRequest: ['requestId', 'title', 'diffs', 'options'],
   permissionResolved: ['requestId'],

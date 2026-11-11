@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { LanguageClient, type LanguageClientOptions, type ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
 import { debuggerOf, refactoringOf, testingOf } from './features';
-import { launchOf, rivalNotice, rivalsOf, type ServerSetting } from './launch';
+import { launchOf, rivalNotice, rivalRemovalOf, uninstallOrder, type InstalledExtension, type RivalRemoval, type ServerSetting } from './launch';
 import { profilePageOf } from './profilePanel';
 import { ProjectsView } from './projectsView';
 import { addressOf, editorFoldersOf, nodePorts, StudioStart, toldToThePerson, type EngineAnswer, type StudioOutcome, type StudioSetting } from './studio';
@@ -43,15 +43,49 @@ async function lookAfterStudio(log: vscode.OutputChannel): Promise<StudioOutcome
   return outcome;
 }
 
+/** An installed extension as the rival notice reads it: its identifier, the name the person sees, and what it depends on. */
+function installedOf(extension: vscode.Extension<unknown>): InstalledExtension {
+  const manifest = (extension.packageJSON ?? {}) as { displayName?: unknown; extensionDependencies?: unknown };
+  const dependsOn = Array.isArray(manifest.extensionDependencies) ? manifest.extensionDependencies.filter((d): d is string => typeof d === 'string') : [];
+  return { id: extension.id, name: typeof manifest.displayName === 'string' && manifest.displayName ? manifest.displayName : extension.id, dependsOn };
+}
+
+/** The label of the warning's button that uninstalls a rival and what needs it. */
+const UNINSTALL = 'Uninstall';
+
+/**
+ * Tells the person a rival Java server is installed and offers to uninstall it, with the extensions that need it, through the editor's own
+ * command. The editor only lets go of an uninstalled extension when the window is reloaded, so the person is told that and offered it.
+ */
+function offerRemoval(removal: RivalRemoval, log: vscode.OutputChannel): void {
+  const notice = rivalNotice(removal);
+  log.appendLine(notice);
+  void vscode.window.showWarningMessage(notice, UNINSTALL).then(async answer => {
+    if (answer !== UNINSTALL) { return; }
+    for (const id of uninstallOrder(removal)) {
+      try {
+        await vscode.commands.executeCommand('workbench.extensions.uninstallExtension', id);
+        log.appendLine(`uninstalled ${id}`);
+      } catch (e) {
+        const why = `${id} could not be uninstalled: ${e instanceof Error ? e.message : String(e)}. Uninstall it in the Extensions view.`;
+        log.appendLine(why);
+        void vscode.window.showWarningMessage(`jawata Java: ${why}`);
+        return;
+      }
+    }
+    const reload = 'Reload Window';
+    if (await vscode.window.showInformationMessage('jawata Java: uninstalled. Reload the window to finish.', reload) === reload) {
+      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    }
+  });
+}
+
 /** Starts the launcher the person named and connects the editor's language client to it; reports what is wrong with the setting instead of starting something else. */
 async function start(context: vscode.ExtensionContext): Promise<void> {
   const log = channel ?? (channel = vscode.window.createOutputChannel(NAME));
   const config = vscode.workspace.getConfiguration('jawataJava');
-  const rivals = rivalsOf(vscode.extensions.all.map(e => e.id), config.get<string[]>('rivalExtensions', ['redhat.java']));
-  if (rivals.length > 0) {
-    log.appendLine(rivalNotice(rivals));
-    void vscode.window.showWarningMessage(rivalNotice(rivals));
-  }
+  const removal = rivalRemovalOf(vscode.extensions.all.map(installedOf), config.get<string[]>('rivalExtensions', ['redhat.java']));
+  if (removal) { offerRemoval(removal, log); }
   const studio = await lookAfterStudio(log);
   engine = studio.engine;
   const launch = launchOf(config.get<ServerSetting>('server'), studio.engine);

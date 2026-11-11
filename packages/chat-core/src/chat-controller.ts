@@ -51,6 +51,8 @@ export class ChatController {
   private readonly unanswered = new Map<string, { resolve: (answer: RequestPermissionResponse) => void; optionIds: string[] }>();
   private proposals = 0;
   private readonly unsubscribe: (() => void)[] = [];
+  /** Settles when the stored input history has been read (or could not be): nothing is saved over it before. */
+  private readonly historyRead: Promise<void>;
 
   /**
    * @param flow connect, new conversation, restart, disconnect and open: the one route for the page's intents
@@ -60,9 +62,10 @@ export class ChatController {
   constructor(
     private readonly sessions: ChatSessions,
     private readonly updates: AgentUpdates,
-    private readonly host: Pick<HostPorts, 'log' | 'actions'>,
+    private readonly host: Pick<HostPorts, 'log' | 'actions' | 'inputHistory'>,
     readonly flow: ConversationFlow,
   ) {
+    this.historyRead = this.readInputHistory();
     this.updateListener = (update) => this.handleSessionUpdate(update);
     this.hearing = this.updates.onUpdate(this.updateListener);
     this.asking = this.updates.onPermissionRequest(request => this.askPermission(request));
@@ -341,7 +344,37 @@ export class ChatController {
       this.host.log.log(`ChatController: ignoring ${message.type} from a page of another contract number`);
       return;
     }
+    // what the person typed in the chat's own page is theirs to bring back; a prompt a host command sends is not typed, and is not kept
+    if (message.type === 'sendPrompt') { this.rememberInput(message.text); }
     await this.handle(message);
+  }
+
+  /** Read what the person typed in earlier runs, and put what was typed meanwhile in front of it. */
+  private async readInputHistory(): Promise<void> {
+    const store = this.host.inputHistory;
+    if (!store) { return; }
+    let stored: string[] = [];
+    try {
+      const loaded = await store.load();
+      stored = Array.isArray(loaded) ? loaded.filter((e): e is string => typeof e === 'string') : [];
+    } catch (e) {
+      this.host.log.logError('ChatController: the stored input history could not be read; it begins empty', e);
+      return;
+    }
+    const now = this.view.inputHistory;
+    const merged = [...now, ...stored.filter(e => !now.includes(e))].slice(0, INPUT_HISTORY_LIMIT);
+    // what was typed meanwhile is saved, with this, by the sends that wait for this read
+    if (merged.length !== now.length) { this.post({ type: 'inputHistory', entries: merged }); }
+  }
+
+  /** Put what the person sent at the front of their history (once: sent again, it moves there), and keep it once the stored part is read. */
+  private rememberInput(text: string): void {
+    const entry = text.trim();
+    if (!entry) { return; }
+    const entries = [entry, ...this.view.inputHistory.filter(e => e !== entry)].slice(0, INPUT_HISTORY_LIMIT);
+    this.post({ type: 'inputHistory', entries });
+    const store = this.host.inputHistory;
+    if (store) { void this.historyRead.then(() => { store.save(this.view.inputHistory); }); }
   }
 
   /** Fold the message into what the page shows, and tell the page. */
@@ -625,6 +658,9 @@ export class ChatController {
     this.post({ type: 'state', contractVersion: VIEW_CONTRACT_VERSION, activeSessionId: activeId, session: session ?? null });
   }
 }
+
+/** How many of the person's sent messages are kept for the input's arrows. */
+const INPUT_HISTORY_LIMIT = 100;
 
 /** The facts about a session that the page is shown. */
 function pickShown({ sessionId, agentDisplayName, title, cwd, modes, models, configOptions, availableCommands }: SessionInfo) {

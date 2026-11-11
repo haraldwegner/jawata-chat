@@ -2,7 +2,8 @@
   "ignored": [
     "cwd",
     "updatedAt",
-    "draftResets"
+    "draftResets",
+    "inputHistory"
   ],
   "idsByFirstSeenOrdinal": [
     "sessionId",
@@ -16,7 +17,7 @@
   "messages": [
     {
       "type": "state",
-      "contractVersion": 9,
+      "contractVersion": 10,
       "activeSessionId": "4a01c399-d1f6-45be-94b7-db9701b41b4d",
       "session": {
         "sessionId": "sessionId#1",

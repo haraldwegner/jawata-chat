@@ -43,10 +43,18 @@ async function lookAfterStudio(log: vscode.OutputChannel): Promise<StudioOutcome
   return outcome;
 }
 
-/** An installed extension as the rival notice reads it: its identifier, the name the person sees, and what it depends on. */
+/**
+ * An installed extension as the rival notice reads it: its identifier, the name the person sees, and what it depends on. A pack counts the
+ * extensions it holds as what it depends on, because uninstalling one it holds while the pack stays fails.
+ *
+ * DELIBERATE DUPLICATE: the studio's deploy (jawata-studio `vscode_deploy.rs`, `removal_order`) answers the same question from the command
+ * line before this extension runs; this answers it inside the editor for an install made after the deploy. They run in different programs
+ * and repositories, so they read the same two manifest fields and are held to the same order by their own tests.
+ */
 function installedOf(extension: vscode.Extension<unknown>): InstalledExtension {
-  const manifest = (extension.packageJSON ?? {}) as { displayName?: unknown; extensionDependencies?: unknown };
-  const dependsOn = Array.isArray(manifest.extensionDependencies) ? manifest.extensionDependencies.filter((d): d is string => typeof d === 'string') : [];
+  const manifest = (extension.packageJSON ?? {}) as { displayName?: unknown; extensionDependencies?: unknown; extensionPack?: unknown };
+  const ids = (list: unknown): string[] => (Array.isArray(list) ? list.filter((d): d is string => typeof d === 'string') : []);
+  const dependsOn = [...ids(manifest.extensionDependencies), ...ids(manifest.extensionPack)];
   return { id: extension.id, name: typeof manifest.displayName === 'string' && manifest.displayName ? manifest.displayName : extension.id, dependsOn };
 }
 

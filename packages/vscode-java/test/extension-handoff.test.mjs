@@ -202,6 +202,17 @@ test('Red Hat\'s Java extension still installed: one warning in plain words, nam
   await e.extension.deactivate();
 });
 
+test('an extension pack that holds Red Hat\'s extension is uninstalled before it, as the studio\'s deploy does (architect finding 1, 28h C25)', async () => {
+  const pack = { id: 'vscjava.vscode-java-pack', packageJSON: { displayName: 'Extension Pack for Java', extensionPack: ['redhat.java', 'vscjava.vscode-java-debug'] } };
+  const e = await activatedWith([...withRedHat(), pack], (_m, buttons) => buttons[0]);
+  const notice = e.warnings.find(w => /redhat\.java/.test(w));
+  assert.match(notice, /Extension Pack for Java \(vscjava\.vscode-java-pack\)/);
+  const order = uninstalled(e);
+  assert.ok(order.indexOf('vscjava.vscode-java-pack') < order.indexOf('redhat.java'), order.join(', '));
+  assert.ok(order.indexOf('vscjava.vscode-java-pack') < order.indexOf('vscjava.vscode-java-debug'), order.join(', '));
+  await e.extension.deactivate();
+});
+
 test('the warning dismissed uninstalls nothing, and without Red Hat\'s extension there is no warning at all', async () => {
   const dismissed = await activatedWith(withRedHat(), () => undefined);
   assert.equal(dismissed.warnings.filter(w => /redhat\.java/.test(w)).length, 1);

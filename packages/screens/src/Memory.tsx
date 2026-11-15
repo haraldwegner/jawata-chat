@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactElement } from 'react';
-import { memoryView, summarize } from './memory-model.js';
-import type { MemoryStatus } from './memory-model.js';
+import { ACTIONS, memoryView, summarize } from './memory-model.js';
+import type { MemoryStatus, StoreAction } from './memory-model.js';
 import type { Json } from './port.js';
 import type { ScreenProps } from './screen.js';
 
@@ -37,16 +37,12 @@ export const MEMORY_TITLES = {
   holds: 'What the store holds, how far the cataloguer has got, and where the pattern library stands.',
 } as const;
 
-/** The verbs whose answer can change what the store holds, so the figures are read again after them. */
-const CHANGES_THE_STORE = new Set(['load', 'wipe', 'import', 'restore', 'cleanUp', 'promote', 'promote_rule', 'retire_rule', 'backup']);
 
-/** The words an action is shown with while it runs and in the status heading; an action not named here is shown by its own name. */
-const ACTION_WORDS: Readonly<Record<string, string>> = { cleanUp: 'clean up', promote_rule: 'promote to rule', retire_rule: 'retire', list: 'curation' };
 
 /** After a failed read the store is asked again on its own, 5 seconds later and twice as long each time up to a minute, as the studio does. */
 const RETRY_MIN_MS = 5000;
 const RETRY_MAX_MS = 60000;
-const wordsFor = (action: string): string => ACTION_WORDS[action] ?? action;
+
 
 /** Said beside a failed read while the store is being asked again. */
 const RETRYING = 'Asking again automatically…';
@@ -68,12 +64,12 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
   const [status, setStatus] = useState<MemoryStatus | null>(null);
   const [statusError, setStatusError] = useState('');
   const [seconds, setSeconds] = useState(0);
-  const [busy, setBusy] = useState('');
+  const [busy, setBusy] = useState<StoreAction | ''>('');
   const [reloading, setReloading] = useState(false);
   const [failures, setFailures] = useState(0);
   const retryDelay = useRef(RETRY_MIN_MS);
   const more = useRef<HTMLDetailsElement>(null);
-  const [output, setOutput] = useState<{ title: string; lines: string[]; raw: string }>({ title: '', lines: [], raw: '' });
+  const [output, setOutput] = useState<{ title: StoreAction | ''; lines: string[]; raw: string }>({ title: '', lines: [], raw: '' });
   const [versions, setVersions] = useState<{ names: string[]; depth: number } | null>(null);
   const [curation, setCuration] = useState<{ rules: Row[]; entries: Row[] } | null>(null);
   const [sources, setSources] = useState<ReadonlySet<string>>(new Set());
@@ -129,7 +125,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
     return () => { clearInterval(timer); };
   }, [status]);
 
-  const show = (title: string, payload: unknown): void => {
+  const show = (title: StoreAction, payload: unknown): void => {
     setOutput({ title, lines: summarize(title, payload), raw: typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2) });
   };
 
@@ -152,7 +148,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
   };
 
   /** Runs one action and says what it did; a list shown on the screen is read again, because the action may have changed it. */
-  const run = async (title: string, action: () => Promise<unknown>, changes = CHANGES_THE_STORE.has(title)): Promise<unknown> => {
+  const run = async (title: StoreAction, action: () => Promise<unknown>, changes = ACTIONS[title].changesStore): Promise<unknown> => {
     if (busy) { return undefined; }
     setBusy(title);
     show(title, '…');
@@ -174,7 +170,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
     }
   };
 
-  const verb = (name: string, args: Json = {}): Promise<unknown> => run(name, () => port.experienceVerb(name, args));
+  const verb = (name: StoreAction, args: Json = {}): Promise<unknown> => run(name, () => port.experienceVerb(name, args));
 
   const exportStore = async (): Promise<void> => {
     const path = await port.saveDialog({ title: 'Export memory store', name: 'jawata-memory-export.json', extensions: ['json'] });
@@ -245,7 +241,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
             <button type="button" className="screen-danger" disabled={!idle} title={MEMORY_TITLES.wipe} onClick={() => { void verb('wipe'); }}>Wipe…</button>
           </div>
         </details>
-        {busy ? <span>running “{wordsFor(busy)}”…</span> : null}
+        {busy ? <span>running “{ACTIONS[busy].words}”…</span> : null}
       </div>
 
       {versions ? (
@@ -322,7 +318,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
       ) : null}
 
       <section>
-        <h3>Status{output.title ? ` of “${wordsFor(output.title)}”` : ''}</h3>
+        <h3>Status{output.title ? ` of “${ACTIONS[output.title].words}”` : ''}</h3>
         {output.raw === '…'
           ? <p>running…</p>
           : output.lines.length > 0

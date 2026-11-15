@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
-  BRAIN_HINT, brainOptions, CONVERSATION_BRAIN_HINT, firstSentence, invocationHint, isConversation, onHint, probeSentence, RESET_HINT,
+  ADAPTER_HINT, adapterNotice, BRAIN_HINT, brainOptions, CONVERSATION_BRAIN_HINT, conversationOptions, firstSentence, invocationHint, isConversation, onHint, probeSentence, RESET_HINT,
   seatGroups, seatName, WHEN_HINT,
 } from './seats-model.js';
-import type { BrainStatus, ProbeResult, SeatRow, SeatsState } from './seats-model.js';
+import type { BrainStatus, ConversationBrain, ProbeResult, SeatRow, SeatsState } from './seats-model.js';
 import type { ScreenProps } from './screen.js';
 import type { Json } from './port.js';
 
@@ -22,6 +22,26 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState<Readonly<Record<string, boolean>>>({});
   const [lastTest, setLastTest] = useState<Readonly<Record<string, ProbeResult>>>({});
+  const [conversation, setConversation] = useState<readonly ConversationBrain[]>([]);
+  const [models, setModels] = useState<Readonly<Record<string, readonly string[]>>>({});
+  /** The brains whose models were asked already: each is asked once per page, as the first ask opens a session of it. */
+  const modelsAsked = useRef(new Set<string>());
+
+  /** The brains the chat runs on; reading them starts no program. A host that cannot answer leaves the list to the hire brains' check. */
+  const readConversation = useCallback((): void => {
+    port.conversationBrains().then(answer => { setConversation(answer as unknown as ConversationBrain[]); }, (error: unknown) => {
+      setActionError(`chat brains: ${message(error)}`);
+    });
+  }, [port]);
+
+  /** Asked when the person opens a conversation seat's list, never as the page is read: each brain's first ask opens one session of it. */
+  const askModels = (): void => {
+    for (const brain of conversation.filter(one => one.ready && !modelsAsked.current.has(one.id))) {
+      modelsAsked.current.add(brain.id);
+      // a brain whose session could not be opened offers its default model only; the row says nothing more, as the studio's does
+      port.conversationModels(brain.id).then(answer => { setModels(now => ({ ...now, [brain.id]: answer as unknown as string[] })); }, () => undefined);
+    }
+  };
 
   /** The brains are asked after the list is shown, so a slow program never holds the page; the last answer stays shown meanwhile. */
   const readBrains = useCallback((): void => {
@@ -34,13 +54,14 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
   /** A fresh reading of the seats and of the brains, as the page opens and each time it is focused. */
   const refresh = useCallback(async (): Promise<void> => {
     readBrains();
+    readConversation();
     try {
       setState(await port.seatsView() as unknown as SeatsState);
       setLoadError('');
     } catch (error) {
       setLoadError(message(error));
     }
-  }, [port, readBrains]);
+  }, [port, readBrains, readConversation]);
 
   useEffect(() => {
     handle.refresh = refresh;
@@ -116,8 +137,10 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
                         ? 'checking which brains this machine has…'
                         : (
                           <select className="seat-brain" value={`${seat.brain}|${seat.model ?? ''}`} disabled={busy || testing[seat.name] === true}
+                            onFocus={isConversation(seat) ? askModels : undefined} onMouseDown={isConversation(seat) ? askModels : undefined}
                             onChange={event => { void chooseBrain(seat, event.currentTarget.value); }}>
-                            {brainOptions(seat, brains).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            {(isConversation(seat) ? conversationOptions(seat, conversation, brains, models) : brainOptions(seat, brains))
+                              .map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                           </select>
                         )}
                       {testing[seat.name] ? <span className="seat-note">Testing — one word through the brain…</span> : null}
@@ -134,6 +157,11 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
                         )
                         : null}
                       {!test && status && !status.installed ? <span className="seat-note screen-error">{status.reason}</span> : null}
+                      {isConversation(seat)
+                        ? conversation.map(adapterNotice).filter(notice => notice !== null).map(notice => (
+                          <span key={notice.command} className="seat-note" title={ADAPTER_HINT}>{notice.before} <code>{notice.command}</code> {notice.after}</span>
+                        ))
+                        : null}
                     </dd>
                   </dl>
                   {seat.customised

@@ -33,6 +33,10 @@ export interface ScreensPort {
   brainsStatus(ids: string[]): Promise<Json>;
   /** A one-word test run through a brain. */
   brainProbe(brain: string, model: string | null): Promise<Json>;
+  /** The brains the chat can run on, ready or with the command that installs the adapter; starts no program. */
+  conversationBrains(): Promise<Json>;
+  /** The models a conversation brain's own session offers; the first ask opens one session of it, so it is asked only when the person opens the choice. */
+  conversationModels(brain: string): Promise<Json>;
   /** Asks the person for a file or folder to read; null when they cancelled. */
   openDialog(options: Json): Promise<string | null>;
   /** Asks the person where to write a file; null when they cancelled. */
@@ -60,8 +64,17 @@ export const PORT_CALLS: { readonly [K in keyof Required<ScreensPort>]: CallKind
   workflowView: 'promise',
   brainsStatus: 'promise',
   brainProbe: 'promise',
+  conversationBrains: 'promise',
+  conversationModels: 'promise',
   openDialog: 'promise',
   saveDialog: 'promise',
   version: 'promise',
   theme: 'at-once',
 };
+
+/**
+ * The style names a host sets on the page's root element to give the screens its theme: colours, accent, font and its size. The stylesheet
+ * gives each a value of its own for a host that sets none; the warning and danger colours are the screens' own and no host sets them.
+ * @public a host outside this repository (Eclipse's adapter) sets exactly these, and its test holds it to this list
+ */
+export const HOST_VARIABLES = ['--screen-background', '--screen-foreground', '--screen-accent', '--screen-font', '--screen-font-size'] as const;

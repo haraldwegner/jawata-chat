@@ -43,6 +43,15 @@ export interface BrainStatus {
   readonly writesHeldByInstruction: boolean;
 }
 
+/** A brain the chat can run on (Stage 25m): one the engine's brain registry names, ready, or one whose adapter is not on this machine. */
+export interface ConversationBrain {
+  readonly id: string;
+  readonly label: string;
+  readonly ready: boolean;
+  /** The command that installs its adapter; null for a ready brain. */
+  readonly install: string | null;
+}
+
 /** What one test run through a brain showed. */
 export interface ProbeResult {
   readonly brain: string;
@@ -81,7 +90,8 @@ export function seatGroups(state: SeatsState): SeatGroup[] {
   return [
     {
       title: 'Who you talk to',
-      hint: 'The principal is the agent you talk to in the jawata chat. btw is the side discussion. The brain chosen here is what the next conversation runs on.',
+      hint: 'The principal is the agent you talk to in the jawata chat. btw is the side discussion. The brain chosen here is what the next conversation runs on; '
+        + 'you can change the principal\'s during a conversation on its row in Agent Control.',
       seats: sorted.filter(isConversation),
     },
     {
@@ -123,8 +133,11 @@ export const WHEN_HINT = 'When this seat is meant to be used: the point in your 
 export const BRAIN_HINT = 'Typed as a command, a seat runs on your own agent; this is the brain a HIRE of it starts: the agent program, and the model, '
   + 'logged in with your account on this machine. The list is read from the programs installed here. '
   + 'Choosing one first runs a one-word test through it (Claude Code: under a cent, measured) and is kept for Apply only if it answers.';
-export const CONVERSATION_BRAIN_HINT = 'The brain and model a new conversation with this seat starts on; the chat can change the model of a running conversation. '
+export const CONVERSATION_BRAIN_HINT = 'The brain and model a new conversation with this seat starts on. The models listed are the ones that brain\'s own '
+  + 'session offers, asked when you open the list; the chat can change the model of a running conversation. '
   + 'Choosing one first runs a one-word test through it (Claude Code: under a cent, measured) and is kept for Apply only if it answers.';
+/** The mouseover of a missing adapter's notice, in the studio's words (28h ec8d474) with this host's page for its tab. */
+export const ADAPTER_HINT = 'The chat talks to a brain through its agent adapter. The plug-in downloads no agent program: you run the command, then open this page again.';
 export const RESET_HINT = 'Takes back your changes to this seat and uses the version shipped with the plug-in. Takes effect on Apply.';
 
 /** The first sentence of a seat's purpose, shown on its row; the whole of it sits in the fold. */
@@ -160,6 +173,40 @@ export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[]): Bra
     options.unshift({ value: current, label: `${known?.label ?? seat.brain} — ${seat.model ?? 'its default model'} (not available on this machine)` });
   }
   return options;
+}
+
+/**
+ * The brains main and btw can be given (28h D56 (f)): each brain the chat can run on here with its own default model first, then each model
+ * that brain's own session offers, once they have been asked. The saved choice is always offered; it is marked not available when its brain
+ * is not ready here, or when that brain's models were read and do not include it.
+ */
+export function conversationOptions(seat: SeatRow, conversation: readonly ConversationBrain[], brains: readonly BrainStatus[],
+  models: Readonly<Record<string, readonly string[]>>): BrainOption[] {
+  const options: BrainOption[] = [];
+  for (const one of conversation.filter(brain => brain.ready)) {
+    const status = brains.find(brain => brain.id === one.id);
+    const label = status?.label ?? one.label;
+    const note = status ? loginNote(status) : '';
+    options.push({ value: `${one.id}|`, label: `${label} — its default model${note}` });
+    for (const model of models[one.id] ?? []) { options.push({ value: `${one.id}|${model}`, label: `${label} — ${model}${note}` }); }
+  }
+  const current = `${seat.brain}|${seat.model ?? ''}`;
+  if (!options.some(option => option.value === current)) {
+    const ready = conversation.some(brain => brain.ready && brain.id === seat.brain);
+    const label = brains.find(one => one.id === seat.brain)?.label ?? conversation.find(one => one.id === seat.brain)?.label ?? seat.brain;
+    const absent = !ready || models[seat.brain] !== undefined;
+    options.unshift({ value: current, label: `${label} — ${seat.model ?? 'its default model'}${absent ? ' (not available on this machine)' : ''}` });
+  }
+  return options;
+}
+
+/**
+ * What the Seats page says about a brain the chat could run on if its adapter were installed (28h D54 (g)), in the three parts the page draws:
+ * the sentence before the command, the command (shown as code, so a person can copy it), and the sentence after. Null for a ready brain.
+ */
+export function adapterNotice(brain: ConversationBrain): { before: string; command: string; after: string } | null {
+  if (brain.ready || !brain.install) { return null; }
+  return { before: `${brain.label} is not available for the chat. To use it, run`, command: brain.install, after: 'in a terminal, then open this page again.' };
 }
 
 /** What the last test run through a brain showed, in a sentence. */

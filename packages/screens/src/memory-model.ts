@@ -155,25 +155,26 @@ type Answer = Record<string, unknown>;
 /** Removed rows, the same sentence for a wipe and a prune. */
 const removed = (p: Answer): string[] => (count(p.removed) !== undefined ? [`Removed ${String(p.removed)} entr(ies)`] : []);
 
-/**
- * What each action's answer says, one row per action the page can ask for: the one table of the screen's summaries, so a new action is a
- * new row and its sentences sit in one place. An action without a row says only the lines every answer shares.
- */
-const SUMMARIES: Readonly<Record<string, (p: Answer) => string[]>> = {
-  load: (p) => {
-    const lines: string[] = [];
-    const loaded = count(p.loaded);
-    const files = count(p.files);
-    const unchanged = count(p.unchanged);
-    if (loaded !== undefined) {
-      lines.push(`Loaded ${loaded}${files !== undefined ? ` of ${files}` : ''} file(s)`
-        + (unchanged ? `, ${unchanged} unchanged (skipped)` : '')
-        + (Array.isArray(p.linked) || count(p.linked) !== undefined ? `, ${count(p.linked) ?? 0} reached via links` : ''));
-    }
-    if (Array.isArray(p.skipped) && p.skipped.length > 0) { lines.push(`${p.skipped.length} source(s) skipped — see raw response`); }
-    return lines;
-  },
-  wipe: removed,
+/** The store actions the page asks its host for: the host's allowed list, so an action with no row below fails to compile. */
+export type StoreAction = 'load' | 'backup' | 'export' | 'import' | 'restore' | 'list' | 'promote' | 'promote_rule' | 'retire_rule' | 'wipe' | 'cleanUp';
+
+/** What the page knows about one store action. */
+interface ActionRow {
+  /** How the action is named while it runs and in the status heading. */
+  readonly words: string;
+  /** Whether its answer can change what the store holds, so the figures are read again after it. */
+  readonly changesStore: boolean;
+  /** The sentences its answer says. */
+  readonly summary: (p: Answer) => string[];
+  /**
+   * Which of the lines every answer shares are added: all of them; all but the copy taken before the action, for the action that IS the copy;
+   * or none, for an action whose parts each say their own.
+   */
+  readonly sharedLines: 'all' | 'no-copy' | 'none';
+}
+
+/** The three steps of Clean up, each answered on its own. */
+const CLEAN_UP_STEPS: Readonly<Record<'prune' | 'dedup' | 'compact', (p: Answer) => string[]>> = {
   prune: removed,
   dedup: (p) => (count(p.group_count) !== undefined ? [`${String(p.group_count)} duplicate group(s), ${count(p.merged) ?? 0} merged`] : []),
   compact: (p) => {
@@ -184,69 +185,132 @@ const SUMMARIES: Readonly<Record<string, (p: Answer) => string[]>> = {
     }
     return p.compacted === false ? [`Not compacted${typeof p.reason === 'string' ? ` — ${p.reason}` : ''}`] : [];
   },
-  export: (p) => {
-    const exported = count(p.exported) ?? count(p.count);
-    return [`Exported${exported !== undefined ? ` ${exported} entr(ies)` : ''}${typeof p.path === 'string' ? ` to ${p.path}` : ''}`];
+};
+
+/** Every store action the page can ask for, in one table: a new action is a new row, and what the page knows about it sits in that row. */
+export const ACTIONS: { readonly [K in StoreAction]: ActionRow } = {
+  load: {
+    words: 'load',
+    changesStore: true,
+    sharedLines: 'all',
+    summary: (p) => {
+      const lines: string[] = [];
+      const loaded = count(p.loaded);
+      const files = count(p.files);
+      const unchanged = count(p.unchanged);
+      if (loaded !== undefined) {
+        lines.push(`Loaded ${loaded}${files !== undefined ? ` of ${files}` : ''} file(s)`
+          + (unchanged ? `, ${unchanged} unchanged (skipped)` : '')
+          + (Array.isArray(p.linked) || count(p.linked) !== undefined ? `, ${count(p.linked) ?? 0} reached via links` : ''));
+      }
+      if (Array.isArray(p.skipped) && p.skipped.length > 0) { lines.push(`${p.skipped.length} source(s) skipped — see raw response`); }
+      return lines;
+    },
   },
-  import: (p) => {
-    const imported = count(p.imported) ?? count(p.count);
-    return [
-      ...(imported !== undefined ? [`Imported ${imported} entr(ies)`] : []),
-      ...(count(p.skipped) !== undefined ? [`${String(p.skipped)} duplicate(s) skipped`] : []),
-    ];
+  backup: {
+    words: 'backup',
+    changesStore: true,
+    // the copy this action takes is its whole answer, so the line about a copy taken before an action is not added to it
+    sharedLines: 'no-copy',
+    summary: (p) => (typeof p.backup === 'string'
+      ? [`Copy taken: ${p.backup}${count(p.kept) !== undefined ? ` — ${String(p.kept)} of ${String(count(p.depth) ?? '?')} kept` : ''}`] : []),
   },
-  retire_rule: (p) => {
-    if (p.retired === true) { return ['Retired — it stops being offered as guidance, and stays readable.']; }
-    return p.retired === false ? [`Nothing changed${typeof p.note === 'string' ? ` — ${p.note}` : ''}.`] : [];
+  export: {
+    words: 'export',
+    changesStore: false,
+    sharedLines: 'all',
+    summary: (p) => {
+      const exported = count(p.exported) ?? count(p.count);
+      return [`Exported${exported !== undefined ? ` ${exported} entr(ies)` : ''}${typeof p.path === 'string' ? ` to ${p.path}` : ''}`];
+    },
   },
-  promote: (p) => {
-    if (p.changed === true) { return [`Promoted to ${String(p.status ?? 'accepted')}.`]; }
-    return p.changed === false ? [`Nothing changed — it is already ${String(p.status ?? 'accepted')}, or the entry is gone.`] : [];
+  import: {
+    words: 'import',
+    changesStore: true,
+    sharedLines: 'all',
+    summary: (p) => {
+      const imported = count(p.imported) ?? count(p.count);
+      return [
+        ...(imported !== undefined ? [`Imported ${imported} entr(ies)`] : []),
+        ...(count(p.skipped) !== undefined ? [`${String(p.skipped)} duplicate(s) skipped`] : []),
+      ];
+    },
   },
-  list: (p) => (count(p.rules) !== undefined
-    ? [`${String(p.rules)} rule(s), ${count(p.entries) ?? 0} entr(ies), ${count(p.awaitingReview) ?? 0} awaiting review`] : []),
-  promote_rule: (p) => {
-    if (typeof p.id !== 'string') { return []; }
-    const sources = Array.isArray(p.derived_from) ? p.derived_from.length : undefined;
-    return [`Promoted as v${String(p.rule_version ?? 1)}${sources !== undefined ? `, drawn from ${sources} entr(ies)` : ''}. `
-      + 'The sources are NOT superseded — they go on answering as themselves.'];
+  restore: {
+    words: 'restore',
+    changesStore: true,
+    sharedLines: 'all',
+    summary: (p) => {
+      const lines: string[] = [];
+      if (Array.isArray(p.backups)) {
+        lines.push(p.backups.length === 0 ? 'No copies yet.' : `${p.backups.length} version(s), newest first — ${String(count(p.depth) ?? '?')} kept`);
+      }
+      if (typeof p.restored === 'string') {
+        lines.push(`Restored from ${p.restored}`);
+        if (count(p.rows) !== undefined) { lines.push(`The store now holds ${String(p.rows)} entr(ies)`); }
+      }
+      return lines;
+    },
   },
-  backup: (p) => (typeof p.backup === 'string'
-    ? [`Copy taken: ${p.backup}${count(p.kept) !== undefined ? ` — ${String(p.kept)} of ${String(count(p.depth) ?? '?')} kept` : ''}`] : []),
-  restore: (p) => {
-    const lines: string[] = [];
-    if (Array.isArray(p.backups)) {
-      lines.push(p.backups.length === 0 ? 'No copies yet.' : `${p.backups.length} version(s), newest first — ${String(count(p.depth) ?? '?')} kept`);
-    }
-    if (typeof p.restored === 'string') {
-      lines.push(`Restored from ${p.restored}`);
-      if (count(p.rows) !== undefined) { lines.push(`The store now holds ${String(p.rows)} entr(ies)`); }
-    }
-    return lines;
+  list: {
+    words: 'curation',
+    changesStore: false,
+    sharedLines: 'all',
+    summary: (p) => (count(p.rules) !== undefined
+      ? [`${String(p.rules)} rule(s), ${count(p.entries) ?? 0} entr(ies), ${count(p.awaitingReview) ?? 0} awaiting review`] : []),
+  },
+  promote: {
+    words: 'promote',
+    changesStore: true,
+    sharedLines: 'all',
+    summary: (p) => {
+      if (p.changed === true) { return [`Promoted to ${String(p.status ?? 'accepted')}.`]; }
+      return p.changed === false ? [`Nothing changed — it is already ${String(p.status ?? 'accepted')}, or the entry is gone.`] : [];
+    },
+  },
+  promote_rule: {
+    words: 'promote to rule',
+    changesStore: true,
+    sharedLines: 'all',
+    summary: (p) => {
+      if (typeof p.id !== 'string') { return []; }
+      const sources = Array.isArray(p.derived_from) ? p.derived_from.length : undefined;
+      return [`Promoted as v${String(p.rule_version ?? 1)}${sources !== undefined ? `, drawn from ${sources} entr(ies)` : ''}. `
+        + 'The sources are NOT superseded — they go on answering as themselves.'];
+    },
+  },
+  retire_rule: {
+    words: 'retire',
+    changesStore: true,
+    sharedLines: 'all',
+    summary: (p) => {
+      if (p.retired === true) { return ['Retired — it stops being offered as guidance, and stays readable.']; }
+      return p.retired === false ? [`Nothing changed${typeof p.note === 'string' ? ` — ${p.note}` : ''}.`] : [];
+    },
+  },
+  wipe: { words: 'wipe', changesStore: true, sharedLines: 'all', summary: removed },
+  cleanUp: {
+    words: 'clean up',
+    changesStore: true,
+    sharedLines: 'none',
+    summary: (p) => (['prune', 'dedup', 'compact'] as const).flatMap(step => answered(CLEAN_UP_STEPS[step], p[step], 'all')),
   },
 };
 
-/**
- * What the last action did, in sentences; the unmodified answer stays behind the raw-response fold.
- *
- * @param kind    the verb, as the page asked the host for it
- * @param payload the host's answer
- */
-export function summarize(kind: string, payload: unknown): string[] {
+/** One answer in sentences: the cancellation, or its error, its own lines, and the lines every answer shares that the row asks for. */
+function answered(own: (p: Answer) => string[], payload: unknown, shared: ActionRow['sharedLines']): string[] {
   if (payload === null || typeof payload !== 'object') { return []; }
   const p = payload as Answer;
   if (p.cancelled === true) { return ['Cancelled: nothing was changed.']; }
-  if (kind === 'cleanUp') {
-    return ['prune', 'dedup', 'compact'].flatMap(step => summarize(step, p[step]));
-  }
+  if (shared === 'none') { return own(p); }
   const lines: string[] = [];
   if (typeof p.error === 'string') { lines.push(`Error: ${p.error}`); }
-  lines.push(...(Object.hasOwn(SUMMARIES, kind) ? SUMMARIES[kind](p) : []));
+  lines.push(...own(p));
   const refresh = p.refresh as Answer | undefined;
   if (refresh && Array.isArray(refresh.staled) && refresh.staled.length > 0) {
     lines.push(`${refresh.staled.length} stale Java pointer(s) flagged automatically`);
   }
-  if (kind !== 'backup') {
+  if (shared === 'all') {
     if (typeof p.backup === 'string') {
       lines.push(`A copy of the previous state was kept: ${p.backup}`);
     } else if (p.backup === null && typeof p.backupNote === 'string') {
@@ -254,4 +318,14 @@ export function summarize(kind: string, payload: unknown): string[] {
     }
   }
   return lines;
+}
+
+/**
+ * What the last action did, in sentences; the unmodified answer stays behind the raw-response fold.
+ *
+ * @param kind    the action, as the page asked the host for it
+ * @param payload the host's answer
+ */
+export function summarize(kind: StoreAction, payload: unknown): string[] {
+  return answered(ACTIONS[kind].summary, payload, ACTIONS[kind].sharedLines);
 }

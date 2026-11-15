@@ -8,7 +8,7 @@ globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 
-const { brainOptions, canDrop, firstSentence, mountScreen, seatGroups, seatName } = await import('../dist/index.js');
+const { adapterNotice, brainOptions, canDrop, conversationOptions, failureTargets, firstSentence, mountScreen, seatGroups, seatName } = await import('../dist/index.js');
 
 const seat = (name, extra = {}) => ({ name, command: null, purpose: `${name} does one job. And more.`, when: 'when asked', on: true,
   brain: 'claude-code', model: null, customised: false, acceptsUncontainedWrites: false, ...extra });
@@ -21,6 +21,8 @@ test('the seats are in four groups by how a person reaches them, the conversatio
   assert.deepEqual(groups.map(group => [group.title, group.seats.map(one => one.name)]), [
     ['Who you talk to', ['btw', 'main']], ['You type these', ['architect']], ['Another seat hires these', ['cataloguer']], ['Inside /sprint', ['spec-editor']],
   ]);
+  assert.equal(groups[0].hint, 'The principal is the agent you talk to in the jawata chat. btw is the side discussion. The brain chosen here is what the next '
+    + 'conversation runs on; you can change the principal\'s during a conversation on its row in Agent Control.', '28h T6, less "in the panel on the right"');
 });
 
 test('a seat is named with the command a person types, and its row shows the first sentence of what it does', () => {
@@ -43,6 +45,34 @@ test('a brain whose writes only an instruction holds is offered only to a seat w
   assert.deepEqual(brainOptions(seat('btw', { brain: 'codex', acceptsUncontainedWrites: true }), roster).map(option => option.value), ['codex|', 'cursor|']);
 });
 
+const chat = (id, extra = {}) => ({ id, label: id.toUpperCase(), ready: true, install: null, ...extra });
+
+test('main and btw are offered each brain the chat runs on, its default first and then the models its own session offers', () => {
+  const conversation = [chat('claude-code'), chat('codex', { ready: false, install: 'npm install -g @zed-industries/codex-acp' })];
+  const before = conversationOptions(seat('main'), conversation, [brain('claude-code')], {});
+  assert.deepEqual(before.map(option => option.value), ['claude-code|'], 'before the list is opened, only the default; a missing adapter is not offered');
+  assert.equal(before[0].label, 'CLAUDE-CODE — its default model');
+  const after = conversationOptions(seat('main'), conversation, [brain('claude-code')], { 'claude-code': ['Opus', 'Sonnet'] });
+  assert.deepEqual(after.map(option => option.value), ['claude-code|', 'claude-code|Opus', 'claude-code|Sonnet']);
+  assert.equal(after[1].label, 'CLAUDE-CODE — Opus');
+});
+
+test('the saved choice of main is always offered, marked not available only once that is known', () => {
+  const conversation = [chat('claude-code')];
+  const unread = conversationOptions(seat('main', { model: 'Haiku' }), conversation, [brain('claude-code')], {});
+  assert.equal(unread[0].label, 'CLAUDE-CODE — Haiku', 'its models are not read yet, so nothing is known against it');
+  const read = conversationOptions(seat('main', { model: 'Haiku' }), conversation, [brain('claude-code')], { 'claude-code': ['Opus'] });
+  assert.equal(read[0].label, 'CLAUDE-CODE — Haiku (not available on this machine)');
+  const gone = conversationOptions(seat('main', { brain: 'copilot' }), conversation, [], {});
+  assert.equal(gone[0].label, 'copilot — its default model (not available on this machine)');
+});
+
+test('a brain whose chat adapter is missing is named with the command that installs it, and a ready one is not', () => {
+  assert.deepEqual(adapterNotice(chat('codex', { label: 'Codex', ready: false, install: 'npm install -g @zed-industries/codex-acp' })),
+    { before: 'Codex is not available for the chat. To use it, run', command: 'npm install -g @zed-industries/codex-acp', after: 'in a terminal, then open this page again.' });
+  assert.equal(adapterNotice(chat('claude-code')), null);
+});
+
 /** A host that holds changes as the Eclipse page does, and records what it was asked. */
 function fakeHost({ probeOk = true, refuse = '' } = {}) {
   let rows = seats.map(one => ({ ...one }));
@@ -52,6 +82,8 @@ function fakeHost({ probeOk = true, refuse = '' } = {}) {
     theme: () => 'light',
     seatsView: async () => ({ seats: rows, errors: [], refusals: [] }),
     brainsStatus: async () => [brain('claude-code'), brain('codex')],
+    conversationBrains: async () => [chat('claude-code'), chat('codex', { ready: false, install: 'npm install -g @zed-industries/codex-acp' })],
+    conversationModels: async id => { asked.push(`models:${id}`); return ['Opus', 'Sonnet']; },
     brainProbe: async (id, model) => { asked.push(`probe:${id}:${model}`); return { brain: id, ok: probeOk, answer: probeOk ? 'OK' : null, modelsUsed: [], costUsd: null, seconds: 1.2, error: probeOk ? null : 'not logged in', loginCommand: `${id} login` }; },
     seatChange: async (name, change) => {
       asked.push(`change:${name}:${JSON.stringify(change)}`);
@@ -135,6 +167,27 @@ test('a brain is kept only after a test run answered; one that did not answer le
   }
 });
 
+test('main\'s models are asked only when its list is opened, once, and a missing adapter is named under it', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  const host = fakeHost();
+  mountScreen(root, host, 'seats');
+  await until(() => rowOf(root, 'main')?.querySelector('select') && rowOf(root, 'main').textContent.includes('CODEX is not available'), 'main\'s brain list');
+  const select = rowOf(root, 'main').querySelector('select');
+  assert.deepEqual([...select.options].map(option => option.value), ['claude-code|']);
+  assert.equal(host.asked.filter(one => one.startsWith('models:')).length, 0, 'reading the page asked no brain for its models');
+  const notice = [...rowOf(root, 'main').querySelectorAll('.seat-note')].find(note => note.textContent.includes('CODEX'));
+  assert.equal(notice.querySelector('code').textContent, 'npm install -g @zed-industries/codex-acp');
+  assert.equal(notice.title, 'The chat talks to a brain through its agent adapter. The plug-in downloads no agent program: you run the command, then open this page again.');
+  assert.match([...rowOf(root, 'main').querySelectorAll('dt[title]')].find(term => term.textContent === 'Brain').title, /The models listed are the ones that brain's own session offers/);
+  select.dispatchEvent(new window.FocusEvent('focus'));
+  select.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
+  await until(() => rowOf(root, 'main').querySelector('select').options.length === 3, 'the models');
+  assert.deepEqual(host.asked.filter(one => one.startsWith('models:')), ['models:claude-code'], 'asked once, of the ready brain only');
+  assert.equal(rowOf(root, 'cataloguer').textContent.includes('is not available for the chat'), false, 'a hired seat says nothing about the chat\'s adapters');
+  root.remove();
+});
+
 test('a change the engine refuses shows the engine\'s words', async () => {
   const root = document.createElement('div');
   document.body.appendChild(root);
@@ -147,6 +200,12 @@ test('a change the engine refuses shows the engine\'s words', async () => {
 const place = (name, parent, extra = {}) => ({ name, command: null, parent, role: 'worker', escalatesTo: null, placed: false, helper: null, ...extra });
 const tree = [place('main', null, { role: 'lead' }), place('pm', 'main', { role: 'lead' }), place('developer', 'pm'), place('architect', 'main', { command: 'refactor' }),
   place('report', null, { command: 'report', helper: 'Starts when you type /report.' })];
+
+test('a seat\'s failures can go to main or any seat in the tree, sorted, never to itself nor to a helper outside the tree (28h W16)', () => {
+  // the studio's own list (workflow.rs: main and every seat of the tree, sorted and deduplicated), less the seat itself
+  assert.deepEqual(failureTargets(tree.find(row => row.name === 'developer'), tree), ['architect', 'main', 'pm']);
+  assert.deepEqual(failureTargets(tree.find(row => row.name === 'main'), tree), ['architect', 'developer', 'pm']);
+});
 
 test('a seat cannot be dropped onto itself, where it already is, or under a seat below it', () => {
   assert.equal(canDrop('pm', 'pm', tree), false);

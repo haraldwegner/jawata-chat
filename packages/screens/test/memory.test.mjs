@@ -75,8 +75,10 @@ test('every action of the summaries table says what it said before the table', (
   assert.deepEqual(summarize('promote_rule', { id: 'r1', rule_version: 2, derived_from: ['a', 'b'] }),
     ['Promoted as v2, drawn from 2 entr(ies). The sources are NOT superseded — they go on answering as themselves.']);
   assert.deepEqual(summarize('backup', { backup: 'b.zip', kept: 3, depth: 10 }), ['Copy taken: b.zip — 3 of 10 kept']);
-  assert.deepEqual(summarize('prune', { removed: 2 }), ['Removed 2 entr(ies)']);
-  assert.deepEqual(summarize('an action with no row', { removed: 2 }), [], 'an action without a row says only the shared lines');
+  assert.deepEqual(summarize('cleanUp', { prune: { removed: 2, backup: 'c.zip' }, backup: 'top.zip' }), ['Removed 2 entr(ies)', 'A copy of the previous state was kept: c.zip'],
+    'Clean up says what each of its steps did, each step with its own copy line, and nothing of its own');
+  assert.deepEqual(summarize('backup', { backup: 'b.zip', error: 'disk full' }), ['Error: disk full', 'Copy taken: b.zip'],
+    'Back up says its own copy once: the line about a copy kept before an action is not added to it');
 });
 
 /** A host that answers from the given status and records what it was asked. */

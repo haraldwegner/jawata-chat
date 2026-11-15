@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { PORT_CALLS } from '../dist/index.js';
+import { HOST_VARIABLES, PORT_CALLS } from '../dist/index.js';
 
 const dir = new URL('../src/', import.meta.url);
 const sources = readdirSync(dir, { recursive: true }).filter(f => /\.(ts|tsx)$/.test(String(f)))
@@ -50,5 +50,14 @@ test('the package depends on no host', () => {
 
 test('every call of the port is classified, and only the theme is answered at once', () => {
   assert.deepEqual(Object.entries(PORT_CALLS).filter(([, kind]) => kind === 'at-once').map(([name]) => name), ['theme']);
-  assert.equal(Object.keys(PORT_CALLS).length, 15, 'the 11 calls, the two file dialogs, the version and the theme');
+  assert.equal(Object.keys(PORT_CALLS).length, 17, 'the 13 calls, the two file dialogs, the version and the theme');
+});
+
+test('every style name a host sets has a value of the screens\' own, for a host that sets none, and the stylesheet reads it', () => {
+  const css = sources.find(f => f.name === 'screen.ts').text;
+  const own = css.match(/:root \{([^}]*)\}/)[1];
+  for (const name of HOST_VARIABLES) {
+    assert.match(own, new RegExp(`${name}:`), `${name} has a value of its own`);
+    assert.match(css, new RegExp(`var\\(${name}\\)`), `${name} is read by the stylesheet`);
+  }
 });

@@ -1,4 +1,4 @@
-export { PORT_CALLS } from './port.js';
+export { HOST_VARIABLES, PORT_CALLS } from './port.js';
 export type { CallKind, Json, ScreensPort } from './port.js';
 export { mountScreen } from './mount.js';
 export type { ScreenHandle } from './screen.js';
@@ -7,7 +7,7 @@ export type { FailureShape, FieldStatus, ReportingView, StoreReading } from './r
 export { formatBytes, LANE_HINTS, LANE_HINT_OTHER, memoryView, summarize } from './memory-model.js';
 export type { MemoryStatus, MemoryView, StoreStats, Titled } from './memory-model.js';
 export { MEMORY_TITLES } from './Memory.js';
-export { brainOptions, firstSentence, probeSentence, seatGroups, seatName } from './seats-model.js';
-export type { BrainOption, BrainStatus, ProbeResult, SeatGroup, SeatRow, SeatsState } from './seats-model.js';
-export { canDrop, helpers, nextRole, parts, placedSeats } from './workflow-model.js';
+export { adapterNotice, brainOptions, conversationOptions, firstSentence, probeSentence, seatGroups, seatName } from './seats-model.js';
+export type { BrainOption, BrainStatus, ConversationBrain, ProbeResult, SeatGroup, SeatRow, SeatsState } from './seats-model.js';
+export { canDrop, failureTargets, helpers, nextRole, parts, placedSeats } from './workflow-model.js';
 export type { WorkflowRow, WorkflowState } from './workflow-model.js';

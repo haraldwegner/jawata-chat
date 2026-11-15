@@ -25,6 +25,11 @@
     },
     "packages/chat-view": {
       "project": ["src/**/*.{ts,tsx}!"]
+    },
+    "packages/screens": {
+      "entry": ["src/index.ts!"],
+      "project": ["src/**/*.{ts,tsx}!"],
+      "includeEntryExports": false
     }
   }
 }

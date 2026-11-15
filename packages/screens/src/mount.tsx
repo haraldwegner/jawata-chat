@@ -1,12 +1,13 @@
 import { createRoot } from 'react-dom/client';
 import type { FunctionComponent } from 'react';
 import type { ScreensPort } from './port.js';
+import { Memory } from './Memory.js';
 import { Reporting } from './Reporting.js';
 import { SCREENS_CSS } from './screen.js';
 import type { ScreenHandle, ScreenProps } from './screen.js';
 
 /** The screens by the name a host opens them with. */
-const SCREENS: ReadonlyMap<string, FunctionComponent<ScreenProps>> = new Map([['reporting', Reporting]]);
+const SCREENS: ReadonlyMap<string, FunctionComponent<ScreenProps>> = new Map([['memory', Memory], ['reporting', Reporting]]);
 
 /**
  * Shows one screen.

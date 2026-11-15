@@ -28,4 +28,11 @@ html, body { margin: 0; padding: 0; min-height: 100%; background: var(--screen-b
 .screen-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .screen-count { font-variant-numeric: tabular-nums; opacity: 0.8; }
 .screen-flag { font-size: 0.85em; padding: 0 4px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.8; }
+.screen h3 { font-size: inherit; margin: 12px 0 4px; }
+.screen-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
+.screen-more { position: relative; }
+.screen-more > summary { cursor: pointer; }
+.screen-more > div { position: absolute; z-index: 1; display: flex; flex-direction: column; gap: 2px; padding: 4px; background: var(--screen-background); border: 1px solid currentColor; }
+.screen-lanes { display: flex; flex-wrap: wrap; gap: 12px; }
+.screen pre { white-space: pre-wrap; word-break: break-word; }
 `;

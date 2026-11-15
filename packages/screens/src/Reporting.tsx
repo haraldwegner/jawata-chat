@@ -60,11 +60,13 @@ export function Reporting({ port, handle }: ScreenProps): ReactElement {
   const view = reportingView(status);
   return (
     <div className="screen">
+      {loadError ? <p className="screen-error">Could not read the failure recording: {loadError}</p> : null}
       <p className={view.needsALook ? 'screen-verdict screen-attention' : 'screen-verdict'}>{view.verdict}</p>
+      {view.caveat ? <p className="screen-attention">{view.caveat}</p> : null}
       <p title={TOTALS_TITLE}>{view.totals}</p>
       <label className="screen-check" title={SILENCE_TITLE}>
         <input type="checkbox" checked={view.silenced} disabled={busy} onChange={event => { void onSilence(event); }} />
-        <span>Go silent about failures</span>
+        <span>Go silent about failures{view.silenced ? <em> (currently off by your choice)</em> : null}</span>
       </label>
       {silenceError ? <p className="screen-error">{silenceError}</p> : null}
       <p>Nothing leaves this machine unless you type <code>/report</code> in the chat to file one from your own GitHub account.</p>

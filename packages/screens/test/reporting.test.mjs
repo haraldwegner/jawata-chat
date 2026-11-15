@@ -148,3 +148,25 @@ test('a screen that does not exist says so', async () => {
   await shown(other);
   assert.match(other.textContent, /no screen named constructor/);
 });
+
+test('a reading that fails after a good one is said, and the old figures are not left saying all is well', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  let fail = false;
+  const handle = mountScreen(root, { theme: () => 'light', fieldStatus: async () => { if (fail) { throw new Error('engine stopped'); } return status([]); } }, 'reporting');
+  await shown(root);
+  fail = true;
+  await handle.refresh();
+  await until(() => root.textContent.includes('Could not read the failure recording: engine stopped'), 'the failure');
+});
+
+test('a slow store says why and above what, a silent one says why, and the switch says when it is off by choice', async () => {
+  assert.equal(reportingView(status([], { health: 'slow', millis: 1500, why: 'a recall took 1500 ms', slowAboveMillis: 1200 })).caveat, 'a recall took 1500 ms (over 1200 ms)');
+  assert.equal(reportingView(status([], { health: 'unavailable', millis: 0, why: 'the store is locked' })).caveat, 'the store is locked');
+  assert.equal(reportingView(status([])).caveat, '');
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  mountScreen(root, fakeHost(status([], healthy, true)), 'reporting');
+  await shown(root);
+  assert.match(root.querySelector('label').textContent, /Go silent about failures \(currently off by your choice\)/);
+});

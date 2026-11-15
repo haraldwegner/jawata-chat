@@ -186,7 +186,7 @@ test('Curation lists rules and entries, and a rule needs both a source and a sen
 test('a store that cannot be read says so', async () => {
   const root = document.createElement('div');
   document.body.appendChild(root);
-  mountScreen(root, { theme: () => 'light', knowledgeStatus: async () => { throw new Error('no engine'); } }, 'memory');
+  mountScreen(root, { theme: () => 'light', knowledgeStatus: (() => { let tries = 0; return async () => { if (++tries === 1) { throw new Error('no engine'); } return status(); }; })() }, 'memory');
   await until(() => root.textContent.includes('Could not read the store: no engine'), 'the failure');
 });
 
@@ -207,4 +207,40 @@ test('an action is named in the person\'s words while it runs and after, not by 
   finish({ cancelled: true });
   await until(() => root.textContent.includes('Status of “clean up”'), 'the status heading');
   assert.doesNotMatch(root.textContent, /cleanUp/);
+});
+
+test('a first read that fails says so and is asked again on its own, so a view opened early is not left dead', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  let calls = 0;
+  mountScreen(root, { theme: () => 'light', knowledgeStatus: async () => { if (++calls === 1) { throw new Error('not running'); } return status(); } }, 'memory');
+  await until(() => root.textContent.includes('Could not read the store: not running'), 'the failure');
+  assert.match(root.textContent, /Asking again automatically…/);
+  for (let i = 0; i < 800 && !root.textContent.includes('entries'); i++) { await new Promise(resolve => setTimeout(resolve, 10)); }
+  assert.match(root.textContent, /11622 entries/, 'read again after the first back-off');
+  assert.equal(calls, 2);
+});
+
+test('the More menu closes on a click outside it and on Escape', async () => {
+  const { root } = await mounted(fakeHost(status()));
+  const menu = root.querySelector('details');
+  menu.open = true;
+  document.body.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
+  assert.equal(menu.open, false, 'a click outside closed it');
+  menu.open = true;
+  menu.querySelector('summary').dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
+  assert.equal(menu.open, true, 'a click inside leaves it open');
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' }));
+  assert.equal(menu.open, false, 'Escape closed it');
+});
+
+test('Wipe and putting a version back are in the danger colour, and opening curation is named so', async () => {
+  const host = fakeHost(status(), { restore: { backups: ['v1.zip'], depth: 3 } });
+  const { root } = await mounted(host);
+  assert.equal(button(root, 'Wipe…').className, 'screen-danger');
+  button(root, 'Restore…').click();
+  await until(() => button(root, 'Restore') !== undefined, 'the versions');
+  assert.equal(button(root, 'Restore').className, 'screen-danger');
+  button(root, 'Curation…').click();
+  await until(() => root.textContent.includes('Status of “curation”'), 'the curation status');
 });

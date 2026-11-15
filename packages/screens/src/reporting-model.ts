@@ -17,6 +17,10 @@ export interface FailureShape {
 export interface StoreReading {
   readonly health: 'healthy' | 'slow' | 'unavailable' | 'unknown';
   readonly millis: number;
+  /** Why the store is slow or not answering, in the host's words; absent when it is neither. */
+  readonly why?: string;
+  /** Slower than this, a store counts as slow. */
+  readonly slowAboveMillis?: number;
 }
 
 /** What the host answers for the failure recording. */
@@ -29,6 +33,8 @@ export interface FieldStatus {
 export interface ReportingView {
   readonly needsALook: boolean;
   readonly verdict: string;
+  /** Why the store needs a look, said beside the verdict; empty when it needs none. */
+  readonly caveat: string;
   readonly totals: string;
   readonly shapes: readonly FailureShape[];
   readonly silenced: boolean;
@@ -45,6 +51,12 @@ function storeInASentence(store: StoreReading): string {
   }
 }
 
+/** The studio's caveat for a slow or silent store, less the workspace it names: inside Eclipse there is one. */
+function storeCaveat(store: StoreReading): string {
+  if ((store.health !== 'slow' && store.health !== 'unavailable') || !store.why) { return ''; }
+  return store.health === 'slow' && store.slowAboveMillis ? `${store.why} (over ${store.slowAboveMillis} ms)` : store.why;
+}
+
 /** Works out the screen's sentences, the list most repeated first. */
 export function reportingView(status: FieldStatus): ReportingView {
   const shapes = [...status.pile.shapes].sort((a, b) => b.count - a.count);
@@ -58,6 +70,7 @@ export function reportingView(status: FieldStatus): ReportingView {
   return {
     needsALook: attention.length > 0,
     verdict: attention.length > 0 ? `Needs a look: ${attention.join(' · ')}` : `Nothing needs a look. ${storeInASentence(status.store)}`,
+    caveat: storeCaveat(status.store),
     totals: `${plural(shapes.length, 'failure shape')} recorded · ${filed} filed · ${toReport} still to report`,
     shapes,
     silenced: status.pile.silenced,

@@ -38,8 +38,15 @@ export const MEMORY_TITLES = {
 const CHANGES_THE_STORE = new Set(['load', 'wipe', 'import', 'restore', 'cleanUp', 'promote', 'promote_rule', 'retire_rule', 'backup']);
 
 /** The words an action is shown with while it runs and in the status heading; an action not named here is shown by its own name. */
-const ACTION_WORDS: Readonly<Record<string, string>> = { cleanUp: 'clean up', promote_rule: 'promote to rule', retire_rule: 'retire' };
+const ACTION_WORDS: Readonly<Record<string, string>> = { cleanUp: 'clean up', promote_rule: 'promote to rule', retire_rule: 'retire', list: 'curation' };
+
+/** After a failed read the store is asked again on its own, 5 seconds later and twice as long each time up to a minute, as the studio does. */
+const RETRY_MIN_MS = 5000;
+const RETRY_MAX_MS = 60000;
 const wordsFor = (action: string): string => ACTION_WORDS[action] ?? action;
+
+/** Said beside a failed read while the store is being asked again. */
+const RETRYING = 'Asking again automatically…';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -59,6 +66,10 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
   const [statusError, setStatusError] = useState('');
   const [seconds, setSeconds] = useState(0);
   const [busy, setBusy] = useState('');
+  const [reloading, setReloading] = useState(false);
+  const [failures, setFailures] = useState(0);
+  const retryDelay = useRef(RETRY_MIN_MS);
+  const more = useRef<HTMLDetailsElement>(null);
   const [output, setOutput] = useState<{ title: string; lines: string[]; raw: string }>({ title: '', lines: [], raw: '' });
   const [versions, setVersions] = useState<{ names: string[]; depth: number } | null>(null);
   const [curation, setCuration] = useState<{ rules: Row[]; entries: Row[] } | null>(null);
@@ -69,13 +80,17 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
   const refresh = useCallback(async (): Promise<void> => {
     if (reading.current) { return; }
     reading.current = true;
+    setReloading(true);
     try {
       setStatus(await port.knowledgeStatus() as unknown as MemoryStatus);
       setStatusError('');
+      setFailures(0);
     } catch (error) {
       setStatusError(messageOf(error));
+      setFailures(count => count + 1);
     } finally {
       reading.current = false;
+      setReloading(false);
     }
   }, [port]);
 
@@ -83,6 +98,26 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
     handle.refresh = refresh;
     void refresh();
   }, [handle, refresh]);
+
+  // a read that failed is tried again on its own, backing off, so a view opened before the engine answers is not left dead
+  useEffect(() => {
+    if (failures === 0) { retryDelay.current = RETRY_MIN_MS; return undefined; }
+    const timer = setTimeout(() => { void refresh(); }, retryDelay.current);
+    retryDelay.current = Math.min(retryDelay.current * 2, RETRY_MAX_MS);
+    return () => { clearTimeout(timer); };
+  }, [failures, refresh]);
+
+  // the More menu closes on a click outside it and on Escape, as the studio's does
+  useEffect(() => {
+    const close = (event: Event): void => {
+      const menu = more.current;
+      if (!menu?.open) { return; }
+      if ('key' in event ? event.key === 'Escape' : !menu.contains(event.target as Node)) { menu.removeAttribute('open'); }
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
+  }, []);
 
   // the first read can take seconds: the wait text grows by a dot a second, and starts over after ten
   useEffect(() => {
@@ -178,7 +213,9 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
   };
 
   if (!status) {
-    return <p className={statusError ? 'screen-error' : undefined}>{statusError ? `Could not read the store: ${statusError}` : `Reading the store…${'.'.repeat(seconds % 10)}`}</p>;
+    return statusError
+      ? <div className="screen"><p className="screen-error">Could not read the store: {statusError}</p><p>{RETRYING}</p></div>
+      : <p>{`Reading the store…${'.'.repeat(seconds % 10)}`}</p>;
   }
 
   const view = memoryView(status);
@@ -188,21 +225,21 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
     <div className="screen">
       <p title={view.summary.title}><strong>{view.summary.text}</strong></p>
       {view.warnings.map(warning => <p key={warning} className="screen-attention">{warning}</p>)}
-      {statusError ? <p className="screen-error">Could not read the store: {statusError}</p> : null}
+      {statusError ? <p className="screen-error">Could not read the store: {statusError} {RETRYING}</p> : null}
 
       <div className="screen-actions">
         <button type="button" disabled={!idle} title={MEMORY_TITLES.load} onClick={() => { void verb('load'); }}>Load</button>
         <button type="button" disabled={!idle} title={MEMORY_TITLES.backup} onClick={() => { void verb('backup'); }}>Back up now</button>
         <button type="button" disabled={!idle} title={MEMORY_TITLES.cleanUp} onClick={() => { void verb('cleanUp'); }}>Clean up</button>
-        <details className="screen-more">
+        <details className="screen-more" ref={more}>
           <summary title={MEMORY_TITLES.more}>More ▾</summary>
           <div onClick={closeMore}>
-            <button type="button" disabled={!idle} title={MEMORY_TITLES.reload} onClick={() => { void refresh(); }}>Reload status</button>
+            <button type="button" disabled={!idle || reloading} title={MEMORY_TITLES.reload} onClick={() => { void refresh(); }}>{reloading ? 'Loading…' : 'Reload status'}</button>
             <button type="button" disabled={!idle} title={MEMORY_TITLES.export} onClick={() => { void exportStore(); }}>Export…</button>
             <button type="button" disabled={!idle} title={MEMORY_TITLES.import} onClick={() => { void importStore(); }}>Import…</button>
             <button type="button" disabled={!idle} title={MEMORY_TITLES.restore} onClick={() => { void run('restore', readVersions, false); }}>{versions ? 'Refresh versions' : 'Restore…'}</button>
             <button type="button" disabled={!idle} title={MEMORY_TITLES.curation} onClick={() => { void run('list', readCuration); }}>{curation ? 'Refresh curation' : 'Curation…'}</button>
-            <button type="button" disabled={!idle} title={MEMORY_TITLES.wipe} onClick={() => { void verb('wipe'); }}>Wipe…</button>
+            <button type="button" className="screen-danger" disabled={!idle} title={MEMORY_TITLES.wipe} onClick={() => { void verb('wipe'); }}>Wipe…</button>
           </div>
         </details>
         {busy ? <span>running “{wordsFor(busy)}”…</span> : null}
@@ -219,7 +256,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
                   {versions.names.map(name => (
                     <li key={name}>
                       <code>{name}</code>
-                      <button type="button" disabled={!idle} title={MEMORY_TITLES.restoreOne} onClick={() => { void restoreOne(name); }}>Restore</button>
+                      <button type="button" className="screen-danger" disabled={!idle} title={MEMORY_TITLES.restoreOne} onClick={() => { void restoreOne(name); }}>Restore</button>
                     </li>
                   ))}
                 </ul>

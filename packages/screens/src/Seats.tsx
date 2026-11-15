@@ -34,7 +34,10 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
     });
   }, [port]);
 
-  /** Asked when the person opens a conversation seat's list, never as the page is read: each brain's first ask opens one session of it. */
+  /**
+   * Asked when the person opens a conversation seat's row, or its list, never as the page is read: each brain's first ask opens one session of
+   * it. Opening the row asks before the list is clicked, because a list the browser has already opened does not show options that arrive later.
+   */
   const askModels = (): void => {
     for (const brain of conversation.filter(one => one.ready && !modelsAsked.current.has(one.id))) {
       modelsAsked.current.add(brain.id);
@@ -122,7 +125,7 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
                     </label>
                   )
                   : <span className="seat-on" />}
-                <details className="screen-fold seat-row">
+                <details className="screen-fold seat-row" onToggle={isConversation(seat) ? event => { if (event.currentTarget.open) { askModels(); } } : undefined}>
                   <summary>
                     <span className="seat-name" title={invocationHint(seat)}>{seatName(seat)}</span>
                     <span className="seat-first">{firstSentence(seat.purpose)}</span>

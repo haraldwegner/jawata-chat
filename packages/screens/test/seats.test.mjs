@@ -167,7 +167,7 @@ test('a brain is kept only after a test run answered; one that did not answer le
   }
 });
 
-test('main\'s models are asked only when its list is opened, once, and a missing adapter is named under it', async () => {
+test('main\'s models are asked only when its row or its list is opened, once, and a missing adapter is named under it', async () => {
   const root = document.createElement('div');
   document.body.appendChild(root);
   const host = fakeHost();
@@ -180,9 +180,11 @@ test('main\'s models are asked only when its list is opened, once, and a missing
   assert.equal(notice.querySelector('code').textContent, 'npm install -g @zed-industries/codex-acp');
   assert.equal(notice.title, 'The chat talks to a brain through its agent adapter. The plug-in downloads no agent program: you run the command, then open this page again.');
   assert.match([...rowOf(root, 'main').querySelectorAll('dt[title]')].find(term => term.textContent === 'Brain').title, /The models listed are the ones that brain's own session offers/);
-  select.dispatchEvent(new window.FocusEvent('focus'));
+  const fold = rowOf(root, 'main').querySelector('details');
+  fold.open = true;
+  fold.dispatchEvent(new window.Event('toggle'));
+  await until(() => rowOf(root, 'main').querySelector('select').options.length === 3, 'the models, asked as the row is opened, before its list is clicked');
   select.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
-  await until(() => rowOf(root, 'main').querySelector('select').options.length === 3, 'the models');
   assert.deepEqual(host.asked.filter(one => one.startsWith('models:')), ['models:claude-code'], 'asked once, of the ready brain only');
   assert.equal(rowOf(root, 'cataloguer').textContent.includes('is not available for the chat'), false, 'a hired seat says nothing about the chat\'s adapters');
   root.remove();

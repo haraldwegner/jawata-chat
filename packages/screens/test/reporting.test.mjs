@@ -141,4 +141,10 @@ test('a screen that does not exist says so', async () => {
   mountScreen(root, fakeHost(status([])), 'nothing-here');
   await shown(root);
   assert.match(root.textContent, /no screen named nothing-here/);
+  // a name an object inherits is not a screen either
+  const other = document.createElement('div');
+  document.body.appendChild(other);
+  mountScreen(other, fakeHost(status([])), 'constructor');
+  await shown(other);
+  assert.match(other.textContent, /no screen named constructor/);
 });

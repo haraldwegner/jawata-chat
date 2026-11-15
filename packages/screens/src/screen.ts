@@ -68,8 +68,8 @@ html, body { margin: 0; padding: 0; min-height: 100%; background: var(--screen-b
 .wf-role { border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; font-size: 10px; background: transparent; color: inherit; }
 .wf-fold { position: absolute; top: 2px; right: 3px; border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 10px; padding: 0; }
 .wf-stack { display: flex; flex-direction: column; gap: 3px; }
-.wf-changed { border-color: var(--screen-warning); }
-.wf-over { outline: 2px solid var(--screen-warning); }
+.wf-changed { border-color: var(--screen-accent); }
+.wf-over { outline: 2px solid var(--screen-accent); }
 .wf-org-unlocked .wf-box[draggable="true"] { cursor: grab; }
 .wf-unlocked { border-color: var(--screen-warning); }
 .wf-root { position: relative; }

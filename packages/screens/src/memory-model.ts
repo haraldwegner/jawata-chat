@@ -69,7 +69,7 @@ function scopeOf(mode: string, file: string): Titled {
     case 'shared':
       return { text: 'shared by every workspace', title: `One store for your whole user, so what is learned in one workspace can be recalled in all. File: ${file}` };
     case 'workspace':
-      return { text: 'this workspace\'s own store', title: `One store for this workspace only, so what is learned here is not recalled in another. File: ${file}` };
+      return { text: 'one store per workspace', title: `One store per workspace. File: ${file}` };
     case 'memory':
       return { text: 'held in memory only', title: 'Eclipse was started with a store that is kept in memory: everything in it is gone when Eclipse closes.' };
     default:
@@ -128,7 +128,8 @@ function cataloguerOf(stats: StoreStats): (Titled & { readonly attention: boolea
 /** Works out the top of the screen and what the store holds. */
 export function memoryView(status: MemoryStatus): MemoryView {
   const stats = status.stats;
-  const scope = scopeOf(status.mode, stats.store?.file ?? '–');
+  // the store says itself when it is kept in memory; whether a file is the shared one or this workspace's only the setting says
+  const scope = scopeOf(stats.store?.file === 'in-memory' ? 'memory' : status.mode, stats.store?.file ?? '–');
   const warnings: string[] = [];
   const lost = stats.describing?.lostBookkeepingWrites ?? 0;
   if (lost > 0) {

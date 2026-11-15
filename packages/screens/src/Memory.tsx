@@ -20,7 +20,7 @@ export const MEMORY_TITLES = {
   import: 'Re-ingest a previously exported JSON file (deduplicated by id) — opens the file picker. Say: "import the export file"',
   restore: 'List the kept versions, newest first, and put one back. Say: "restore the store"',
   curation: 'The standing RULES, and the entries nobody has vouched for yet — each with the one action its lane\'s lifecycle allows. Say: "list the rules" / "promote that entry"',
-  wipe: 'Delete everything in the selected store. Re-initialize afterwards with Load. Say: "wipe the store"',
+  wipe: 'Delete everything in this store. Re-initialize afterwards with Load. Say: "wipe the store"',
   restoreOne: 'Replace every entry in this store with the ones this version holds',
   rules: 'A retired rule keeps its row and its date, which is what answers “what did this say, and until when”. Amending one — a new version, '
     + 'the old kept — is a prompt verb: the amended sentence is the work, and nothing here can write it.',
@@ -36,6 +36,10 @@ export const MEMORY_TITLES = {
 
 /** The verbs whose answer can change what the store holds, so the figures are read again after them. */
 const CHANGES_THE_STORE = new Set(['load', 'wipe', 'import', 'restore', 'cleanUp', 'promote', 'promote_rule', 'retire_rule', 'backup']);
+
+/** The words an action is shown with while it runs and in the status heading; an action not named here is shown by its own name. */
+const ACTION_WORDS: Readonly<Record<string, string>> = { cleanUp: 'clean up', promote_rule: 'promote to rule', retire_rule: 'retire' };
+const wordsFor = (action: string): string => ACTION_WORDS[action] ?? action;
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -201,7 +205,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
             <button type="button" disabled={!idle} title={MEMORY_TITLES.wipe} onClick={() => { void verb('wipe'); }}>Wipe…</button>
           </div>
         </details>
-        {busy ? <span>running “{busy}”…</span> : null}
+        {busy ? <span>running “{wordsFor(busy)}”…</span> : null}
       </div>
 
       {versions ? (
@@ -278,7 +282,7 @@ export function Memory({ port, handle }: ScreenProps): ReactElement {
       ) : null}
 
       <section>
-        <h3>Status{output.title ? ` of “${output.title}”` : ''}</h3>
+        <h3>Status{output.title ? ` of “${wordsFor(output.title)}”` : ''}</h3>
         {output.raw === '…'
           ? <p>running…</p>
           : output.lines.length > 0

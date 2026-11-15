@@ -26,8 +26,10 @@ test('the summary says how many entries, how big, and which store, with the file
   const view = memoryView(status());
   assert.equal(view.summary.text, '11622 entries · 114.2 MB · shared by every workspace');
   assert.equal(view.summary.title, 'One store for your whole user, so what is learned in one workspace can be recalled in all. File: /home/someone/.local/share/jawata/experience.mv.db');
-  assert.equal(memoryView(status('workspace')).summary.text, '11622 entries · 114.2 MB · this workspace\'s own store');
+  assert.equal(memoryView(status('workspace')).summary.text, '11622 entries · 114.2 MB · one store per workspace');
   assert.equal(memoryView(status('memory')).summary.text, '11622 entries · 114.2 MB · held in memory only');
+  // a store that says it is kept in memory is called so whatever the setting says
+  assert.equal(memoryView(status('shared', { store: { file: 'in-memory' } })).summary.text, '11622 entries · – · held in memory only');
   assert.match(memoryView(status('/data/store')).summary.title, /\/data\/store/);
 });
 
@@ -108,7 +110,7 @@ test('the screen shows the store and every control with its mouseover, word for 
     'Import…': 'Re-ingest a previously exported JSON file (deduplicated by id) — opens the file picker. Say: "import the export file"',
     'Restore…': 'List the kept versions, newest first, and put one back. Say: "restore the store"',
     'Curation…': 'The standing RULES, and the entries nobody has vouched for yet — each with the one action its lane\'s lifecycle allows. Say: "list the rules" / "promote that entry"',
-    'Wipe…': 'Delete everything in the selected store. Re-initialize afterwards with Load. Say: "wipe the store"',
+    'Wipe…': 'Delete everything in this store. Re-initialize afterwards with Load. Say: "wipe the store"',
   });
   assert.equal(MEMORY_TITLES.load, titles.Load);
   assert.match(root.textContent, /No action run yet — what the last action did appears here\./);
@@ -193,4 +195,16 @@ test('refresh reads the store again', async () => {
   const { handle } = await mounted(host);
   await handle.refresh();
   assert.equal(host.asked.filter(one => one === 'knowledgeStatus').length, 2);
+});
+
+test('an action is named in the person\'s words while it runs and after, not by its internal name', async () => {
+  let finish;
+  const host = fakeHost(status());
+  host.experienceVerb = (verb) => { host.asked.push(verb); return new Promise(resolve => { finish = resolve; }); };
+  const { root } = await mounted(host);
+  button(root, 'Clean up').click();
+  await until(() => root.textContent.includes('running “clean up”…'), 'the running line');
+  finish({ cancelled: true });
+  await until(() => root.textContent.includes('Status of “clean up”'), 'the status heading');
+  assert.doesNotMatch(root.textContent, /cleanUp/);
 });

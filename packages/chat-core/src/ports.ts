@@ -107,6 +107,18 @@ export interface TerminalPort {
 export interface HostActions {
   /** Open the place where the agent is configured. */
   configureAgent(): Promise<void>;
+  /** Show the side discussion's panel. */
+  showSide(): void;
+  /** Close the side discussion's panel. */
+  hideSide(): void;
+  /** Let the person pick files to attach. A picture comes with its bytes, so the agent receives the picture and not a path; none when they cancelled. */
+  chooseFiles(): Promise<ChosenFile[]>;
+}
+
+/** A file the person picked. `image` is there for a picture. */
+export interface ChosenFile {
+  path: string;
+  image?: { mimeType: string; data: string };
 }
 
 /** How the core tells the person what is going on and what went wrong. */
@@ -115,6 +127,18 @@ export interface Notifier {
   progress<T>(title: string, job: () => Promise<T>): Promise<T>;
   info(message: string): void;
   error(message: string): void;
+}
+
+/**
+ * Where the host keeps what the person typed in the chat, newest first, for the person and not for one workspace or conversation: the
+ * chat's arrows bring it back after the editor restarts. A host without one keeps it for as long as the chat runs.
+ * @public implemented by hosts outside this repository
+ */
+export interface InputHistoryStore {
+  /** What was saved last; it may reject, and the chat then begins with an empty history. */
+  load(): Promise<string[]>;
+  /** Keep these, newest first, in place of what was kept. */
+  save(entries: readonly string[]): void;
 }
 
 /** The host's log. */
@@ -150,6 +174,8 @@ export interface HostPorts {
   sinks(agentId: string): TrafficSink[];
   /** What the core tells the agent it is. */
   clientInfo: { name: string; version: string };
+  /** Where what the person typed is kept between runs; without it, it is kept for as long as the chat runs. */
+  inputHistory?: InputHistoryStore;
 }
 
 /** How a host call crosses a line: answered at once, a promise, a listener told later, or a notice that needs no answer. */
@@ -165,7 +191,7 @@ type KindsOf<T> = { readonly [K in keyof Required<T>]: CallKind };
 export const HOST_CALLS: {
   readonly agents: KindsOf<AgentHost>; readonly settings: KindsOf<Settings>; readonly chooser: KindsOf<Chooser>;
   readonly fs: KindsOf<FsPort>; readonly terminal: KindsOf<TerminalPort>; readonly log: KindsOf<Log>; readonly notifier: KindsOf<Notifier>;
-  readonly actions: KindsOf<HostActions>; readonly sinks: CallKind; readonly clientInfo: CallKind;
+  readonly actions: KindsOf<HostActions>; readonly sinks: CallKind; readonly clientInfo: CallKind; readonly inputHistory: KindsOf<InputHistoryStore>;
 } = {
   agents: { ready: 'promise', spawnAgent: 'at-once', killAgent: 'at-once', onClosed: 'listener', onError: 'listener' },
   settings: { agents: 'at-once', workspaceCwd: 'at-once', agentSetup: 'at-once' },
@@ -174,9 +200,10 @@ export const HOST_CALLS: {
   terminal: { createTerminal: 'promise', terminalOutput: 'promise', waitForTerminalExit: 'promise', killTerminal: 'promise', releaseTerminal: 'promise' },
   log: { log: 'notice', logError: 'notice' },
   notifier: { progress: 'promise', info: 'notice', error: 'notice' },
-  actions: { configureAgent: 'promise' },
+  actions: { configureAgent: 'promise', showSide: 'notice', hideSide: 'notice', chooseFiles: 'promise' },
   sinks: 'at-once',
   clientInfo: 'at-once',
+  inputHistory: { load: 'promise', save: 'notice' },
 };
 type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 // every member of HostPorts has its entry above

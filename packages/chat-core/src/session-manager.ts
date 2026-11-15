@@ -34,6 +34,12 @@ interface SessionAnswer {
  * options and title), so a fact has a single writer. The pieces it is made of: a {@link SessionRegistry}
  * for the table, an {@link AgentSupply} for the running agent, and {@link logIn} for signing in.
  */
+/** A picture that goes with a prompt: its type and its bytes in base64. */
+export interface PromptImage {
+  mimeType: string;
+  data: string;
+}
+
 export class SessionManager extends Emitter<SessionEvents> implements ChatSessions, SessionLifecycle {
   private readonly table = new SessionRegistry();
   private readonly hearing: Disposable[];
@@ -189,14 +195,14 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
 
   // --- a conversation ---
 
-  async sendPrompt(sessionId: string, text: string, files: string[] = []): Promise<PromptResponse> {
+  async sendPrompt(sessionId: string, text: string, files: string[] = [], images: PromptImage[] = []): Promise<PromptResponse> {
     const session = this.table.get(sessionId);
     if (!session) { throw new Error(`Session not found: ${sessionId}`); }
     const link = this.supply.linkOf(session.agentId);
     if (!link) { throw new Error(`No connection for agent: ${session.agentId}`); }
 
     this.host.log.log(`sendPrompt: session=${sessionId}, ${text.length} characters, ${files.length} file(s)`);
-    const prompt: ContentBlock[] = [{ type: 'text', text }, ...files.map(fileLink)];
+    const prompt: ContentBlock[] = [{ type: 'text', text }, ...files.map(fileLink), ...images.map(image => ({ type: 'image' as const, ...image }))];
     const answer = await link.prompt({ sessionId, prompt });
     this.host.log.log(`Prompt response: stopReason=${answer.stopReason}`);
     return answer;
@@ -204,7 +210,7 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
 
   async askSide(text: string): Promise<PromptResponse> {
     const main = this.table.active;
-    if (!main) { throw new Error('No active session. Create a session first.'); }
+    if (!main) { throw new Error('The chat is not connected yet. Connect it in the jawata chat view, then ask again: a side question goes to the same agent.'); }
     const link = this.supply.linkOf(main.agentId);
     if (!link) { throw new Error(`No connection for agent: ${main.agentId}`); }
     if (this.side && this.side.agentId !== main.agentId) { this.side = null; }

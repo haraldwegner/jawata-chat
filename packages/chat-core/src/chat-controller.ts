@@ -5,6 +5,7 @@ import { AGENT_KEY, type HostPorts } from './ports.js';
 import type { ChatSessions, SessionEvents, SessionInfo } from './session-types.js';
 import type { AgentUpdates, UpdateListener } from './agent-updates.js';
 import { VIEW_CONTRACT_VERSION, isViewIntent, type Disposable, type ViewIntent, type ViewMessage, type ViewPort } from './view.js';
+import type { PromptImage } from './session-manager.js';
 import { hireFromEntry, initialViewState, reduce, reduceAll, type ViewState } from './view-state.js';
 
 /**
@@ -16,6 +17,11 @@ import { hireFromEntry, initialViewState, reduce, reduceAll, type ViewState } fr
  */
 export class ChatController {
   private port?: ViewPort;
+  /** The pages beside the chat (Agent Control, the side discussion). */
+  private readonly panels = new Set<ViewPort>();
+  /** The bytes of attached pictures, by the path shown for them, until the prompt that carries them is sent. */
+  private readonly images = new Map<string, PromptImage>();
+  private pastedCount = 0;
   /** Whether the port in use is a page a person opened (see {@link attachPage}). */
   private portIsPage = false;
   /** Whether the page in use has said ready, so that what is told it now will be heard. */
@@ -45,6 +51,8 @@ export class ChatController {
   private readonly unanswered = new Map<string, { resolve: (answer: RequestPermissionResponse) => void; optionIds: string[] }>();
   private proposals = 0;
   private readonly unsubscribe: (() => void)[] = [];
+  /** Settles when the stored input history has been read (or could not be): nothing is saved over it before. */
+  private readonly historyRead: Promise<void>;
 
   /**
    * @param flow connect, new conversation, restart, disconnect and open: the one route for the page's intents
@@ -54,9 +62,10 @@ export class ChatController {
   constructor(
     private readonly sessions: ChatSessions,
     private readonly updates: AgentUpdates,
-    private readonly host: Pick<HostPorts, 'log' | 'actions'>,
+    private readonly host: Pick<HostPorts, 'log' | 'actions' | 'inputHistory'>,
     readonly flow: ConversationFlow,
   ) {
+    this.historyRead = this.readInputHistory();
     this.updateListener = (update) => this.handleSessionUpdate(update);
     this.hearing = this.updates.onUpdate(this.updateListener);
     this.asking = this.updates.onPermissionRequest(request => this.askPermission(request));
@@ -117,6 +126,36 @@ export class ChatController {
   attachPage(port: ViewPort): Disposable | undefined {
     if (this.port && !this.portIsPage) { return undefined; }
     return this.seat(port, true);
+  }
+
+  /**
+   * Another page beside the chat (the Agent Control panel, the side discussion): told everything the chat is told, and what it asks is
+   * handled like the chat's own. It does not take the chat's seat.
+   */
+  attachPanel(port: ViewPort): Disposable {
+    this.panels.add(port);
+    const subscriptions = [
+      port.onMessage(message => this.hearPanel(port, message)),
+      port.onDispose(() => { this.panels.delete(port); }),
+    ];
+    return { dispose: () => { subscriptions.forEach(s => s.dispose()); this.panels.delete(port); } };
+  }
+
+  private async hearPanel(port: ViewPort, message: unknown): Promise<void> {
+    if (!isViewIntent(message)) { return; }
+    if (message.type === 'ready') { port.post({ type: 'snapshot', state: this.snapshot() }); return; }
+    await this.handle(message);
+  }
+
+  /** Tell the panels beside the chat; one that cannot be reached must not fail the others or the conversation. */
+  private tellPanels(message: ViewMessage): void {
+    for (const panel of this.panels) {
+      try {
+        panel.post(message);
+      } catch (e) {
+        this.host.log.logError(`ChatController: a panel could not be told ${message.type}`, e);
+      }
+    }
   }
 
   private seat(port: ViewPort, page: boolean): Disposable {
@@ -235,6 +274,19 @@ export class ChatController {
         return this.askSide(intent.text);
       case 'closeSide':
         this.dropSide();
+        this.host.actions.hideSide();
+        return;
+      case 'openSide':
+        this.host.actions.showSide();
+        if (intent.text?.trim()) { return this.askSide(intent.text); }
+        return;
+      case 'chooseFiles': {
+        const chosen = await this.host.actions.chooseFiles();
+        for (const file of chosen) { this.hold(file.path, file.image); }
+        return;
+      }
+      case 'attachPasted':
+        this.hold(`pasted:${++this.pastedCount}:${intent.name}`, { mimeType: intent.mimeType, data: intent.data }, intent.name);
         return;
       case 'pageFailed':
         this.host.log.logError('ChatController: the page stopped drawing the chat and shows the person a notice', intent.message);
@@ -257,6 +309,12 @@ export class ChatController {
     this.pending = [];
     this.withdrawProposals();
     this.post({ type: 'clearChat' });
+  }
+
+  /** Hold a picture's bytes beside its path until the prompt it goes with is sent. */
+  private hold(path: string, image?: PromptImage, name?: string): void {
+    if (image) { this.images.set(path, image); }
+    this.post({ type: 'file-attached', path, name: name ?? (path.split(/[\\/]/).pop() || path) });
   }
 
   /** Tell the page to include this file in the next prompt, and bring the page into view. */
@@ -286,7 +344,37 @@ export class ChatController {
       this.host.log.log(`ChatController: ignoring ${message.type} from a page of another contract number`);
       return;
     }
+    // what the person typed in the chat's own page is theirs to bring back; a prompt a host command sends is not typed, and is not kept
+    if (message.type === 'sendPrompt') { this.rememberInput(message.text); }
     await this.handle(message);
+  }
+
+  /** Read what the person typed in earlier runs, and put what was typed meanwhile in front of it. */
+  private async readInputHistory(): Promise<void> {
+    const store = this.host.inputHistory;
+    if (!store) { return; }
+    let stored: string[] = [];
+    try {
+      const loaded = await store.load();
+      stored = Array.isArray(loaded) ? loaded.filter((e): e is string => typeof e === 'string') : [];
+    } catch (e) {
+      this.host.log.logError('ChatController: the stored input history could not be read; it begins empty', e);
+      return;
+    }
+    const now = this.view.inputHistory;
+    const merged = [...now, ...stored.filter(e => !now.includes(e))].slice(0, INPUT_HISTORY_LIMIT);
+    // what was typed meanwhile is saved, with this, by the sends that wait for this read
+    if (merged.length !== now.length) { this.post({ type: 'inputHistory', entries: merged }); }
+  }
+
+  /** Put what the person sent at the front of their history (once: sent again, it moves there), and keep it once the stored part is read. */
+  private rememberInput(text: string): void {
+    const entry = text.trim();
+    if (!entry) { return; }
+    const entries = [entry, ...this.view.inputHistory.filter(e => e !== entry)].slice(0, INPUT_HISTORY_LIMIT);
+    this.post({ type: 'inputHistory', entries });
+    const store = this.host.inputHistory;
+    if (store) { void this.historyRead.then(() => { store.save(this.view.inputHistory); }); }
   }
 
   /** Fold the message into what the page shows, and tell the page. */
@@ -298,6 +386,7 @@ export class ChatController {
       // a page that cannot be reached must not fail the conversation it is only watching
       this.host.log.logError(`ChatController: the page could not be told ${message.type}`, e);
     }
+    this.tellPanels(message);
     this.reportTurn();
   }
 
@@ -343,6 +432,7 @@ export class ChatController {
     this.view = reduceAll(this.view, replay);
     try {
       this.port?.post({ type: 'snapshot', state: this.view });
+      this.tellPanels({ type: 'snapshot', state: this.view });
     } catch (e) {
       this.host.log.logError('ChatController: the page could not be told the replayed session', e);
     }
@@ -378,7 +468,7 @@ export class ChatController {
     this.post({ type: 'userPrompt', text, files: paths.map(baseName) });
     this.post({ type: 'promptStart' });
     try {
-      const answer = await this.sessions.sendPrompt(sessionId, text, paths);
+      const answer = await this.sessions.sendPrompt(sessionId, text, paths.filter(p => !this.images.has(p)), this.takeImages(paths));
       this.post({ type: 'promptEnd', stopReason: answer.stopReason, usage: (answer as { usage?: unknown }).usage as never });
     } catch (e) {
       const reason = (e as Error).message || 'Prompt failed';
@@ -392,6 +482,16 @@ export class ChatController {
   private dropSide(): void {
     this.sessions.closeSide();
     if (this.view.side !== null) { this.post({ type: 'sideClosed' }); }
+  }
+
+  /** The pictures of these attachments, which are let go of here because the prompt carries them from now on. */
+  private takeImages(paths: string[]): PromptImage[] {
+    const taken: PromptImage[] = [];
+    for (const path of paths) {
+      const image = this.images.get(path);
+      if (image) { taken.push(image); this.images.delete(path); }
+    }
+    return taken;
   }
 
   /** A side question goes to the side session and is answered in the side thread; the main thread, its turn and its queue are not touched. */
@@ -559,10 +659,14 @@ export class ChatController {
   }
 }
 
+/** How many of the person's sent messages are kept for the input's arrows. */
+const INPUT_HISTORY_LIMIT = 100;
+
 /** The facts about a session that the page is shown. */
 function pickShown({ sessionId, agentDisplayName, title, cwd, modes, models, configOptions, availableCommands }: SessionInfo) {
   return { sessionId, agentName: agentDisplayName, title, cwd, modes, models, configOptions, availableCommands };
 }
 
 /** The last part of a path, whichever separator it uses. */
-const baseName = (path: string): string => path.split(/[\\/]/).pop() || path;
+/** The name a file goes by in the thread; a pasted picture's path is only a key, so its own name is what is shown. */
+const baseName = (path: string): string => path.replace(/^pasted:\d+:/, '').split(/[\\/]/).pop() || path;

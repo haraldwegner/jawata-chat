@@ -60,3 +60,14 @@ test('the waiting line\'s dots move: their rule runs an endless animation whose 
   assert.match(CHAT_CSS, new RegExp(`@keyframes ${animation[1]}\\s*\\{`), `the keyframes ${animation[1]} exist`);
   assert.match(CHAT_CSS.slice(CHAT_CSS.indexOf('@media (prefers-reduced-motion')), /\.jc-chat \.dots \{ animation: none;/);
 });
+
+test('the brain menu stays inside a narrow panel and scrolls when a brain offers many models (D54 (a))', () => {
+  const rule = rulesOf(CHAT_CSS).find(([selectors]) => selectors.split(',').some(s => s.trim() === '.jc-chat .brain-menu'));
+  assert.ok(rule, 'there is no rule for the brain menu');
+  const body = rule[1];
+  assert.match(body, /left:\s*0/, 'anchored to the left of its row, so a long name cannot run off the left of the panel');
+  assert.doesNotMatch(body, /right:\s*0/, 'not anchored to the right, which is what cut the names off');
+  assert.match(body, /max-height:\s*60vh/, 'capped in height');
+  assert.match(body, /overflow-y:\s*auto/, 'and scrolls, so the entries below the window can be reached');
+  assert.match(body, /max-width:/, 'capped in width');
+});

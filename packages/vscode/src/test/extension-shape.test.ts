@@ -35,7 +35,7 @@ suite('Extension shape', () => {
 
 	test('the chat is the only view (once for each place); there is no Agents tree and no command that served one', async () => {
 		const views = Object.values(pkg().contributes.views as Record<string, { id: string }[]>).flat().map(v => v.id);
-		assert.deepStrictEqual(views, ['jawata-chat-view', 'jawata-chat-view-right', 'jawata-chat-view-bottom'], 'one chat view for each place that is a view; the editor area is a panel');
+		assert.deepStrictEqual(views, ['jawata-chat-view', 'jawata-chat-view-right', 'jawata-chat-view-bottom', 'jawata-agents-view', 'jawata-btw-view'], 'one chat view for each place that is a view; the editor area is a panel');
 		await vscode.extensions.getExtension(ID)!.activate();
 		const registered = await vscode.commands.getCommands(true);
 		for (const gone of ['refreshAgents', 'refreshSessions', 'loadMoreSessions', 'copySessionId']) {

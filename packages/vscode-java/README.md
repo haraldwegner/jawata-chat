@@ -4,4 +4,4 @@ Java language support from the one jawata engine, in VS Code, Cursor and Theia: 
 
 It starts the launcher you name in `jawataJava.server` (the jawata program with `--lsp`), which forwards the editor's messages to the engine that is already running. It starts no language server of its own.
 
-Install no other Java language-server extension beside it. If one is installed (`jawataJava.rivalExtensions`, by default `redhat.java`), the extension says so and logs it; switch the other one off for the workspace.
+Install no other Java language-server extension beside it. If one is installed (`jawataJava.rivalExtensions`, by default `redhat.java`), the extension says so, logs it, and offers a button that uninstalls it together with the extensions that need it.

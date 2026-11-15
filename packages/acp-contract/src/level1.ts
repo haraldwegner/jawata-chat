@@ -18,6 +18,8 @@ export type HireState = (typeof HIRE_STATES)[number];
 export interface HireMeta {
   planId: string;
   seat: string;
+  /** 28h S24 (D55): the name the engine gave this hire for its conversation, from a list (Claudia, James, ...), shown beside the role as `Claudia · pm`; absent from an older engine's cards. */
+  name?: string;
   brain: string;
   /** Required: which model ran this hire is what the person reads the cost against, and what a later choice of model is learned from. */
   model: string;
@@ -51,8 +53,8 @@ export const HIRE_METHODS = ['_jawata/hire/stop', '_jawata/hire/transcript', '_j
 /** The brains and models the agent offers (S23); asked with no params. PROVISIONAL until 28h names it. */
 export const BRAIN_LIST_METHOD = '_jawata/brains';
 
-/** E6: one model option per seat, `seat-model:<seat>`, category `model`. */
-export const SEAT_MODEL_PREFIX = 'seat-model:';
+/** D53: the brain of the principal is one option, category `model`; a seat's default is set in the studio and a running hire's on its row. */
+export const PRINCIPAL_BRAIN_OPTION_ID = 'principal-brain';
 
 /**
  * CR1 (provisional until 28h's D19 names the field): whether the session's autocontinue grant is armed is one select option, `autonomy`,
@@ -62,12 +64,12 @@ export const AUTONOMY_OPTION_ID = 'autonomy';
 export const AUTONOMY_VALUES = ['off', 'on'] as const;
 
 const HIRE_FIELDS: Record<keyof HireMeta, 'string' | 'number'> = {
-  planId: 'string', seat: 'string', brain: 'string', model: 'string', state: 'string',
+  planId: 'string', seat: 'string', name: 'string', brain: 'string', model: 'string', state: 'string',
   elapsedMs: 'number', tokens: 'number', costUsd: 'number', seatCommand: 'string', task: 'string', parentPlanId: 'string', brainSessionId: 'string',
   level: 'number', toolSteps: 'number', contextTokens: 'number', verdict: 'string', enginePlan: 'string',
 };
 /** The fields a hire may leave out. */
-const OPTIONAL_HIRE_FIELDS: readonly string[] = ['brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict', 'enginePlan'];
+const OPTIONAL_HIRE_FIELDS: readonly string[] = ['name', 'brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict', 'enginePlan'];
 
 /** E4's reply: the stop was taken. */
 export interface HireStopReply { ok: boolean }
@@ -149,7 +151,7 @@ export function checkLevel1(lines: RecordedLine[]): string[] {
     }
     const options = msg.result?.configOptions ?? u?.configOptions ?? [];
     for (const o of options) {
-      if (typeof o?.id === 'string' && o.id.startsWith(SEAT_MODEL_PREFIX)) {
+      if (o?.id === PRINCIPAL_BRAIN_OPTION_ID) {
         if (o.category !== 'model') { out.push(`${at}: option ${o.id}: category is ${JSON.stringify(o.category)}, not "model"`); }
         if (o.type !== 'select') { out.push(`${at}: option ${o.id}: type is ${JSON.stringify(o.type)}, not "select"`); }
       }

@@ -1,14 +1,17 @@
 import { useEffect, useReducer, useState } from 'react';
 import { READY_INTENT, initialViewState, reduce, type PageTransport } from '@jawata/chat-core/view';
-import { AgentsBar } from './Agents.js';
+import { AgentsPanel } from './Agents.js';
 import { History } from './History.js';
 import { InputArea } from './InputArea.js';
 import { Proposals } from './Proposals.js';
-import { SideThread } from './SideThread.js';
+import { SidePanel } from './SideThread.js';
+import { Working } from './Working.js';
 import { Messages, PlanBar } from './Messages.js';
 
 /** The chat: a fold of the messages the core tells it, and the intents it sends back. It keeps no other state of the conversation. */
-export function ChatView({ transport }: { transport: PageTransport }) {
+export type PageRole = 'chat' | 'agents' | 'side';
+
+export function ChatView({ transport, role = 'chat' }: { transport: PageTransport; role?: PageRole }) {
   const [state, dispatch] = useReducer(reduce, undefined, initialViewState);
   useEffect(() => {
     const heard = transport.onMessage(message => {
@@ -20,11 +23,14 @@ export function ChatView({ transport }: { transport: PageTransport }) {
     return () => heard.dispose();
   }, [transport]);
   const session = state.session;
+  const send = transport.send.bind(transport);
   const [history, setHistory] = useState(false);
   const toggleHistory = () => {
     if (!history) { transport.send({ type: 'listSessions' }); }
     setHistory(h => !h);
   };
+  if (role === 'agents') { return <AgentsPanel state={state} send={send} />; }
+  if (role === 'side') { return <SidePanel state={state} send={send} />; }
   return (
     <>
       <div className={'session-banner' + (session ? ' visible' : '')}>
@@ -42,14 +48,13 @@ export function ChatView({ transport }: { transport: PageTransport }) {
         </div>
       ) : null}
       {state.plan && state.plan.length > 0 ? <PlanBar plan={state.plan} /> : null}
-      <AgentsBar state={state} send={transport.send.bind(transport)} />
       {history ? <History state={state} send={transport.send.bind(transport)} onClose={() => setHistory(false)} /> : null}
       <Messages state={state}
         onHistory={toggleHistory}
         onConnect={() => transport.send({ type: 'connectAgent' })}
         onConfigure={() => transport.send({ type: 'configureAgent' })} />
       <Proposals state={state} send={transport.send.bind(transport)} />
-      <SideThread state={state} send={transport.send.bind(transport)} />
+      <Working running={state.processing} />
       <InputArea state={state} send={transport.send.bind(transport)} />
       <div className={'load-overlay' + (state.loading ? ' visible' : '')} role="status" aria-live="polite">
         <div className="spinner" />

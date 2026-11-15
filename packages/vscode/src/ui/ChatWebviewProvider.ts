@@ -9,11 +9,12 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly mount: (host: PageHost) => void,
+    private readonly role: 'chat' | 'agents' | 'side' = 'chat',
   ) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     webviewView.webview.options = { enableScripts: true, localResourceRoots: [this.extensionUri] };
-    webviewView.webview.html = pageHtml(webviewView.webview, this.extensionUri);
+    webviewView.webview.html = pageHtml(webviewView.webview, this.extensionUri, this.role);
     this.mount({
       webview: webviewView.webview,
       onDidDispose: webviewView.onDidDispose,

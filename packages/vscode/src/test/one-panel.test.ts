@@ -18,10 +18,12 @@ suite('One chat', function () {
 		await config.update('agent', { command: process.env.npm_node_execpath || 'node', args: [require.resolve('@jawata/acp-contract/replay'), require.resolve('@jawata/acp-contract/sessions/R4.jsonl')] }, vscode.ConfigurationTarget.Global);
 		await vscode.commands.executeCommand('jawataChat.openChat');
 		const before = tabs();
+		const webviews = () => vscode.window.tabGroups.all.flatMap(g => g.tabs).filter(t => t.input instanceof vscode.TabInputWebview).length;
+		const webviewsBefore = webviews();
 		await vscode.commands.executeCommand('jawataChat.connectAgent');
 		await vscode.commands.executeCommand('jawataChat.sendPrompt', 'replay');
 		await new Promise(r => setTimeout(r, 500));
 		assert.deepStrictEqual(tabs(), before, 'a tab or panel was opened');
-		assert.ok(vscode.window.tabGroups.all.every(g => g.tabs.every(t => !(t.input instanceof vscode.TabInputWebview))), 'a webview panel is open');
+		assert.strictEqual(webviews(), webviewsBefore, 'playing the hires opened a webview panel');
 	});
 });

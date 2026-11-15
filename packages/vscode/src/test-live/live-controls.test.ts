@@ -54,12 +54,10 @@ suite('Live agent controls', () => {
 		assert.notStrictEqual(other.brain, hire.brain, 'the registry offers a second brain, so the choice shows');
 
 		const options = chat.snapshot().session?.configOptions ?? [];
-		const seatOption = options.find(o => o.id === `seat-model:${seat}`);
-		found.seatOptionBefore = seatOption;
-		assert.ok(seatOption, `the session offers a seat-model option for ${seat}`);
-		await chat.handle({ type: 'setConfigOption', configId: seatOption.id, value: other.brain });
-		found.seatOptionAfter = await waitFor('the seat option changed', () => chat.snapshot().session?.configOptions?.find(o => o.id === seatOption.id && o.currentValue === other.brain));
-		await chat.handle({ type: 'setConfigOption', configId: seatOption.id, value: 'seat-file' });
+		found.perSeatOptions = options.filter(o => o.id.startsWith('seat-model:')).length;
+		assert.strictEqual(found.perSeatOptions, 0, 'no selector per seat is offered any more');
+		found.principalBrain = options.find(o => o.id === 'principal-brain');
+		assert.ok(found.principalBrain, 'the session offers the principal brain option');
 
 		// the arm switch of plan-execution mode (CR1): the select option `autonomy`, set on and off by the person's channel
 		found.autonomyBefore = chat.snapshot().session?.configOptions?.find(o => o.id === 'autonomy');

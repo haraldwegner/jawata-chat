@@ -22,22 +22,13 @@ async function enterSide(v) {
   await act(async () => { el.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); });
 }
 
-test('R13: the side thread is a button until it is used; a question is answered in the thread and the conversation above is exactly as it was', async () => {
-  const v = await viewOn('R13');
+test('R13: the side panel answers in a session of its own, and the conversation is told nothing', async () => {
+  const v = await viewOn('R13', { role: 'side' });
   try {
     await v.connect();
     await v.settle();
-    assert.ok(v.$('button.side-open-btn'), 'a button offers the side question');
-    assert.ok(!v.$('.side-thread'), 'no thread until it is asked for');
-    await v.type('first question');
-    await v.key('Enter');
-    await v.settle(() => v.$('.messages .turn .message.assistant'));
+    await act(async () => { await v.chat.handle({ type: 'sendPrompt', text: 'first question' }); });
     await v.settle();
-    const before = v.$('.messages').innerHTML;
-    assert.ok(before.includes('turn'), 'the conversation holds the first turn');
-
-    await v.click(v.$('button.side-open-btn'));
-    assert.ok(v.$('.side-thread'), 'the thread opens');
     await typeSide(v, 'How many files did you just read?');
     await enterSide(v);
     await v.settle(() => v.$('.side-thread .turn'));
@@ -47,23 +38,47 @@ test('R13: the side thread is a button until it is used; a question is answered 
     const prompts = sent(v, 'session/prompt');
     assert.equal(prompts.at(-1).prompt[0].text, 'How many files did you just read?');
     assert.notEqual(prompts.at(-1).sessionId, prompts[0].sessionId, 'the side question went to the second session, not the first');
-    assert.equal(v.$('.messages').innerHTML, before, 'the conversation shows nothing of the side question or its answer');
   } finally { v.dispose(); }
 });
 
-test('R13: closing the thread forgets it and puts the button back', async () => {
+test('the chat is not told /btw: it opens the side panel and its text is the side question', async () => {
   const v = await viewOn('R13');
   try {
     await v.connect();
     await v.settle();
-    await v.click(v.$('button.side-open-btn'));
-    await typeSide(v, 'a question');
-    await enterSide(v);
-    await v.settle(() => v.$('.side-thread .turn'));
-    await v.click(v.$('.side-close-btn'));
-    await v.settle(() => !v.$('.side-thread'));
-    assert.ok(!v.$('.side-thread'));
-    assert.ok(v.$('button.side-open-btn'), 'the button is back');
-    assert.equal(v.$('.side-entries'), null, 'the earlier question is gone');
+    await v.type('/btw does this work?');
+    await v.key('Enter');
+    await v.settle(() => v.host.asked.includes('showSide'));
+    assert.ok(v.host.asked.includes('showSide'), 'the panel is asked for');
+    await v.settle(() => sent(v, 'session/prompt').length > 0);
+    assert.equal(sent(v, 'session/prompt').at(-1).prompt[0].text, 'does this work?');
+    assert.equal(v.$$('.messages .message.user').length, 0, 'nothing of it stands in the conversation');
+  } finally { v.dispose(); }
+});
+
+test('D53 (b): the shortcut sends what is in the field as the side question and empties it', async () => {
+  const v = await viewOn('R13');
+  try {
+    await v.connect();
+    await v.settle();
+    await v.type('what stands in the field');
+    await v.key('s', { ctrlKey: true, altKey: true });
+    await v.settle(() => sent(v, 'session/prompt').length > 0);
+    assert.ok(v.host.asked.includes('showSide'), 'the panel is asked for');
+    assert.equal(sent(v, 'session/prompt').at(-1).prompt[0].text, 'what stands in the field');
+    assert.equal(v.$('textarea').value, '', 'the question stayed in the field');
+    assert.equal(v.$$('.messages .message.user').length, 0, 'nothing of it stands in the conversation');
+  } finally { v.dispose(); }
+});
+
+test('the Side question button opens the panel, and an empty field asks nothing', async () => {
+  const v = await viewOn('R13');
+  try {
+    await v.connect();
+    await v.settle();
+    await v.click(v.$$('.tool-btn').find(b => b.textContent === 'Side question'));
+    await v.settle(() => v.host.asked.includes('showSide'));
+    assert.deepEqual(v.host.asked.filter(a => a === 'showSide'), ['showSide']);
+    assert.equal(sent(v, 'session/prompt').length, 0);
   } finally { v.dispose(); }
 });

@@ -26,30 +26,52 @@ async function engineService() {
 }
 
 /** Loads the extension with the editor replaced; returns what it did. */
-function editor({ settings, folders }) {
+function editor({ settings, folders, installed = [], warningAnswer }) {
   const log = [];
   const warnings = [];
+  const warningButtons = [];
+  const executed = [];
   const infos = [];
   const clients = [];
   const subscriptions = [];
+  const commandNames = [];
+  const debugFactories = {};
+  const controllers = [];
   const config = (section) => ({ get: (key, fallback) => settings[`${section}.${key}`] ?? fallback });
   const vscode = {
     window: {
       createOutputChannel: () => ({ appendLine: (l) => { log.push(l); }, show() {}, dispose() {} }),
-      showWarningMessage: (m) => { warnings.push(m); return Promise.resolve(undefined); },
+      showWarningMessage: (m, ...buttons) => { warnings.push(m); warningButtons.push(buttons); return Promise.resolve(warningAnswer?.(m, buttons)); },
       showInformationMessage: (m) => { infos.push(m); return Promise.resolve(undefined); },
       withProgress: (_o, job) => job(),
+      registerTreeDataProvider: () => ({ dispose() {} }),
     },
     workspace: {
       getConfiguration: config,
       workspaceFolders: folders.map(fsPath => ({ uri: { scheme: 'file', fsPath } })),
       registerTextDocumentContentProvider: () => ({ dispose() {} }),
     },
-    extensions: { all: [] },
-    commands: { registerCommand: () => ({ dispose() {} }), executeCommand: () => Promise.resolve(undefined) },
+    extensions: { all: installed },
+    commands: { registerCommand: (name) => { commandNames.push(name); return { dispose() {} }; }, executeCommand: (...args) => { executed.push(args); return Promise.resolve(undefined); } },
     ProgressLocation: { Notification: 15 },
+    EventEmitter: class { event = () => ({ dispose() {} }); fire() {} },
     Uri: { parse: (s) => s },
     Position: class {},
+    Range: class {},
+    Location: class {},
+    TestMessage: class {},
+    TestRunProfileKind: { Run: 1 },
+    Disposable: class { constructor(fn) { this.dispose = fn ?? (() => {}); } static from(...parts) { return new this(() => parts.forEach(p => p?.dispose?.())); } },
+    DebugAdapterExecutable: class { constructor(command, args, options) { this.command = command; this.args = args; this.options = options; } },
+    debug: {
+      registerDebugAdapterDescriptorFactory: (type, factory) => { debugFactories[type] = factory; return { dispose() {} }; },
+      registerDebugConfigurationProvider: () => ({ dispose() {} }),
+      onDidReceiveDebugSessionCustomEvent: () => ({ dispose() {} }),
+      onDidTerminateDebugSession: () => ({ dispose() {} }),
+    },
+    tests: {
+      createTestController: (id) => { controllers.push(id); return { items: { replace() {} }, createRunProfile() {}, dispose() {} }; },
+    },
   };
   class LanguageClient {
     constructor(id, name, server, options) { this.server = server; this.options = options; clients.push(this); }
@@ -63,10 +85,11 @@ function editor({ settings, folders }) {
     if (request === 'vscode-languageclient/node') { return { LanguageClient, TransportKind: { stdio: 0 } }; }
     return load.call(this, request, ...rest);
   };
-  delete require.cache[require.resolve('../out/extension.js')];
+  // every module that imports the editor's API holds the stand-in it was first loaded with, so each is loaded afresh with this one
+  for (const loaded of ['extension', 'features', 'projectsView']) { delete require.cache[require.resolve(`../out/${loaded}.js`)]; }
   const extension = require('../out/extension.js');
   Module._load = load;
-  return { extension, log, warnings, infos, clients, context: { subscriptions } };
+  return { extension, log, warnings, warningButtons, executed, infos, clients, commandNames, debugFactories, controllers, context: { subscriptions } };
 }
 
 function setup(steps, withHandoff = true) {
@@ -100,6 +123,22 @@ test('jawata Java hands the window\'s folders to the studio and starts the langu
   await e.extension.deactivate();
 });
 
+test('the extension contributes the debugger, the Testing view and the refactor command itself, and the debugger runs the launcher with --dap against the engine the studio named', async () => {
+  const mine = await engineService();
+  const s = setup([{ afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }]);
+  const server = { command: 'java', args: ['-jar', 'jawata.jar', '--lsp'], env: { KEEP: '1' } };
+  const e = editor({ settings: { 'jawataJava.server': server, 'jawataJava.studio': s.studio }, folders: [s.dir] });
+  await e.extension.activate(e.context);
+  assert.deepEqual(e.controllers, ['jawataJava'], 'one Testing controller');
+  assert.ok(e.commandNames.includes('jawata.refactor'), 'the command the engine\'s code actions carry is registered');
+  assert.ok(e.debugFactories.jawata, 'the debugger type the package contributes has an adapter');
+  const adapter = e.debugFactories.jawata.createDebugAdapterDescriptor({});
+  assert.deepEqual(adapter.args, ['-jar', 'jawata.jar', '--dap']);
+  assert.equal(adapter.options.env.JAWATA_URL, mine, 'the debugger goes to the studio\'s engine, as the language server does');
+  assert.equal(adapter.options.env.KEEP, '1');
+  await e.extension.deactivate();
+});
+
 test('without a handoffDir, or with no folder open, the language server gets the settings\' own environment and no folder is passed', async () => {
   const configured = await engineService();
   const server = { command: 'java', args: ['--lsp'], env: { JAWATA_URL: configured, JAWATA_KEY: 'k' } };
@@ -129,4 +168,59 @@ test('a failed answer is a warning with the studio\'s message, and the language 
   assert.ok(!JSON.stringify([e.log, e.warnings]).includes(SECRET));
   assert.equal(e.clients[0].server.options.env.JAWATA_URL, configured);
   await e.extension.deactivate();
+});
+
+// 28h S25 (D56 (b)): the deploy removes Red Hat's Java extension; where it is still installed, jawata Java says so in plain words and offers to uninstall it
+const installedExtension = (id, displayName, extensionDependencies = []) => ({ id, packageJSON: { displayName, extensionDependencies } });
+const withRedHat = () => [
+  installedExtension('ms-python.python', 'Python'),
+  installedExtension('vscjava.vscode-java-debug', 'Debugger for Java', ['redhat.java']),
+  installedExtension('redhat.java', 'Language Support for Java(TM) by Red Hat'),
+  installedExtension('vscjava.vscode-java-test', 'Test Runner for Java', ['redhat.java', 'vscjava.vscode-java-debug']),
+];
+const uninstalled = (e) => e.executed.filter(c => c[0] === 'workbench.extensions.uninstallExtension').map(c => c[1]);
+
+async function activatedWith(installed, warningAnswer) {
+  const configured = await engineService();
+  const s = setup([{ afterMs: 0, state: 'ready', url: 'http://127.0.0.1:1', key: SECRET }], false);
+  const e = editor({ settings: { 'jawataJava.server': { command: 'java', args: ['--lsp'], env: { JAWATA_URL: configured } }, 'jawataJava.studio': s.studio }, folders: [s.dir], installed, warningAnswer });
+  await e.extension.activate(e.context);
+  await new Promise(resolve => setTimeout(resolve, 50));
+  return e;
+}
+
+test('Red Hat\'s Java extension still installed: one warning in plain words, naming it and the extensions that need it, with a button that uninstalls them, what needs it first', async () => {
+  const e = await activatedWith(withRedHat(), (_m, buttons) => buttons[0]);
+  const notices = e.warnings.filter(w => /redhat\.java/.test(w));
+  assert.equal(notices.length, 1, e.warnings.join('\n'));
+  assert.match(notices[0], /^Language Support for Java\(TM\) by Red Hat \(redhat\.java\) is still installed/);
+  assert.match(notices[0], /Debugger for Java \(vscjava\.vscode-java-debug\)/);
+  assert.match(notices[0], /Test Runner for Java \(vscjava\.vscode-java-test\)/);
+  assert.deepEqual(e.warningButtons[e.warnings.indexOf(notices[0])], ['Uninstall']);
+  assert.deepEqual(uninstalled(e), ['vscjava.vscode-java-test', 'vscjava.vscode-java-debug', 'redhat.java']);
+  assert.ok(e.infos.some(i => /Reload/.test(i)), 'the person is told the window must be reloaded to finish');
+  await e.extension.deactivate();
+});
+
+test('an extension pack that holds Red Hat\'s extension is uninstalled before it, as the studio\'s deploy does (architect finding 1, 28h C25)', async () => {
+  const pack = { id: 'vscjava.vscode-java-pack', packageJSON: { displayName: 'Extension Pack for Java', extensionPack: ['redhat.java', 'vscjava.vscode-java-debug'] } };
+  const e = await activatedWith([...withRedHat(), pack], (_m, buttons) => buttons[0]);
+  const notice = e.warnings.find(w => /redhat\.java/.test(w));
+  assert.match(notice, /Extension Pack for Java \(vscjava\.vscode-java-pack\)/);
+  const order = uninstalled(e);
+  assert.ok(order.indexOf('vscjava.vscode-java-pack') < order.indexOf('redhat.java'), order.join(', '));
+  assert.ok(order.indexOf('vscjava.vscode-java-pack') < order.indexOf('vscjava.vscode-java-debug'), order.join(', '));
+  await e.extension.deactivate();
+});
+
+test('the warning dismissed uninstalls nothing, and without Red Hat\'s extension there is no warning at all', async () => {
+  const dismissed = await activatedWith(withRedHat(), () => undefined);
+  assert.equal(dismissed.warnings.filter(w => /redhat\.java/.test(w)).length, 1);
+  assert.deepEqual(uninstalled(dismissed), []);
+  await dismissed.extension.deactivate();
+  windowRegister().clear();
+  const clean = await activatedWith([installedExtension('ms-python.python', 'Python')], (_m, buttons) => buttons[0]);
+  assert.deepEqual(clean.warnings, []);
+  assert.deepEqual(uninstalled(clean), []);
+  await clean.extension.deactivate();
 });

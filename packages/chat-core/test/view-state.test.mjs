@@ -24,6 +24,16 @@ test('it does not change the state it is given', () => {
   assert.deepEqual(before, copy);
 });
 
+test('28h S24 (D55): an agent message chunk with no turn open, such as the principal reporting what a hire finished, shows as an answer of its own', () => {
+  const s = fold([
+    { type: 'userPrompt', text: 'q1' }, { type: 'promptStart' }, chunk('agent_message_chunk', 'Started two PMs.'), { type: 'promptEnd', stopReason: 'end_turn' },
+    chunk('agent_message_chunk', 'Claudia reported: done.'),
+  ]);
+  const texts = s.entries.filter(e => e.kind === 'turn').flatMap(e => e.turn.parts.filter(p => p.kind === 'text').map(p => p.text));
+  assert.ok(texts.some(t => t.includes('Claudia reported: done.')), 'the chunk is shown: ' + JSON.stringify(texts));
+  assert.ok(!texts.some(t => t.includes('Started two PMs.Claudia')), 'and is not glued to the answer that had finished');
+});
+
 test('an answer holds its thinking, text and tool calls in the order they came; parts of one kind that follow each other are one part', () => {
   const s = fold([
     { type: 'userPrompt', text: 'q1' }, { type: 'promptStart' },

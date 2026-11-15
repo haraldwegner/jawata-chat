@@ -1,4 +1,4 @@
-import { AUTONOMY_OPTION_ID, AUTONOMY_VALUES, checkLevel1, COMMAND_GROUPS, META_GROUP, SEAT_MODEL_PREFIX, type CommandGroup } from './level1.js';
+import { AUTONOMY_OPTION_ID, AUTONOMY_VALUES, checkLevel1, COMMAND_GROUPS, META_GROUP, PRINCIPAL_BRAIN_OPTION_ID, type CommandGroup } from './level1.js';
 import type { RecordedLine } from './recording.js';
 
 /**
@@ -12,8 +12,8 @@ export type Op =
   | { op: 'insertAfter'; at: number; lines: RecordedLine[] }
   /** Tag every advertised command with its group: the names listed, else `default` (E1). */
   | { op: 'commandGroups'; seat: string[]; utility: string[]; default: CommandGroup }
-  /** Replace the model option with one `seat-model:<seat>` option per seat, and point a recorded change at `select` (E6). */
-  | { op: 'seatModels'; seats: string[]; select: string }
+  /** Replace the model option with the option that says which brain the principal runs on (D53 (c)). */
+  | { op: 'principalBrain' }
   /** Add the `autonomy` option (off at first), and make the recorded model change the person setting it to `select`; the answer shows the new value (CR1). */
   | { op: 'autonomy'; select: 'on' | 'off'; /** Add a second exchange after the answer: the person sets it back to off. */ ends?: boolean }
   /** After the last line, open a second session with the same agent and ask it `question`; it answers `answer` (the side thread, CR3). */
@@ -82,14 +82,11 @@ export function deriveSession(base: RecordedLine[], ops: Op[]): RecordedLine[] {
         }
       }
       if (!(COMMAND_GROUPS as readonly string[]).includes(op.default)) { throw new Error(`derive: default group ${op.default}`); }
-    } else if (op.op === 'seatModels') {
-      if (!op.seats.includes(op.select)) { throw new Error(`derive: seatModels: ${op.select} is not among the seats`); }
+    } else if (op.op === 'principalBrain') {
       for (const l of lines) {
-        mapOptions(l, (options) => options.flatMap((o) => (o.id === 'model'
-          ? op.seats.map((s) => ({ ...clone(o), id: `${SEAT_MODEL_PREFIX}${s}`, name: `${s} model` }))
-          : [o])));
+        mapOptions(l, (options) => options.map((o) => (o.id === 'model' ? { ...clone(o), id: PRINCIPAL_BRAIN_OPTION_ID, name: 'Brain of the principal' } : o)));
         if (l.dir === 'send' && l.msg.method === 'session/set_config_option' && l.msg.params?.configId === 'model') {
-          l.msg.params.configId = `${SEAT_MODEL_PREFIX}${op.select}`;
+          l.msg.params.configId = PRINCIPAL_BRAIN_OPTION_ID;
         }
       }
     } else if (op.op === 'autonomy') {

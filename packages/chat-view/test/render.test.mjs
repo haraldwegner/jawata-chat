@@ -132,22 +132,13 @@ test('while a turn runs the field stays open for the next message and Stop asks 
   } finally { v.dispose(); }
 });
 
-test('R5: the pickers show the agent\'s options; choosing one asks for it', async () => {
+test('R5: above the input stand the controls and no option the agent sends', async () => {
   const v = await viewOn('R5');
   try {
     await v.connect();
     await v.settle();
-    assert.ok(v.$$('.picker-wrap').length >= 3);
-    const wrap = v.$('.picker-wrap[data-config-id="effort"]');
-    assert.ok(wrap);
-    await v.click(wrap.querySelector('.picker-btn'));
-    assert.ok(wrap.querySelector('.picker-dropdown').classList.contains('open'));
-    const other = [...wrap.querySelectorAll('.picker-dropdown-item')].find(i => !i.classList.contains('selected'));
-    await v.click(other);
-    await v.settle(() => v.host.traffic.some(t => t.message.method === 'session/set_config_option'));
-    const asked = v.host.traffic.filter(t => t.direction === 'send' && t.message.method === 'session/set_config_option').map(t => t.message.params);
-    assert.deepEqual(asked.map(p => [p.configId, p.value]), [['effort', other.dataset.value]]);
-    assert.ok(!wrap.querySelector('.picker-dropdown').classList.contains('open'), 'the list closes');
+    assert.equal(v.$$('.picker-wrap').length, 0, 'no option the agent sends is shown as a selector');
+    assert.deepEqual(v.$$('.input-toolbar .tool-btn').map(b => b.textContent.trim()), ['+', '/', 'Side question']);
   } finally { v.dispose(); }
 });
 

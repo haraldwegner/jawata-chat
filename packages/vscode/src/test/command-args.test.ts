@@ -45,13 +45,13 @@ suite('Commands take their arguments', () => {
 		assert.deepStrictEqual(did, [intent('on'), intent('off'), intent('on'), intent('off')]);
 	});
 
-	test('askSide takes the question, shows the chat and sends it as the side intent, and asks nothing', async () => {
+	test('askSide takes the question and sends it to the side panel; the chat is left where it is, and nothing is asked', async () => {
 		const { chat, did } = fakeChat();
 		const shown: string[] = [];
 		const withShow = chatCommands({ chat, showChat: async () => { shown.push('shown'); return undefined; } });
 		await withShow.askSide('what time is it');
-		assert.deepStrictEqual(did, [['handle', { type: 'askSide', text: 'what time is it' }]]);
-		assert.deepStrictEqual(shown, ['shown']);
+		assert.deepStrictEqual(did, [['handle', { type: 'openSide', text: 'what time is it' }]]);
+		assert.deepStrictEqual(shown, []);
 	});
 
 	test('sendPrompt, setMode and setModel take theirs', async () => {

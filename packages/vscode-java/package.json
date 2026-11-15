@@ -2,7 +2,7 @@
   "name": "jawata-java",
   "displayName": "jawata Java",
   "description": "Java language support from the one jawata engine: problems from unsaved text, navigation and completion, without a second Java server",
-  "version": "0.1.0",
+  "version": "0.2.3",
   "publisher": "jawata",
   "license": "AGPL-3.0-only",
   "repository": {
@@ -22,7 +22,8 @@
   "icon": "resources/icon.png",
   "activationEvents": [
     "onStartupFinished",
-    "onLanguage:java"
+    "onLanguage:java",
+    "onDebugResolve:jawata"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -34,6 +35,15 @@
       {
         "command": "jawataJava.restartServer",
         "title": "jawata Java: Restart Language Server"
+      },
+      {
+        "command": "jawataJava.refreshProjects",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "jawataJava.profile",
+        "title": "jawata Java: Profile the Running Program"
       }
     ],
     "configuration": {
@@ -95,10 +105,106 @@
           "default": [
             "redhat.java"
           ],
-          "description": "Identifiers of other extensions that run a Java language server of their own. If one of them is installed, jawata Java says so, because the editor would then run two Java servers over the same files; switch the other one off for this workspace."
+          "description": "Identifiers of other extensions that run a Java language server of their own. If one of them is installed, jawata Java says so, because the editor would then run two Java servers over the same files, and offers to uninstall it together with the extensions that need it."
         }
       }
-    }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "jawataJava.projects",
+          "name": "Java Projects",
+          "contextualTitle": "Java Projects"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "jawataJava.projects",
+        "contents": "No Java project is loaded in this window's jawata workspace yet. Once one is, press Refresh above."
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "jawataJava.refreshProjects",
+          "when": "view == jawataJava.projects",
+          "group": "navigation"
+        }
+      ]
+    },
+    "breakpoints": [
+      {
+        "language": "java"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "jawata",
+        "label": "jawata Java",
+        "languages": [
+          "java"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "mainClass",
+              "classpath"
+            ],
+            "properties": {
+              "mainClass": {
+                "type": "string",
+                "description": "The main class to run, fully qualified (for example com.example.App)."
+              },
+              "classpath": {
+                "type": "string",
+                "description": "The classpath the program runs with: the project output folders and its libraries, separated as the operating system separates classpaths."
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Program arguments."
+              },
+              "jvmArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Extra JVM options."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working folder of the program."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "jawata",
+            "request": "launch",
+            "name": "jawata Java: run a main class",
+            "mainClass": "",
+            "classpath": ""
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "jawata Java: Launch",
+            "description": "Run a main class under the jawata engine's debugger",
+            "body": {
+              "type": "jawata",
+              "request": "launch",
+              "name": "jawata Java",
+              "mainClass": "${1:com.example.App}",
+              "classpath": "${2:target/classes}"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "webpack",
@@ -112,7 +218,8 @@
     "test:live": "npm run compile-live && npm run compile && vscode-test --config .vscode-test.live.mjs"
   },
   "dependencies": {
-    "vscode-languageclient": "9.0.1"
+    "vscode-languageclient": "9.0.1",
+    "@jawata/profile-view": "*"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",

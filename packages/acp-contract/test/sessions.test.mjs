@@ -4,14 +4,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { userInfo } from 'node:os';
-import { promoteRecording, readSession } from '../dist/index.js';
+import { checkLevel1, promoteRecording, readSession } from '../dist/index.js';
 
 const path = (rel) => new URL(rel, import.meta.url);
 const session = (name) => readSession(path(`../sessions/${name}.jsonl`));
 const updates = (s, kind) => s.filter((l) => update(l) === kind);
 const update = (l) => l.msg.params?.update?.sessionUpdate;
 
-for (const name of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'R12', 'R13', 'bases/hires', 'bases/model']) {
+for (const name of ['R1', 'R1-jawata', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R9', 'R10', 'R11', 'R12', 'R13', 'bases/hires', 'bases/model']) {
   test(`${name}: parses as a recorded session`, () => {
     assert.ok(session(name).length > 0);
   });
@@ -26,6 +26,13 @@ test('R1: a prompt sent and an answer streamed', () => {
   const s = session('R1');
   assert.ok(s.some((l) => l.dir === 'send' && l.msg.method === 'session/prompt'));
   assert.ok(s.some((l) => l.dir === 'recv' && update(l) === 'agent_message_chunk'));
+});
+
+test('R1-jawata: the same turn as R1 from the jawata agent itself, streamed through its launcher and accepted by the Level-1 check', () => {
+  const s = session('R1-jawata');
+  assert.ok(s.some((l) => l.dir === 'send' && l.msg.method === 'session/prompt'));
+  assert.ok(s.some((l) => l.dir === 'recv' && update(l) === 'agent_message_chunk'));
+  assert.deepEqual(checkLevel1(s), []);
 });
 
 test('R2: a tool call shown and its permission request answered', () => {
@@ -65,11 +72,11 @@ test('R4 (shape only): two hires overlap, one compacts, both end done; a stop an
   assert.deepEqual(asked, ['_jawata/hire/stop', '_jawata/hire/transcript']);
 });
 
-test('R5 (shape only): one model option per seat, and the change names one seat', () => {
+test('R5 (shape only): one option for the principal\'s brain, and the change names it', () => {
   const s = session('R5');
-  const ids = s.find((l) => l.msg.result?.configOptions).msg.result.configOptions.filter((o) => o.id.startsWith('seat-model:')).map((o) => o.id);
-  assert.deepEqual(ids, ['seat-model:architect', 'seat-model:test-writer']);
-  assert.equal(s.find((l) => l.msg.method === 'session/set_config_option').msg.params.configId, 'seat-model:test-writer');
+  const ids = s.find((l) => l.msg.result?.configOptions).msg.result.configOptions.filter((o) => o.category === 'model').map((o) => o.id);
+  assert.deepEqual(ids, ['principal-brain']);
+  assert.equal(s.find((l) => l.msg.method === 'session/set_config_option').msg.params.configId, 'principal-brain');
 });
 
 test('R11 (shape only): the autonomy option is armed by a change, the answer shows on, then it is ended and the answer shows off', () => {

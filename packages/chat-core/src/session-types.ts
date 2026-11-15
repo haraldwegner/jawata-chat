@@ -71,7 +71,7 @@ export interface ChatSessions {
   getActiveSessionId(): string | null;
   getActiveSession(): Readonly<SessionInfo> | undefined;
   getSession(sessionId: string): Readonly<SessionInfo> | undefined;
-  sendPrompt(sessionId: string, text: string, files?: string[]): Promise<PromptResponse>;
+  sendPrompt(sessionId: string, text: string, files?: string[], images?: { mimeType: string; data: string }[]): Promise<PromptResponse>;
   cancelTurn(sessionId: string): Promise<void>;
   setMode(sessionId: string, modeId: string): Promise<void>;
   setModel(sessionId: string, modelId: string): Promise<void>;

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "types": [],
+    "noEmit": false,
+    "outDir": "dist/webview-out",
+    "rootDir": "src",
+    "esModuleInterop": true
+  },
+  "include": ["src/webview/**/*", "src/profileHost.ts", "src/profileSource.ts"]
+}

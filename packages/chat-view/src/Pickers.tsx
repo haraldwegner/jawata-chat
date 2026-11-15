@@ -1,114 +1,58 @@
-import { AUTONOMY_OPTION, type ViewSession } from '@jawata/chat-core/view';
+import { AUTONOMY_OPTION, type ViewIntent, type ViewSession } from '@jawata/chat-core/view';
 
-/** One choice in a picker. */
-interface Choice { value: string; name: string; description?: string | null }
-interface Group { name: string; choices: Choice[] }
+/** The option that holds the principal's brain, sent by the agent with the session. */
+const PRINCIPAL_BRAIN = 'principal-brain';
 
-/** What a picker shows: where it comes from decides what choosing does. */
-export interface PickerModel {
-  id: string;
-  icon: string;
-  title: string;
-  label: string;
-  groups: Group[];
-  current: string;
-  /** The intent choosing a value sends. */
-  choose: (value: string) => void;
+type RawChoice = { value?: string; name?: string };
+type RawOption = { id: string; currentValue?: string; options?: unknown[] };
+
+/** One brain the principal can run on. */
+export interface BrainChoice { value: string; name: string }
+
+/** The principal's brain as the agent reports it: what it is now and what it could be; null when the agent reports none. */
+export function principalBrainOf(session: ViewSession | null | undefined): { current: string; label: string; choices: BrainChoice[]; configId: string } | null {
+  const options = (session?.configOptions ?? []) as unknown as RawOption[];
+  const option = options.find(o => o?.id === PRINCIPAL_BRAIN);
+  if (!option) { return null; }
+  const choices = ((option.options ?? []) as RawChoice[]).filter(Boolean).map(c => ({ value: c.value ?? '', name: c.name || c.value || '' }));
+  const current = option.currentValue ?? '';
+  return { current, label: choices.find(c => c.value === current)?.name || current, choices, configId: PRINCIPAL_BRAIN };
 }
 
-const ICONS: Record<string, string> = { mode: '⚡', model: '🧠', thought_level: '💭' };
-
-/** The id of a jawata seat's model option is this prefix and the seat's name. */
-const SEAT_MODEL = 'seat-model:';
-
-type RawChoice = { value?: string; name?: string; description?: string | null };
-type RawOption = { id: string; name?: string; description?: string | null; category?: string | null; type?: string; currentValue?: string; options?: unknown[] };
-
-function choicesOf(raw: unknown[] | undefined): Group[] {
-  if (!Array.isArray(raw) || raw.length === 0) { return []; }
-  const first = raw[0] as { group?: unknown; options?: unknown };
-  if (typeof first?.group === 'string' && Array.isArray(first.options)) {
-    return (raw as { group: string; name?: string; options: RawChoice[] }[])
-      .filter(g => g && Array.isArray(g.options))
-      .map(g => ({ name: g.name || g.group, choices: g.options.map(o => ({ value: o.value ?? '', name: o.name || o.value || '', description: o.description })) }));
-  }
-  return [{ name: '', choices: (raw as RawChoice[]).filter(Boolean).map(o => ({ value: o.value ?? '', name: o.name || o.value || '', description: o.description })) }];
-}
-
-/** The pickers for a session: its config options when it has any (they supersede modes and models), the legacy ones otherwise. */
-export function pickersFor(
-  session: ViewSession,
-  chosen: Record<string, string>,
-  send: { setConfigOption(configId: string, value: string): void; setMode(modeId: string): void; setModel(modelId: string): void },
-): PickerModel[] {
-  const options = (session.configOptions ?? []) as unknown as RawOption[];
-  if (options.length > 0) {
-    return options
-      .filter(o => o && o.id !== AUTONOMY_OPTION && o.type === 'select' && Array.isArray(o.options) && o.options.length > 0)
-      .map(o => {
-        const groups = choicesOf(o.options);
-        const current = chosen[o.id] ?? o.currentValue ?? '';
-        const hit = groups.flatMap(g => g.choices).find(c => c.value === current);
-        // a seat's model says whose it is: two seats may use the same model
-        const seat = o.id.startsWith(SEAT_MODEL) ? o.id.slice(SEAT_MODEL.length) : undefined;
-        const described = hit?.description || o.description || o.name || '';
-        return {
-          id: o.id,
-          icon: ICONS[o.category ?? ''] ?? '⚙',
-          title: seat ? `The model the ${seat} seat uses. ${described}`.trim() : described,
-          label: seat ? `${seat} · ${hit?.name || 'model'}` : hit?.name || o.name || 'Option',
-          groups, current,
-          choose: (value: string) => send.setConfigOption(o.id, value),
-        };
-      });
-  }
-  const pickers: PickerModel[] = [];
-  const modes = session.modes;
-  if (modes && modes.availableModes.length > 0) {
-    const current = chosen['mode'] ?? modes.currentModeId ?? '';
-    const hit = modes.availableModes.find(m => m.id === current);
-    pickers.push({
-      id: 'mode', icon: '⚡', title: hit?.description || 'Select mode', label: hit?.name || 'Mode', current,
-      groups: [{ name: '', choices: modes.availableModes.map(m => ({ value: m.id, name: m.name, description: m.description })) }],
-      choose: send.setMode,
-    });
-  }
-  const models = session.models;
-  if (models && models.availableModels.length > 0) {
-    const current = chosen['model'] ?? models.currentModelId ?? '';
-    const hit = models.availableModels.find(m => m.modelId === current);
-    pickers.push({
-      id: 'model', icon: '🧠', title: hit?.description || 'Select model', label: hit?.name || 'Model', current,
-      groups: [{ name: '', choices: models.availableModels.map(m => ({ value: m.modelId, name: m.name, description: m.description })) }],
-      choose: send.setModel,
-    });
-  }
-  return pickers;
-}
-
-export function Picker({ model, open, onToggle, onChoose }: { model: PickerModel; open: boolean; onToggle: () => void; onChoose: (value: string) => void }) {
+/**
+ * The principal's brain as a control: a button with the brain in use, and a menu of what the agent offers for it. A choice other than the
+ * one in use sends the agent's own config option, the one request the agent knows for it; the agent applies it from the next message.
+ * Agent Control's principal row and the chat's input row both use this one control, so both offer the same and send the same.
+ */
+export function PrincipalBrainPicker({ brain, open, onToggle, send, className }: {
+  brain: NonNullable<ReturnType<typeof principalBrainOf>>;
+  open: boolean;
+  onToggle: () => void;
+  send: (intent: ViewIntent) => void;
+  /** Classes added to the button, for the place it stands in. */
+  className?: string;
+}) {
+  const choose = (value: string) => {
+    onToggle();
+    if (value !== brain.current) { send({ type: 'setConfigOption', configId: brain.configId, value }); }
+  };
   return (
-    <div className="picker-wrap" data-config-id={model.id}>
-      <button className="picker-btn" title={model.title} onClick={e => { e.stopPropagation(); onToggle(); }}>
-        <span className="picker-icon">{model.icon}</span>
-        <span className="picker-label">{model.label}</span>
-        <span className="picker-chevron">▾</span>
-      </button>
-      <div className={'picker-dropdown' + (open ? ' open' : '')}>
-        {model.groups.map((g, gi) => (
-          <div key={gi}>
-            {g.name ? <div className="picker-dropdown-group-header">{g.name}</div> : null}
-            {g.choices.map(c => (
-              <div key={c.value} className={'picker-dropdown-item' + (c.value === model.current ? ' selected' : '')} title={c.description || undefined} data-value={c.value}
-                onClick={e => { e.stopPropagation(); onChoose(c.value); }}>
-                <span className="check">{c.value === model.current ? '✓' : ''}</span>
-                <span className="item-label">{c.name}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
+    <span className="brain-wrap">
+      <button className={'brain-btn' + (className ? ' ' + className : '')} aria-haspopup="listbox" aria-expanded={open}
+        title="The brain of the principal. Click to choose another; it takes over from your next message. Its default is set in jawata studio, Seats view." onClick={onToggle}>{brain.label + ' ▾'}</button>
+      {open ? (
+        <div className="brain-menu" role="listbox" aria-label="Brain for the principal"
+          onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onToggle(); } }}>
+          {brain.choices.map(c => (
+            <div className="brain-item" role="option" aria-selected={c.value === brain.current} tabIndex={0} key={c.value}
+              onClick={() => choose(c.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); choose(c.value); } }}>
+              <span className="brain-check">{c.value === brain.current ? '✓' : ''}</span>{c.name}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </span>
   );
 }
 

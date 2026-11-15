@@ -31,8 +31,9 @@ export interface Disposable {
  *    (`askSide`, `closeSide`; `sideAsked`, `sideUpdate`, `sideEnd`, `sideError`, `sideClosed`; the state's `side`).
  * 8: the Agent Control panel (CR2): the hires are a tree and carry a seat command, a task and an optional cost; the person can ask for the
  *    brains on offer and replace an agent's (`listBrains`, `chooseBrain`; `brainList`, `hireChanged`; the state's `brains`).
+ * 10: what the person typed and sent, kept across conversations for the input's arrows (28h D56 (g)): `inputHistory`, and the state's `inputHistory`.
  */
-export const VIEW_CONTRACT_VERSION = 8;
+export const VIEW_CONTRACT_VERSION = 10;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -87,6 +88,8 @@ export type ViewMessage =
   | { type: 'hireChanged'; hire: HireView }
   /** What the person has typed and not sent, as the core keeps it for them. */
   | { type: 'draft'; text: string }
+  /** What the person typed in the chat and sent, newest first, as the core keeps it for them across conversations: the page's arrows walk it. */
+  | { type: 'inputHistory'; entries: string[] }
   /** A page of the sessions the agent lists; `append` adds it to the list the page has, otherwise it replaces it. */
   | { type: 'sessionList'; sessions: PastSession[]; nextCursor: string | null; append: boolean; /** The list was asked for from outside the page (a command): the page shows it. */ show?: boolean }
   /** The agent proposes a change and waits: the page shows the diff with the choices, and answers with `answerPermission`. */
@@ -138,6 +141,12 @@ export type ViewIntent =
   | { type: 'askSide'; text: string }
   /** Close the side thread. */
   | { type: 'closeSide' }
+  /** Open the side discussion's panel; `text`, when there is any, is its first question. */
+  | { type: 'openSide'; text?: string }
+  /** Let the person pick files to attach to the next prompt. */
+  | { type: 'chooseFiles' }
+  /** A picture pasted into the message field; `data` is its bytes in base64. */
+  | { type: 'attachPasted'; name: string; mimeType: string; data: string }
   /** Ask which brains and models the agent offers. */
   | { type: 'listBrains' }
   /** Replace the brain and model of one hire. */
@@ -180,6 +189,7 @@ export const VIEW_MESSAGE_FIELDS = {
   brainList: ['brains'],
   hireChanged: ['hire'],
   draft: ['text'],
+  inputHistory: ['entries'],
   sessionList: ['sessions', 'nextCursor', 'append', 'show'],
   permissionRequest: ['requestId', 'title', 'diffs', 'options'],
   permissionResolved: ['requestId'],
@@ -214,6 +224,9 @@ export const VIEW_INTENT_FIELDS = {
   openSession: ['sessionId'],
   askSide: ['text'],
   closeSide: [],
+  openSide: ['text'],
+  chooseFiles: [],
+  attachPasted: ['name', 'mimeType', 'data'],
   listBrains: [],
   chooseBrain: ['planId', 'brain', 'model'],
   answerPermission: ['requestId', 'optionId'],
@@ -243,9 +256,11 @@ export function isViewIntent(value: unknown): value is ViewIntent {
   const v = value as Record<string, unknown>;
   switch (v.type) {
     case 'ready': return v.contractVersion === undefined || typeof v.contractVersion === 'number';
-    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': case 'listBrains': return true;
+    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': case 'chooseFiles': case 'listBrains': return true;
     case 'chooseBrain': return isString(v.planId) && isString(v.brain) && isString(v.model);
     case 'askSide': return isString(v.text);
+    case 'openSide': return v.text === undefined || isString(v.text);
+    case 'attachPasted': return isString(v.name) && isString(v.mimeType) && isString(v.data);
     case 'detachFile': return isString(v.path);
     case 'stopHire': case 'openTranscript': return isString(v.planId);
     case 'keepDraft': return isString(v.text);

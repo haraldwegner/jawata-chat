@@ -28,7 +28,7 @@ export const closeDom = () => window.close();
  * The view mounted on a chat whose agent plays the named session. The person answers the proposals the way the recording
  * says they did, unless `answering` is false: a test of the proposals themselves answers them by clicking.
  */
-export async function viewOn(name, { answering = true } = {}) {
+export async function viewOn(name, { answering = true, role = 'chat' } = {}) {
   const session = readSession(sessionFile(name));
   const port = new LoopbackPort();
   const chat = chatWith((input, output) => replayAgent(session, output, input), port);
@@ -38,7 +38,7 @@ export async function viewOn(name, { answering = true } = {}) {
   container.id = 'root';
   document.body.appendChild(container);
   let mounted;
-  await act(async () => { mounted = mountChatView(container, port.page); });
+  await act(async () => { mounted = mountChatView(container, port.page, role); });
   return {
     ...chat, session, container, port, mounted,
     $: (selector) => container.querySelector(selector),

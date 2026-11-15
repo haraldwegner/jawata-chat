@@ -8,9 +8,12 @@ import type { ScreenProps } from './screen.js';
 /** One row of a curation list, as the store's list verb answers it. */
 type Row = Readonly<Record<string, unknown>>;
 
-/** The mouseovers, word for word as the studio has them, with the changes the ux report's section 5 makes. */
+/**
+ * The mouseovers, word for word as the studio has them, with the changes the ux report's section 5 makes, and Load's told what the engine does
+ * (28k 25k): folders named in the Memory preferences replace the discovered files, they are not added to them.
+ */
 export const MEMORY_TITLES = {
-  load: 'Seed the store from your memory files — the auto-discovered instruction files plus your extra roots (docs folders and all). '
+  load: 'Seed the store from your memory files: the instruction files found in your projects, or, when Preferences > jawata > Memory names folders, those folders and nothing else. '
     + 'Idempotent: re-loading replaces, so this is also the re-initialize after a wipe. Say: "load my memory files"',
   backup: 'Take a copy of the whole store right now. Wipe, Clean up, Import and Restore each take their own automatically. Say: "back up the store"',
   cleanUp: 'One hygiene pass: prune aged rejected/superseded entries, merge duplicate groups and compact the store file. Each is also available by prompt.',

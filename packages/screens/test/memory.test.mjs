@@ -101,7 +101,7 @@ test('the screen shows the store and every control with its mouseover, word for 
   // word for word: the studio's mouseovers, Load without "Runs on EVERY reachable workspace of this store." (ux report section 5) and
   // Reload status without the workspaces, which are not true inside Eclipse
   assert.deepEqual(titles, {
-    Load: 'Seed the store from your memory files — the auto-discovered instruction files plus your extra roots (docs folders and all). Idempotent: re-loading replaces, so this is also the re-initialize after a wipe. Say: "load my memory files"',
+    Load: 'Seed the store from your memory files: the instruction files found in your projects, or, when Preferences > jawata > Memory names folders, those folders and nothing else. Idempotent: re-loading replaces, so this is also the re-initialize after a wipe. Say: "load my memory files"',
     'Back up now': 'Take a copy of the whole store right now. Wipe, Clean up, Import and Restore each take their own automatically. Say: "back up the store"',
     'Clean up': 'One hygiene pass: prune aged rejected/superseded entries, merge duplicate groups and compact the store file. Each is also available by prompt.',
     'More ▾': 'Less common actions',

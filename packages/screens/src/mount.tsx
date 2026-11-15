@@ -3,11 +3,15 @@ import type { FunctionComponent } from 'react';
 import type { ScreensPort } from './port.js';
 import { Memory } from './Memory.js';
 import { Reporting } from './Reporting.js';
+import { Seats } from './Seats.js';
+import { Workflow } from './Workflow.js';
 import { SCREENS_CSS } from './screen.js';
 import type { ScreenHandle, ScreenProps } from './screen.js';
 
 /** The screens by the name a host opens them with. */
-const SCREENS: ReadonlyMap<string, FunctionComponent<ScreenProps>> = new Map([['memory', Memory], ['reporting', Reporting]]);
+const SCREENS: ReadonlyMap<string, FunctionComponent<ScreenProps>> = new Map([
+  ['memory', Memory], ['reporting', Reporting], ['seats', Seats], ['workflow', Workflow],
+]);
 
 /**
  * Shows one screen.

@@ -7,3 +7,7 @@ export type { FailureShape, FieldStatus, ReportingView, StoreReading } from './r
 export { formatBytes, LANE_HINTS, LANE_HINT_OTHER, memoryView, summarize } from './memory-model.js';
 export type { MemoryStatus, MemoryView, StoreStats, Titled } from './memory-model.js';
 export { MEMORY_TITLES } from './Memory.js';
+export { brainOptions, firstSentence, probeSentence, seatGroups, seatName } from './seats-model.js';
+export type { BrainOption, BrainStatus, ProbeResult, SeatGroup, SeatRow, SeatsState } from './seats-model.js';
+export { canDrop, helpers, nextRole, parts, placedSeats } from './workflow-model.js';
+export type { WorkflowRow, WorkflowState } from './workflow-model.js';

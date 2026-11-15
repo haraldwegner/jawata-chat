@@ -11,7 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 const { brainOptions, canDrop, firstSentence, mountScreen, seatGroups, seatName } = await import('../dist/index.js');
 
 const seat = (name, extra = {}) => ({ name, command: null, purpose: `${name} does one job. And more.`, when: 'when asked', on: true,
-  brain: 'claude-code', model: null, customised: false, ...extra });
+  brain: 'claude-code', model: null, customised: false, acceptsUncontainedWrites: false, ...extra });
 const brain = (id, extra = {}) => ({ id, label: id.toUpperCase(), installed: true, login: 'loggedIn', reason: null, loginCommand: `${id} login`,
   models: null, hirable: true, takesModel: true, writesHeldByInstruction: false, ...extra });
 const seats = [seat('main', { command: 'main' }), seat('architect', { command: 'refactor' }), seat('cataloguer'), seat('spec-editor'), seat('btw')];
@@ -37,6 +37,12 @@ test('the brain list offers what a hire can start here, with its models, and alw
   assert.match(options[3].label, /chooses its own model/);
 });
 
+test('a brain whose writes only an instruction holds is offered only to a seat whose file accepts it, as a hire refuses it elsewhere', () => {
+  const roster = [brain('codex'), brain('cursor', { writesHeldByInstruction: true })];
+  assert.deepEqual(brainOptions(seat('cataloguer', { brain: 'codex' }), roster).map(option => option.value), ['codex|'], 'cursor is not offered');
+  assert.deepEqual(brainOptions(seat('btw', { brain: 'codex', acceptsUncontainedWrites: true }), roster).map(option => option.value), ['codex|', 'cursor|']);
+});
+
 /** A host that holds changes as the Eclipse page does, and records what it was asked. */
 function fakeHost({ probeOk = true, refuse = '' } = {}) {
   let rows = seats.map(one => ({ ...one }));
@@ -44,7 +50,7 @@ function fakeHost({ probeOk = true, refuse = '' } = {}) {
   return {
     asked,
     theme: () => 'light',
-    seatsView: async () => ({ seats: rows, errors: [] }),
+    seatsView: async () => ({ seats: rows, errors: [], refusals: [] }),
     brainsStatus: async () => [brain('claude-code'), brain('codex')],
     brainProbe: async (id, model) => { asked.push(`probe:${id}:${model}`); return { brain: id, ok: probeOk, answer: probeOk ? 'OK' : null, modelsUsed: [], costUsd: null, seconds: 1.2, error: probeOk ? null : 'not logged in', loginCommand: `${id} login` }; },
     seatChange: async (name, change) => {
@@ -54,7 +60,7 @@ function fakeHost({ probeOk = true, refuse = '' } = {}) {
         : change.setting === 'enabled' ? { ...one, on: change.value, customised: true }
           : change.setting === 'brain' ? { ...one, brain: change.brain, model: change.model, customised: true }
             : change.setting === 'reset' ? { ...seats.find(original => original.name === name) } : one);
-      return { seats: rows, errors: [] };
+      return { seats: rows, errors: [], refusals: [] };
     },
   };
 }
@@ -96,6 +102,20 @@ test('each name\'s mouseover says how the person reaches that seat: typed, opene
   assert.equal(title('architect'), 'Type /refactor in the chat to run this seat.');
   assert.equal(title('btw'), 'Nobody hires it: it starts when asked.', 'the side discussion is not hired');
   assert.equal(title('cataloguer'), 'Has no command. Another seat hires it for a job, gives it a brief, and checks what it returns.');
+  root.remove();
+});
+
+test('each reading of the page asks the brains again, so a brain installed or logged into meanwhile is offered', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  const host = fakeHost();
+  let asked = 0;
+  const brains = host.brainsStatus;
+  host.brainsStatus = async ids => { asked += 1; return brains(ids); };
+  const handle = mountScreen(root, host, 'seats');
+  await until(() => asked === 1 && rowOf(root, 'architect'), 'the first reading');
+  await handle.refresh();
+  assert.equal(asked, 2, 'the refresh the host makes on focus asked the brains again');
   root.remove();
 });
 
@@ -156,4 +176,17 @@ test('the chart opens locked, unlocking lets a role change, and a refused move s
   role.click();
   await until(() => root.textContent.includes('the engine would refuse this tree'), 'the refusal');
   assert.deepEqual(asked, ['developer:{"setting":"workflow","parent":"pm","role":"reviewer","escalatesTo":null}']);
+});
+
+test('a stored tree the engine refused is said with why the default tree is shown, and a helper that names no start says it starts on its own', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  const rows = [...tree, place('review', null, { command: 'review', helper: '' })];
+  mountScreen(root, { theme: () => 'light', workflowView: async () => ({ rows, errors: [], refusals: ['architect: its parent \'nobody\' is no seat'] }) }, 'workflow');
+  await until(() => root.querySelector('.wf-box'), 'the chart');
+  const refusal = [...root.querySelectorAll('p')].find(line => line.textContent.includes('is no seat'));
+  assert.equal(refusal.title, 'The engine refuses a tree that breaks a rule and uses the default one in its place.');
+  const review = [...root.querySelectorAll('.wf-helper')].find(helper => helper.textContent === '/review');
+  assert.equal(review.title, 'Not hired: it starts on its own.');
+  root.remove();
 });

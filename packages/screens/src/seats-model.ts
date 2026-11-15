@@ -17,12 +17,16 @@ export interface SeatRow {
   readonly model: string | null;
   /** Whether the person changed this seat, held or applied: what Reset takes back. */
   readonly customised: boolean;
+  /** Whether the seat's file accepts a brain whose writes only an instruction holds; a hire of any other seat refuses such a brain. */
+  readonly acceptsUncontainedWrites: boolean;
 }
 
 /** What the host answers for the seats. */
 export interface SeatsState {
   readonly seats: readonly SeatRow[];
   readonly errors: readonly string[];
+  /** The rules the stored workflow broke; the engine uses its default tree in their place. */
+  readonly refusals: readonly string[];
 }
 
 /** One agent program as this machine has it. */
@@ -136,12 +140,14 @@ function loginNote(brain: BrainStatus): string {
 }
 
 /**
- * The brains a seat can be given: each one installed here that a hire can start, with its default model and the models it names for
- * itself. The saved choice is always offered, even when this machine cannot start it now, so the list never says something else is chosen.
+ * The brains a seat can be given: each one installed here that a hire of THIS seat can start, with its default model and the models it names
+ * for itself. A brain whose writes only an instruction holds is offered only to a seat whose file accepts that, because a hire of any other
+ * seat refuses it. The saved choice is always offered, even when this machine cannot start it now, so the list never says something else is
+ * chosen.
  */
 export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[]): BrainOption[] {
   const options: BrainOption[] = [];
-  for (const brain of brains.filter(one => one.hirable && one.installed)) {
+  for (const brain of brains.filter(one => one.hirable && one.installed && (!one.writesHeldByInstruction || seat.acceptsUncontainedWrites))) {
     const note = loginNote(brain) + (brain.writesHeldByInstruction ? ' (writes held only by an instruction)' : '');
     options.push({ value: `${brain.id}|`, label: `${brain.label} — ${brain.takesModel ? 'its default model' : 'chooses its own model'}${note}` });
     if (brain.takesModel && !isConversation(seat)) {

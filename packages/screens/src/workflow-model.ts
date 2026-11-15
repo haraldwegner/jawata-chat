@@ -16,7 +16,10 @@ export interface WorkflowRow {
   readonly escalatesTo: string | null;
   /** Whether the person moved it, held or applied: what Back to default takes back. */
   readonly placed: boolean;
-  /** Why it has no place in the tree, for a helper of the principal; absent for a seat in the tree. */
+  /**
+   * For a helper of the principal, which has no place in the tree: when it starts, in the seat's own words, empty when its file says
+   * nothing; absent for a seat in the tree.
+   */
   readonly helper: string | null;
 }
 
@@ -46,6 +49,9 @@ export const SEAT_BACK_HINT = 'Returns this seat to where the default tree puts 
 
 /** The seats in the tree, without main's helpers. */
 export const placedSeats = (state: WorkflowState): WorkflowRow[] => state.rows.filter(row => row.helper === null && row.name !== TOP);
+
+/** A helper's mouseover: when it starts, or that it starts on its own when its file does not say. */
+export const helperHint = (row: WorkflowRow): string => row.helper ? row.helper : 'Not hired: it starts on its own.';
 
 /** The helpers beside main; btw is the side discussion and is not one. */
 export const helpers = (state: WorkflowState): WorkflowRow[] => state.rows.filter(row => row.helper !== null && row.name !== 'btw');

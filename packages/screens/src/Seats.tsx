@@ -23,24 +23,29 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
   const [testing, setTesting] = useState<Readonly<Record<string, boolean>>>({});
   const [lastTest, setLastTest] = useState<Readonly<Record<string, ProbeResult>>>({});
 
+  /** The brains are asked after the list is shown, so a slow program never holds the page; the last answer stays shown meanwhile. */
+  const readBrains = useCallback((): void => {
+    port.brainsStatus([]).then(answer => { setBrains(answer as unknown as BrainStatus[]); }, (error: unknown) => {
+      setBrains(now => now ?? []);
+      setActionError(`brain check: ${message(error)}`);
+    });
+  }, [port]);
+
+  /** A fresh reading of the seats and of the brains, as the page opens and each time it is focused. */
   const refresh = useCallback(async (): Promise<void> => {
+    readBrains();
     try {
       setState(await port.seatsView() as unknown as SeatsState);
       setLoadError('');
     } catch (error) {
       setLoadError(message(error));
     }
-  }, [port]);
+  }, [port, readBrains]);
 
   useEffect(() => {
     handle.refresh = refresh;
     void refresh();
-    // the brains are asked after the list is shown, so a slow program never holds the page
-    port.brainsStatus([]).then(answer => { setBrains(answer as unknown as BrainStatus[]); }, (error: unknown) => {
-      setBrains([]);
-      setActionError(`brain check: ${message(error)}`);
-    });
-  }, [handle, port, refresh]);
+  }, [handle, refresh]);
 
   const change = async (seat: SeatRow, proposed: Json): Promise<void> => {
     setBusy(true);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DragEvent, MouseEvent, ReactElement } from 'react';
 import {
-  BACK_HINT, boxTitle, canDrop, FAILS_HINT, failureTargets, FOLD_HINT, hasKids, helpers, HELPERS_HINT, LOCK_HINT, nextRole, parts, placedSeats,
+  BACK_HINT, boxTitle, canDrop, FAILS_HINT, failureTargets, FOLD_HINT, hasKids, helperHint, helpers, HELPERS_HINT, LOCK_HINT, nextRole, parts, placedSeats,
   REFUSAL_HINT, ROLE_HINT, SEAT_BACK_HINT, TOP, TOP_HINT,
 } from './workflow-model.js';
 import type { WorkflowRow, WorkflowState } from './workflow-model.js';
@@ -134,7 +134,7 @@ export function Workflow({ port, handle }: ScreenProps): ReactElement {
                   ? (
                     <div className="wf-helpers">
                       <span className="wf-label" title={HELPERS_HINT}>Helpers</span>
-                      {helpers(state).map(row => <span key={row.name} className="wf-helper" title={row.helper ?? ''}>{row.command ? `/${row.command}` : row.name}</span>)}
+                      {helpers(state).map(row => <span key={row.name} className="wf-helper" title={helperHint(row)}>{row.command ? `/${row.command}` : row.name}</span>)}
                     </div>
                   )
                   : null}

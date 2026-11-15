@@ -134,7 +134,7 @@ export const BRAIN_HINT = 'Typed as a command, a seat runs on your own agent; th
   + 'logged in with your account on this machine. The list is read from the programs installed here. '
   + 'Choosing one first runs a one-word test through it (Claude Code: under a cent, measured) and is kept for Apply only if it answers.';
 export const CONVERSATION_BRAIN_HINT = 'The brain and model a new conversation with this seat starts on. The models listed are the ones that brain\'s own '
-  + 'session offers, asked when you open this row; the chat can change the model of a running conversation. '
+  + 'session offers; the chat can change the model of a running conversation. '
   + 'Choosing one first runs a one-word test through it (Claude Code: under a cent, measured) and is kept for Apply only if it answers.';
 /** The mouseover of a missing adapter's notice, in the studio's words (28h ec8d474) with this host's page for its tab. */
 export const ADAPTER_HINT = 'The chat talks to a brain through its agent adapter. The plug-in downloads no agent program: you run the command, then open this page again.';

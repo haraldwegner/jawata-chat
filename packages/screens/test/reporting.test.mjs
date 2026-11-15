@@ -35,6 +35,14 @@ test('a slow or silent store needs a look, beside the failures', () => {
   assert.equal(reportingView(status([], { health: 'unavailable', millis: 0 })).verdict, 'Needs a look: the knowledge store is not answering');
 });
 
+test('going silent takes failures out of what needs a look, the store still counts, and the totals still say everything', () => {
+  const silent = reportingView(status([shape('a', 3), shape('b', 4)], healthy, true));
+  assert.equal(silent.needsALook, false);
+  assert.equal(silent.verdict, 'Nothing needs a look. Knowledge store answering (62 ms).');
+  assert.equal(silent.totals, '2 failure shapes recorded · 0 filed · 2 still to report');
+  assert.equal(reportingView(status([shape('a', 3)], { health: 'slow', millis: 1500 }, true)).verdict, 'Needs a look: the knowledge store is slow');
+});
+
 test('a store not yet read is said to be so, not called healthy', () => {
   assert.equal(reportingView(status([], { health: 'unknown', millis: 0 })).verdict, 'Nothing needs a look. Knowledge store not checked yet.');
 });
@@ -78,7 +86,7 @@ test('the screen shows the host\'s reading, says nothing leaves the machine, and
   assert.equal(document.documentElement.dataset.theme, 'dark');
   // the mouseovers, word for word as the ux report's section 5 keeps them
   assert.equal(root.querySelector('summary').title, 'The figures behind the sentence above.');
-  assert.equal(root.querySelector('label').title, 'Stops the periodic reminder that failures are piling up, which jawata\'s hooks give in agent sessions outside Eclipse; Eclipse itself shows none. The recording itself keeps running and this page still shows everything.');
+  assert.equal(root.querySelector('label').title, 'Ticked: failures worth reporting no longer make the line above say that something needs a look. The recording keeps running, and the counts and Details below still show every failure.');
   assert.equal(root.querySelector('p[title]').title, 'A failure shape is a kind of error that repeats: tool, kind of failure and error code, counted per workspace. Worth reporting means seen 3 or more times and not yet filed; type /report in any client to file it.');
   assert.equal(root.querySelector('h3').title, 'Ranked by repeats. Three or more repeats that nobody has filed are what the count in the sentence above counts.');
   assert.equal(root.querySelector('h3').textContent, 'Failure shapes');

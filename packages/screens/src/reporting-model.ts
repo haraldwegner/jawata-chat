@@ -62,8 +62,10 @@ export function reportingView(status: FieldStatus): ReportingView {
   const shapes = [...status.pile.shapes].sort((a, b) => b.count - a.count);
   const toReport = shapes.filter(one => !one.posted && one.count >= WORTH_REPORTING_AT).length;
   const filed = shapes.filter(one => one.posted).length;
+  // Going silent takes failures out of what needs a look: this line is the one reminder a host of these screens shows. The totals and the
+  // list below still say everything.
   const attention = [
-    toReport > 0 ? `${plural(toReport, 'failure shape')} worth reporting` : '',
+    toReport > 0 && !status.pile.silenced ? `${plural(toReport, 'failure shape')} worth reporting` : '',
     status.store.health === 'slow' ? 'the knowledge store is slow' : '',
     status.store.health === 'unavailable' ? 'the knowledge store is not answering' : '',
   ].filter(entry => entry !== '');

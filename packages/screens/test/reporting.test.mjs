@@ -78,7 +78,7 @@ test('the screen shows the host\'s reading, says nothing leaves the machine, and
   assert.equal(document.documentElement.dataset.theme, 'dark');
   // the mouseovers, word for word as the ux report's section 5 keeps them
   assert.equal(root.querySelector('summary').title, 'The figures behind the sentence above.');
-  assert.equal(root.querySelector('label').title, 'Stops the periodic reminder that failures are piling up. The recording itself keeps running and this page still shows everything.');
+  assert.equal(root.querySelector('label').title, 'Stops the periodic reminder that failures are piling up, which jawata\'s hooks give in agent sessions outside Eclipse; Eclipse itself shows none. The recording itself keeps running and this page still shows everything.');
   assert.equal(root.querySelector('p[title]').title, 'A failure shape is a kind of error that repeats: tool, kind of failure and error code, counted per workspace. Worth reporting means seen 3 or more times and not yet filed; type /report in any client to file it.');
   assert.equal(root.querySelector('h3').title, 'Ranked by repeats. Three or more repeats that nobody has filed are what the count in the sentence above counts.');
   assert.equal(root.querySelector('h3').textContent, 'Failure shapes');

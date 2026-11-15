@@ -9,7 +9,7 @@ const POLL_MILLIS = 5000;
 
 const TOTALS_TITLE = 'A failure shape is a kind of error that repeats: tool, kind of failure and error code, counted per workspace. '
   + 'Worth reporting means seen 3 or more times and not yet filed; type /report in any client to file it.';
-const SILENCE_TITLE = 'Stops the periodic reminder that failures are piling up. The recording itself keeps running and this page still shows everything.';
+const SILENCE_TITLE = 'Stops the periodic reminder that failures are piling up, which jawata\'s hooks give in agent sessions outside Eclipse; Eclipse itself shows none. The recording itself keeps running and this page still shows everything.';
 const DETAILS_TITLE = 'The figures behind the sentence above.';
 const SHAPES_TITLE = 'Ranked by repeats. Three or more repeats that nobody has filed are what the count in the sentence above counts.';
 

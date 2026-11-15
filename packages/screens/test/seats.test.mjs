@@ -87,6 +87,18 @@ test('the switch is held through the host and the row shows it, with Reset offer
   assert.ok(host.asked.includes('change:architect:{"setting":"reset"}'), host.asked.join());
 });
 
+test('each name\'s mouseover says how the person reaches that seat: typed, opened on its own, or hired', async () => {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  mountScreen(root, fakeHost(), 'seats');
+  await until(() => rowOf(root, 'btw'), 'the seats');
+  const title = name => rowOf(root, name).querySelector('.seat-name').title;
+  assert.equal(title('architect'), 'Type /refactor in the chat to run this seat.');
+  assert.equal(title('btw'), 'Nobody hires it: it starts when asked.', 'the side discussion is not hired');
+  assert.equal(title('cataloguer'), 'Has no command. Another seat hires it for a job, gives it a brief, and checks what it returns.');
+  root.remove();
+});
+
 test('a brain is kept only after a test run answered; one that did not answer leaves the choice as it was', async () => {
   for (const probeOk of [true, false]) {
     const root = document.createElement('div');

@@ -104,6 +104,7 @@ export const seatName = (seat: SeatRow): string => seat.command ? `${seat.name} 
 /** How a person reaches the seat, said in the mouseover of its name. */
 export function invocationHint(seat: SeatRow): string {
   if (seat.command) { return `Type /${seat.command} in the chat to run this seat.`; }
+  if (isConversation(seat)) { return seat.when ? `Nobody hires it: it starts ${seat.when}.` : 'Nobody hires it: it starts on its own.'; }
   return SPRINT_STEPS.includes(seat.name)
     ? 'Runs as one of the two steps of /sprint. It has no command of its own.'
     : 'Has no command. Another seat hires it for a job, gives it a brief, and checks what it returns.';

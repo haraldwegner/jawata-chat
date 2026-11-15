@@ -168,6 +168,10 @@ test('the chart opens locked, unlocking lets a role change, and a refused move s
   mountScreen(root, host, 'workflow');
   await until(() => root.querySelector('.wf-box'), 'the chart');
   assert.match(root.querySelector('.wf-helpers').textContent, /Helpers\/report/);
+  // the two lines 28h's studio put under the chart's title (D56), carried over at 28k Stage 25l
+  const lines = [...root.querySelectorAll('.screen > p')].map(line => line.textContent);
+  assert.ok(lines[0].startsWith('Who hires whom: each seat sits under the seat that hires it'), lines.join(' | '));
+  assert.ok(lines[1].startsWith('Unlock to change it: drag a seat onto another'), lines.join(' | '));
   const role = [...root.querySelectorAll('.wf-box')].find(box => box.textContent.startsWith('developer')).querySelector('.wf-role');
   assert.equal(role.disabled, true, 'locked: a role cannot be changed');
   [...root.querySelectorAll('button')].find(button => button.textContent === 'Locked').click();

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DragEvent, MouseEvent, ReactElement } from 'react';
 import {
-  BACK_HINT, boxTitle, canDrop, FAILS_HINT, failureTargets, FOLD_HINT, hasKids, helperHint, helpers, HELPERS_HINT, LOCK_HINT, nextRole, parts, placedSeats,
+  BACK_HINT, boxTitle, canDrop, EXPLAINED, FAILS_HINT, failureTargets, FOLD_HINT, hasKids, helperHint, helpers, HELPERS_HINT, LOCK_HINT, nextRole, parts, placedSeats,
   REFUSAL_HINT, ROLE_HINT, SEAT_BACK_HINT, TOP, TOP_HINT,
 } from './workflow-model.js';
 import type { WorkflowRow, WorkflowState } from './workflow-model.js';
@@ -112,6 +112,8 @@ export function Workflow({ port, handle }: ScreenProps): ReactElement {
 
   return (
     <div className="screen">
+      <p>{EXPLAINED[0]}</p>
+      <p>{EXPLAINED[1]}</p>
       <div className="screen-actions">
         {unlocked && anyPlaced ? <button type="button" disabled={busy} title={BACK_HINT} onClick={() => { void backToDefault(); }}>Back to default</button> : null}
         <button type="button" className={unlocked ? 'wf-unlocked' : ''} title={LOCK_HINT} onClick={() => { setUnlocked(now => !now); }}>

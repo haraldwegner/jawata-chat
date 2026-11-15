@@ -123,7 +123,7 @@ export const WHEN_HINT = 'When this seat is meant to be used: the point in your 
 export const BRAIN_HINT = 'Typed as a command, a seat runs on your own agent; this is the brain a HIRE of it starts: the agent program, and the model, '
   + 'logged in with your account on this machine. The list is read from the programs installed here. '
   + 'Choosing one first runs a one-word test through it (Claude Code: under a cent, measured) and is kept for Apply only if it answers.';
-export const CONVERSATION_BRAIN_HINT = 'The brain and model a new conversation with this seat starts on. '
+export const CONVERSATION_BRAIN_HINT = 'The brain and model a new conversation with this seat starts on; the chat can change the model of a running conversation. '
   + 'Choosing one first runs a one-word test through it (Claude Code: under a cent, measured) and is kept for Apply only if it answers.';
 export const RESET_HINT = 'Takes back your changes to this seat and uses the version shipped with the plug-in. Takes effect on Apply.';
 

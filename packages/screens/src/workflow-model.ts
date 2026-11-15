@@ -37,6 +37,11 @@ const ROLES = ['lead', 'worker', 'reviewer'];
 const ROLE_ORDER: Readonly<Record<string, number>> = { lead: 0, worker: 1, reviewer: 2 };
 
 export const ROLE_HINT = 'Lead decides, worker changes code, reviewer only reads.';
+/** The two lines under the chart's title, the studio's own since 28h (D56): what the chart is and how it is changed. */
+export const EXPLAINED = [
+  'Who hires whom: each seat sits under the seat that hires it, and only that seat can hire it. A lead plans and hands work down, a worker changes code, a reviewer reads and reports.',
+  'Unlock to change it: drag a seat onto another to move it with everything under it, click a role to change it, right-click a seat to choose where its failures go.',
+] as const;
 export const LOCK_HINT = 'Locked: the tree can only be read. Unlocked: drag a seat onto another to move it with everything under it, '
   + 'click a role to change it, right-click a seat for where its failures go.';
 export const BACK_HINT = 'Returns every seat to the default tree. Takes effect on Apply.';

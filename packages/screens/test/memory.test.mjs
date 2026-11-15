@@ -64,6 +64,21 @@ test('what an action did is said in sentences, a question answered no says nothi
   assert.deepEqual(summarize('restore', { backups: [] }), ['No copies yet.']);
 });
 
+// Pinned when the summaries became one table (28k Stage 25l): every action of the table says what the switch before it said, these
+// sentences taken from the old code's own output for the same answers.
+test('every action of the summaries table says what it said before the table', () => {
+  assert.deepEqual(summarize('export', { exported: 4, path: '/x.json' }), ['Exported 4 entr(ies) to /x.json']);
+  assert.deepEqual(summarize('import', { imported: 3, skipped: 1 }), ['Imported 3 entr(ies)', '1 duplicate(s) skipped']);
+  assert.deepEqual(summarize('retire_rule', { retired: false, note: 'already retired' }), ['Nothing changed — already retired.']);
+  assert.deepEqual(summarize('promote', { changed: true, status: 'accepted' }), ['Promoted to accepted.']);
+  assert.deepEqual(summarize('list', { rules: 2, entries: 9, awaitingReview: 1 }), ['2 rule(s), 9 entr(ies), 1 awaiting review']);
+  assert.deepEqual(summarize('promote_rule', { id: 'r1', rule_version: 2, derived_from: ['a', 'b'] }),
+    ['Promoted as v2, drawn from 2 entr(ies). The sources are NOT superseded — they go on answering as themselves.']);
+  assert.deepEqual(summarize('backup', { backup: 'b.zip', kept: 3, depth: 10 }), ['Copy taken: b.zip — 3 of 10 kept']);
+  assert.deepEqual(summarize('prune', { removed: 2 }), ['Removed 2 entr(ies)']);
+  assert.deepEqual(summarize('an action with no row', { removed: 2 }), [], 'an action without a row says only the shared lines');
+});
+
 /** A host that answers from the given status and records what it was asked. */
 function fakeHost(reading, answers = {}) {
   const asked = [];

@@ -15,9 +15,9 @@ export interface ScreenProps {
 
 /** The screens' stylesheet. The colours and font are the names a host sets; each has a value of its own for a host that does not. */
 export const SCREENS_CSS = `
-:root { --screen-background: #ffffff; --screen-foreground: #1f1f1f; --screen-font: system-ui, sans-serif; --screen-font-size: 13px; --screen-warning: #a8621a; --screen-danger: #a1260d; }
-:root[data-theme="dark"] { --screen-background: #2b2b2b; --screen-foreground: #dddddd; --screen-warning: #e0a458; --screen-danger: #f48771; }
-html, body { margin: 0; padding: 0; min-height: 100%; background: var(--screen-background); color: var(--screen-foreground); font-family: var(--screen-font); font-size: var(--screen-font-size); }
+:root { color-scheme: light; --screen-background: #ffffff; --screen-foreground: #1f1f1f; --screen-accent: #2f6fdd; --screen-font: system-ui, sans-serif; --screen-font-size: 13px; --screen-warning: #a8621a; --screen-danger: #a1260d; }
+:root[data-theme="dark"] { color-scheme: dark; --screen-background: #2b2b2b; --screen-foreground: #dddddd; --screen-accent: #4c8fea; --screen-warning: #e0a458; --screen-danger: #f48771; }
+html, body { margin: 0; padding: 0; min-height: 100%; background: var(--screen-background); color: var(--screen-foreground); font-family: var(--screen-font); font-size: var(--screen-font-size); accent-color: var(--screen-accent); }
 .screen { padding: 8px 12px; }
 .screen p { margin: 0 0 8px; }
 .screen-verdict { font-weight: 600; }

@@ -150,6 +150,82 @@ export function memoryView(status: MemoryStatus): MemoryView {
 
 const count = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined);
 
+type Answer = Record<string, unknown>;
+
+/** Removed rows, the same sentence for a wipe and a prune. */
+const removed = (p: Answer): string[] => (count(p.removed) !== undefined ? [`Removed ${String(p.removed)} entr(ies)`] : []);
+
+/**
+ * What each action's answer says, one row per action the page can ask for: the one table of the screen's summaries, so a new action is a
+ * new row and its sentences sit in one place. An action without a row says only the lines every answer shares.
+ */
+const SUMMARIES: Readonly<Record<string, (p: Answer) => string[]>> = {
+  load: (p) => {
+    const lines: string[] = [];
+    const loaded = count(p.loaded);
+    const files = count(p.files);
+    const unchanged = count(p.unchanged);
+    if (loaded !== undefined) {
+      lines.push(`Loaded ${loaded}${files !== undefined ? ` of ${files}` : ''} file(s)`
+        + (unchanged ? `, ${unchanged} unchanged (skipped)` : '')
+        + (Array.isArray(p.linked) || count(p.linked) !== undefined ? `, ${count(p.linked) ?? 0} reached via links` : ''));
+    }
+    if (Array.isArray(p.skipped) && p.skipped.length > 0) { lines.push(`${p.skipped.length} source(s) skipped — see raw response`); }
+    return lines;
+  },
+  wipe: removed,
+  prune: removed,
+  dedup: (p) => (count(p.group_count) !== undefined ? [`${String(p.group_count)} duplicate group(s), ${count(p.merged) ?? 0} merged`] : []),
+  compact: (p) => {
+    if (p.compacted === true) {
+      const before = count(p.bytes_before);
+      const after = count(p.bytes_after);
+      return [before !== undefined && after !== undefined ? `Store compacted: ${formatBytes(before)} → ${formatBytes(after)}` : 'Store compacted'];
+    }
+    return p.compacted === false ? [`Not compacted${typeof p.reason === 'string' ? ` — ${p.reason}` : ''}`] : [];
+  },
+  export: (p) => {
+    const exported = count(p.exported) ?? count(p.count);
+    return [`Exported${exported !== undefined ? ` ${exported} entr(ies)` : ''}${typeof p.path === 'string' ? ` to ${p.path}` : ''}`];
+  },
+  import: (p) => {
+    const imported = count(p.imported) ?? count(p.count);
+    return [
+      ...(imported !== undefined ? [`Imported ${imported} entr(ies)`] : []),
+      ...(count(p.skipped) !== undefined ? [`${String(p.skipped)} duplicate(s) skipped`] : []),
+    ];
+  },
+  retire_rule: (p) => {
+    if (p.retired === true) { return ['Retired — it stops being offered as guidance, and stays readable.']; }
+    return p.retired === false ? [`Nothing changed${typeof p.note === 'string' ? ` — ${p.note}` : ''}.`] : [];
+  },
+  promote: (p) => {
+    if (p.changed === true) { return [`Promoted to ${String(p.status ?? 'accepted')}.`]; }
+    return p.changed === false ? [`Nothing changed — it is already ${String(p.status ?? 'accepted')}, or the entry is gone.`] : [];
+  },
+  list: (p) => (count(p.rules) !== undefined
+    ? [`${String(p.rules)} rule(s), ${count(p.entries) ?? 0} entr(ies), ${count(p.awaitingReview) ?? 0} awaiting review`] : []),
+  promote_rule: (p) => {
+    if (typeof p.id !== 'string') { return []; }
+    const sources = Array.isArray(p.derived_from) ? p.derived_from.length : undefined;
+    return [`Promoted as v${String(p.rule_version ?? 1)}${sources !== undefined ? `, drawn from ${sources} entr(ies)` : ''}. `
+      + 'The sources are NOT superseded — they go on answering as themselves.'];
+  },
+  backup: (p) => (typeof p.backup === 'string'
+    ? [`Copy taken: ${p.backup}${count(p.kept) !== undefined ? ` — ${String(p.kept)} of ${String(count(p.depth) ?? '?')} kept` : ''}`] : []),
+  restore: (p) => {
+    const lines: string[] = [];
+    if (Array.isArray(p.backups)) {
+      lines.push(p.backups.length === 0 ? 'No copies yet.' : `${p.backups.length} version(s), newest first — ${String(count(p.depth) ?? '?')} kept`);
+    }
+    if (typeof p.restored === 'string') {
+      lines.push(`Restored from ${p.restored}`);
+      if (count(p.rows) !== undefined) { lines.push(`The store now holds ${String(p.rows)} entr(ies)`); }
+    }
+    return lines;
+  },
+};
+
 /**
  * What the last action did, in sentences; the unmodified answer stays behind the raw-response fold.
  *
@@ -158,97 +234,15 @@ const count = (value: unknown): number | undefined => (typeof value === 'number'
  */
 export function summarize(kind: string, payload: unknown): string[] {
   if (payload === null || typeof payload !== 'object') { return []; }
-  const p = payload as Record<string, unknown>;
+  const p = payload as Answer;
   if (p.cancelled === true) { return ['Cancelled: nothing was changed.']; }
   if (kind === 'cleanUp') {
     return ['prune', 'dedup', 'compact'].flatMap(step => summarize(step, p[step]));
   }
   const lines: string[] = [];
   if (typeof p.error === 'string') { lines.push(`Error: ${p.error}`); }
-  switch (kind) {
-    case 'load': {
-      const loaded = count(p.loaded);
-      const files = count(p.files);
-      const unchanged = count(p.unchanged);
-      if (loaded !== undefined) {
-        lines.push(`Loaded ${loaded}${files !== undefined ? ` of ${files}` : ''} file(s)`
-          + (unchanged ? `, ${unchanged} unchanged (skipped)` : '')
-          + (Array.isArray(p.linked) || count(p.linked) !== undefined ? `, ${count(p.linked) ?? 0} reached via links` : ''));
-      }
-      if (Array.isArray(p.skipped) && p.skipped.length > 0) { lines.push(`${p.skipped.length} source(s) skipped — see raw response`); }
-      break;
-    }
-    case 'wipe':
-    case 'prune':
-      if (count(p.removed) !== undefined) { lines.push(`Removed ${p.removed} entr(ies)`); }
-      break;
-    case 'dedup':
-      if (count(p.group_count) !== undefined) { lines.push(`${p.group_count} duplicate group(s), ${count(p.merged) ?? 0} merged`); }
-      break;
-    case 'compact':
-      if (p.compacted === true) {
-        const before = count(p.bytes_before);
-        const after = count(p.bytes_after);
-        lines.push(before !== undefined && after !== undefined ? `Store compacted: ${formatBytes(before)} → ${formatBytes(after)}` : 'Store compacted');
-      } else if (p.compacted === false) {
-        lines.push(`Not compacted${typeof p.reason === 'string' ? ` — ${p.reason}` : ''}`);
-      }
-      break;
-    case 'export': {
-      const exported = count(p.exported) ?? count(p.count);
-      lines.push(`Exported${exported !== undefined ? ` ${exported} entr(ies)` : ''}${typeof p.path === 'string' ? ` to ${p.path}` : ''}`);
-      break;
-    }
-    case 'import': {
-      const imported = count(p.imported) ?? count(p.count);
-      if (imported !== undefined) { lines.push(`Imported ${imported} entr(ies)`); }
-      if (count(p.skipped) !== undefined) { lines.push(`${p.skipped} duplicate(s) skipped`); }
-      break;
-    }
-    case 'retire_rule':
-      if (p.retired === true) {
-        lines.push('Retired — it stops being offered as guidance, and stays readable.');
-      } else if (p.retired === false) {
-        lines.push(`Nothing changed${typeof p.note === 'string' ? ` — ${p.note}` : ''}.`);
-      }
-      break;
-    case 'promote':
-      if (p.changed === true) {
-        lines.push(`Promoted to ${String(p.status ?? 'accepted')}.`);
-      } else if (p.changed === false) {
-        lines.push(`Nothing changed — it is already ${String(p.status ?? 'accepted')}, or the entry is gone.`);
-      }
-      break;
-    case 'list':
-      if (count(p.rules) !== undefined) {
-        lines.push(`${String(p.rules)} rule(s), ${count(p.entries) ?? 0} entr(ies), ${count(p.awaitingReview) ?? 0} awaiting review`);
-      }
-      break;
-    case 'promote_rule':
-      if (typeof p.id === 'string') {
-        const sources = Array.isArray(p.derived_from) ? p.derived_from.length : undefined;
-        lines.push(`Promoted as v${String(p.rule_version ?? 1)}${sources !== undefined ? `, drawn from ${sources} entr(ies)` : ''}. `
-          + 'The sources are NOT superseded — they go on answering as themselves.');
-      }
-      break;
-    case 'backup':
-      if (typeof p.backup === 'string') {
-        lines.push(`Copy taken: ${p.backup}${count(p.kept) !== undefined ? ` — ${String(p.kept)} of ${String(count(p.depth) ?? '?')} kept` : ''}`);
-      }
-      break;
-    case 'restore':
-      if (Array.isArray(p.backups)) {
-        lines.push(p.backups.length === 0 ? 'No copies yet.' : `${p.backups.length} version(s), newest first — ${String(count(p.depth) ?? '?')} kept`);
-      }
-      if (typeof p.restored === 'string') {
-        lines.push(`Restored from ${p.restored}`);
-        if (count(p.rows) !== undefined) { lines.push(`The store now holds ${String(p.rows)} entr(ies)`); }
-      }
-      break;
-    default:
-      break;
-  }
-  const refresh = p.refresh as Record<string, unknown> | undefined;
+  lines.push(...(Object.hasOwn(SUMMARIES, kind) ? SUMMARIES[kind](p) : []));
+  const refresh = p.refresh as Answer | undefined;
   if (refresh && Array.isArray(refresh.staled) && refresh.staled.length > 0) {
     lines.push(`${refresh.staled.length} stale Java pointer(s) flagged automatically`);
   }

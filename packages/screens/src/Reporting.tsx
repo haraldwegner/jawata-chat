@@ -9,7 +9,7 @@ const POLL_MILLIS = 5000;
 
 const TOTALS_TITLE = 'A failure shape is a kind of error that repeats: tool, kind of failure and error code, counted per workspace. '
   + 'Worth reporting means seen 3 or more times and not yet filed; type /report in any client to file it.';
-const SILENCE_TITLE = 'Ticked: failures worth reporting no longer make the line above say that something needs a look. The recording keeps running, and the counts and Details below still show every failure.';
+const SILENCE_TITLE = 'Ticked: failures worth reporting no longer make the first line of this view say that something needs a look. The recording keeps running, and the counts and Details below still show every failure.';
 const DETAILS_TITLE = 'The figures behind the sentence above.';
 const SHAPES_TITLE = 'Ranked by repeats. Three or more repeats that nobody has filed are what the count in the sentence above counts.';
 

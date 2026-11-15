@@ -86,7 +86,7 @@ test('the screen shows the host\'s reading, says nothing leaves the machine, and
   assert.equal(document.documentElement.dataset.theme, 'dark');
   // the mouseovers, word for word as the ux report's section 5 keeps them
   assert.equal(root.querySelector('summary').title, 'The figures behind the sentence above.');
-  assert.equal(root.querySelector('label').title, 'Ticked: failures worth reporting no longer make the line above say that something needs a look. The recording keeps running, and the counts and Details below still show every failure.');
+  assert.equal(root.querySelector('label').title, 'Ticked: failures worth reporting no longer make the first line of this view say that something needs a look. The recording keeps running, and the counts and Details below still show every failure.');
   assert.equal(root.querySelector('p[title]').title, 'A failure shape is a kind of error that repeats: tool, kind of failure and error code, counted per workspace. Worth reporting means seen 3 or more times and not yet filed; type /report in any client to file it.');
   assert.equal(root.querySelector('h3').title, 'Ranked by repeats. Three or more repeats that nobody has filed are what the count in the sentence above counts.');
   assert.equal(root.querySelector('h3').textContent, 'Failure shapes');

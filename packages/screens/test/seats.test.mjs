@@ -178,7 +178,7 @@ test('main\'s models are asked only when its row or its list is opened, once, an
   assert.equal(host.asked.filter(one => one.startsWith('models:')).length, 0, 'reading the page asked no brain for its models');
   const notice = [...rowOf(root, 'main').querySelectorAll('.seat-note')].find(note => note.textContent.includes('CODEX'));
   assert.equal(notice.querySelector('code').textContent, 'npm install -g @zed-industries/codex-acp');
-  assert.equal(notice.title, 'The chat talks to a brain through its agent adapter. The plug-in downloads no agent program: you run the command, then open this page again.');
+  assert.equal(notice.title, 'The chat talks to a brain through its agent adapter. jawata downloads no agent program: you run the command, then open this page again.');
   assert.match([...rowOf(root, 'main').querySelectorAll('dt[title]')].find(term => term.textContent === 'Brain').title, /The models listed are the ones that brain's own session offers/);
   const fold = rowOf(root, 'main').querySelector('details');
   fold.open = true;

@@ -136,8 +136,8 @@ export const BRAIN_HINT = 'Typed as a command, a seat runs on your own agent; th
 export const CONVERSATION_BRAIN_HINT = 'The brain and model a new conversation with this seat starts on. The models listed are the ones that brain\'s own '
   + 'session offers; the chat can change the model of a running conversation. '
   + 'Choosing one first runs a one-word test through it (Claude Code: under a cent, measured) and is kept for Apply only if it answers.';
-/** The mouseover of a missing adapter's notice, in the studio's words (28h ec8d474) with this host's page for its tab. */
-export const ADAPTER_HINT = 'The chat talks to a brain through its agent adapter. The plug-in downloads no agent program: you run the command, then open this page again.';
+/** The mouseover of a missing adapter's notice, in the studio's words (28h ec8d474), with jawata for the studio and page for tab, as no host is named here. */
+export const ADAPTER_HINT = 'The chat talks to a brain through its agent adapter. jawata downloads no agent program: you run the command, then open this page again.';
 export const RESET_HINT = 'Takes back your changes to this seat and uses the version shipped with the plug-in. Takes effect on Apply.';
 
 /** The first sentence of a seat's purpose, shown on its row; the whole of it sits in the fold. */

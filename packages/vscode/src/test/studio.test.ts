@@ -339,9 +339,11 @@ suite('The chat hands the window\'s folders to the studio', () => {
 		assert.strictEqual(toldToThePerson(outcome), false);
 	});
 
+	/** Until the file holds other text or is gone. Read in one step: a file checked and then read can be removed in between by the fake studio. */
 	const untilChanged = async (file: string, text: string): Promise<void> => {
 		const end = Date.now() + 10000;
-		while (fs.existsSync(file) && fs.readFileSync(file, 'utf8') === text && Date.now() < end) { await later(5); }
+		const current = (): string | undefined => { try { return fs.readFileSync(file, 'utf8'); } catch { return undefined; } };
+		while (current() === text && Date.now() < end) { await later(5); }
 	};
 	const untilExists = async (file: string): Promise<void> => {
 		const end = Date.now() + 10000;
@@ -394,14 +396,16 @@ suite('The chat hands the window\'s folders to the studio', () => {
 		fs.writeFileSync(busy.file, leftover);
 		const p = real();
 		p.sleep = async () => { p.slept++; await untilChanged(busy.file, leftover); };
-		assert.strictEqual((await new StudioStart(p, new Map()).ensure(undefined, busy.setting, busy.folders)).kind, 'ready');
+		const answered = await new StudioStart(p, new Map()).ensure(undefined, busy.setting, busy.folders);
+		assert.strictEqual(answered.kind, 'ready', answered.why);
 		assert.deepStrictEqual(p.said, []);
 		const removing = world([{ afterMs: 300, state: 'ready', url: service.address, key: SECRET }], ['/home/h/proj'], true);
 		fs.writeFileSync(removing.file, leftover);
 		const r = real(30);
 		const rSleep = r.sleep;
 		r.sleep = async ms => { await untilChanged(removing.file, leftover); await rSleep(ms); };
-		assert.strictEqual((await new StudioStart(r, new Map()).ensure(undefined, removing.setting, removing.folders)).kind, 'ready');
+		const removed = await new StudioStart(r, new Map()).ensure(undefined, removing.setting, removing.folders);
+		assert.strictEqual(removed.kind, 'ready', removed.why);
 		assert.deepStrictEqual(r.said, []);
 		const quiet = world([]);
 		fs.writeFileSync(quiet.file, leftover);

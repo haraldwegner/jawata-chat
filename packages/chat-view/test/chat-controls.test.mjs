@@ -76,3 +76,24 @@ test('the principal\'s tool calls are folded by default, the latest turn\'s as w
     assert.ok(latest.querySelector('.tool-call-inline'), 'the calls are in it');
   } finally { v.dispose(); }
 });
+
+// His words, 2026-11-17: the model list "does not close on ESC in chat, only selecting one helps. Click beside should close", and the same in Agent Control.
+for (const [role, button] of [['chat', '.input-toolbar .principal-brain'], ['agents', '.hire.principal .brain-btn']]) {
+  test(`${role}: the model list closes on Esc wherever the focus is, and on a click beside it, and stays open on a click inside it`, async () => {
+    const v = await viewOn('R5', { role });
+    try {
+      await v.connect();
+      await v.settle();
+      const open = async () => { await v.click(v.$(button)); assert.ok(v.$('.brain-menu'), 'the list opens'); };
+      await open();
+      await act(async () => { document.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+      assert.ok(!v.$('.brain-menu'), 'Esc closed it, with the focus outside the list');
+      await open();
+      await act(async () => { document.body.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true })); });
+      assert.ok(!v.$('.brain-menu'), 'a click beside it closed it');
+      await open();
+      await act(async () => { v.$('.brain-menu').dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true })); });
+      assert.ok(v.$('.brain-menu'), 'a click inside the list does not close it');
+    } finally { v.dispose(); }
+  });
+}

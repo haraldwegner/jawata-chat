@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { AUTONOMY_OPTION, type ViewIntent, type ViewSession } from '@jawata/chat-core/view';
 
 /** The option that holds the principal's brain, sent by the agent with the session. */
@@ -36,13 +37,22 @@ export function PrincipalBrainPicker({ brain, open, onToggle, send, className }:
     onToggle();
     if (value !== brain.current) { send({ type: 'setConfigOption', configId: brain.configId, value }); }
   };
+  // The list closes on Esc wherever the focus is, and on a click beside it (his words, 2026-11-17: only choosing a model closed it).
+  const wrap = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) { return undefined; }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onToggle(); } };
+    const onPress = (e: MouseEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) { onToggle(); } };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onPress);
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onPress); };
+  }, [open, onToggle]);
   return (
-    <span className="brain-wrap">
+    <span className="brain-wrap" ref={wrap}>
       <button className={'brain-btn' + (className ? ' ' + className : '')} aria-haspopup="listbox" aria-expanded={open}
         title="The brain of the principal. Click to choose another; it takes over from your next message. Its default is set in jawata studio, Seats view." onClick={onToggle}>{brain.label + ' ▾'}</button>
       {open ? (
-        <div className="brain-menu" role="listbox" aria-label="Brain for the principal"
-          onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onToggle(); } }}>
+        <div className="brain-menu" role="listbox" aria-label="Brain for the principal">
           {brain.choices.map(c => (
             <div className="brain-item" role="option" aria-selected={c.value === brain.current} tabIndex={0} key={c.value}
               onClick={() => choose(c.value)}

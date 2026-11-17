@@ -70,6 +70,29 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      # The chat's start tests (packages/vscode/.vscode-test.mjs, label start-unreachable) run the engine's own bridge, `java -jar jawata.jar --acp`,
+      # against an address nothing listens at, and check what the person is told. They need the engine's jar and a Java to run it, and a runner has
+      # neither: the 0.2.4 release run failed there with "ACP connection closed" where a developer's machine has the sibling jawata-mcp build. The
+      # published engine is downloaded and named in JAWATA_ENGINE_JAR, which the test configuration reads.
+      - name: Set up Java for the engine bridge
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Download the published engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p engine
+          gh release download --repo haraldwegner/jawata-mcp --pattern 'jawata-*-linux-x64.tar.gz' --dir engine
+          tar -xzf engine/jawata-*-linux-x64.tar.gz -C engine
+          JAR="$(find "$PWD/engine" -name jawata.jar | head -1)"
+          [ -s "$JAR" ] || { echo "::error::the downloaded engine holds no jawata.jar"; exit 1; }
+          echo "JAWATA_ENGINE_JAR=$JAR" >> "$GITHUB_ENV"
+          echo "engine: $JAR"
+
       # The repository's own test script: the commit hook test, knip, the root tests and every package's tests. The chat extension's tests
       # run inside a real VS Code (downloaded by @vscode/test-cli into the package's .vscode-test folder), which needs a display.
       - name: Test

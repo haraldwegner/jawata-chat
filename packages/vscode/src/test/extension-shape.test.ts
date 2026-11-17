@@ -19,6 +19,16 @@ suite('Extension shape', () => {
 		assert.deepStrictEqual(foreign, []);
 	});
 
+	test('S19-2: Esc is bound to the cancel command only while the context the extension sets for a running turn holds', async () => {
+		const escape = (pkg().contributes.keybindings as { command: string; key: string; when?: string }[]).find(k => k.key === 'escape' && k.command === PREFIX + 'cancelTurn');
+		assert.ok(escape, 'a binding of Esc to the cancel command');
+		const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'extension.ts'), 'utf8');
+		const set = /setContext',\s*'([^']+)'/.exec(source);
+		assert.ok(set, 'the extension sets a context for a running turn');
+		assert.strictEqual(escape!.when, set![1], 'the binding is conditioned on the context the extension sets, so Esc reaches the cancel command during a turn');
+		assert.ok((await vscode.commands.getCommands(true)).includes(PREFIX + 'cancelTurn') || (await vscode.extensions.getExtension(ID)!.activate(), (await vscode.commands.getCommands(true)).includes(PREFIX + 'cancelTurn')), 'the cancel command is registered');
+	});
+
 	test('every contributed setting carries our prefix', () => {
 		const keys = Object.keys(pkg().contributes.configuration.properties);
 		assert.deepStrictEqual(keys.filter(k => !k.startsWith(PREFIX)), []);

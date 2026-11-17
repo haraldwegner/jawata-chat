@@ -16,8 +16,11 @@
   ],
   "messages": [
     {
+      "type": "loadSessionStart"
+    },
+    {
       "type": "state",
-      "contractVersion": 11,
+      "contractVersion": 12,
       "activeSessionId": "12649565-f024-4047-adde-8b98f65efa98",
       "session": {
         "sessionId": "sessionId#1",
@@ -193,6 +196,10 @@
           "count": 0
         }
       }
+    },
+    {
+      "type": "loadSessionEnd",
+      "ok": true
     },
     {
       "type": "userPrompt",

@@ -33,8 +33,9 @@ export interface Disposable {
  *    brains on offer and replace an agent's (`listBrains`, `chooseBrain`; `brainList`, `hireChanged`; the state's `brains`).
  * 10: what the person typed and sent, kept across conversations for the input's arrows (28h D56 (g)): `inputHistory`, and the state's `inputHistory`.
  * 11: a picture is shown before and after it is sent (28h D57 (b)): `file-attached` carries its `image`, `userPrompt` its `images`.
+ * 12: a new conversation is asked for from the page (`newConversation`), by a button beside the input.
  */
-export const VIEW_CONTRACT_VERSION = 11;
+export const VIEW_CONTRACT_VERSION = 12;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -138,6 +139,8 @@ export type ViewIntent =
   | { type: 'listSessions'; cursor?: string }
   /** Open a session the agent listed: it is replayed into the chat. */
   | { type: 'openSession'; sessionId: string }
+  /** End the session and open a fresh one with the same agent; the person is asked first only when messages shown would be cleared. */
+  | { type: 'newConversation' }
   /** Answer a proposal with one of the choices the agent offered. */
   | { type: 'answerPermission'; requestId: string; optionId: string }
   /** Ask a short side question without disturbing the running step; it goes out as a prompt of its own and is answered in the side thread. */
@@ -225,6 +228,7 @@ export const VIEW_INTENT_FIELDS = {
   keepDraft: ['text'],
   listSessions: ['cursor'],
   openSession: ['sessionId'],
+  newConversation: [],
   askSide: ['text'],
   closeSide: [],
   openSide: ['text'],
@@ -259,7 +263,7 @@ export function isViewIntent(value: unknown): value is ViewIntent {
   const v = value as Record<string, unknown>;
   switch (v.type) {
     case 'ready': return v.contractVersion === undefined || typeof v.contractVersion === 'number';
-    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': case 'chooseFiles': case 'listBrains': return true;
+    case 'cancelTurn': case 'sendNow': case 'connectAgent': case 'disconnectAgent': case 'configureAgent': case 'closeSide': case 'chooseFiles': case 'listBrains': case 'newConversation': return true;
     case 'chooseBrain': return isString(v.planId) && isString(v.brain) && isString(v.model);
     case 'askSide': return isString(v.text);
     case 'openSide': return v.text === undefined || isString(v.text);

@@ -57,7 +57,7 @@ export class ConversationFlow {
   /** Open a session the agent has. The sessions decide how (loaded, so the earlier conversation shows, or resumed, so it does not); the person is told which. */
   async open(sessionId: string): Promise<void> {
     if (this.sessions.getActiveSessionId() === sessionId) { return; }
-    if (this.hasContent() && !await this.host.chooser.confirm('Open a different session? The chat now shown is replaced.', 'Open Session')) { return; }
+    // no question when another session is shown: sessions are stored, so opening one loses nothing (his words, 2026-11-17)
     await this.attempt('open the session', async () => {
       const how = await this.host.notifier.progress('Opening the session…', () => this.sessions.open(AGENT_KEY, sessionId));
       if (how === 'resumed') { this.host.notifier.info('Resumed the session; its earlier messages are not shown.'); }

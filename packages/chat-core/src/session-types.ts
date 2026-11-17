@@ -55,6 +55,9 @@ export type SessionEvents = {
   'config-options-changed': [sessionId: string, options: SessionConfigOption[] | null];
   'available-commands-changed': [sessionId: string, commands: AvailableCommand[]];
   'session-info-changed': [sessionId: string, update: SessionInfoUpdate];
+  /** The agent is starting and its session opening, from the first step to the last: the page shows loading and not "No agent is connected". */
+  'agent-opening': [agentName: string];
+  'agent-opened': [agentName: string, ok: boolean];
   'session-load-start': [sessionId: string, agentName: string];
   'session-load-end': [sessionId: string, agentName: string, ok: boolean];
 };

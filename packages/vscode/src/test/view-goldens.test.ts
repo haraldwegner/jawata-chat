@@ -54,7 +54,7 @@ suite('View goldens', function () {
 		await new Promise(r => setTimeout(r, 500));
 		const port = new RecordingPort();
 		const view = await chatView();
-		view.clearChat(); // an earlier test left chat content, and opening a session would ask before replacing it
+		view.clearChat(); // an earlier test left chat content
 		await vscode.commands.executeCommand('jawataChat.disconnectAgent');
 		view.attach(port);
 		const sessionFile = require.resolve('@jawata/acp-contract/sessions/R6.jsonl');

@@ -328,6 +328,17 @@ test('a panel beside the chat is told what the chat is told, and what it asks is
   } finally { c.dispose(); }
 });
 
+test('newConversation: the session is ended, the chat is cleared and the agent is asked for a new session, from the page and with no messages to lose', async () => {
+  const c = await connected('R1');
+  try {
+    assert.equal(c.sent('session/new').length, 1);
+    await c.port.deliver({ type: 'newConversation' });
+    assert.ok(c.port.toView.some(m => m.type === 'clearChat'), c.port.toView.map(m => m.type).join(','));
+    assert.equal(c.sent('session/new').length, 2, 'a new session was asked for');
+    assert.ok(c.sessions.getActiveSessionId(), 'and a session is open');
+  } finally { c.dispose(); }
+});
+
 test('every intent of the union was delivered by a test above', () => {
   const missing = VIEW_INTENT_TYPES.filter(t => !delivered.has(t));
   assert.deepEqual(missing, [], `no test delivers: ${missing.join(', ')}`);

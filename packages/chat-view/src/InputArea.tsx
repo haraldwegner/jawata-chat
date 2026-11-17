@@ -76,6 +76,18 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   // 28h D57 (h): / in a session the agent sent no commands for says so in one sentence, instead of showing nothing
   const noCommands = text === '/' && commands.length === 0 && !slashClosed && !!session;
   const slashOpen = filtered.length > 0 || noCommands;
+  // Esc closes the list wherever the focus is (his words, 2026-11-17: with the chat out of focus Esc did nothing); the field's own Esc handler has
+  // already prevented the default when it closed the list, so this one then does nothing
+  useEffect(() => {
+    if (!slashOpen) { return undefined; }
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) { return; }
+      e.preventDefault();
+      setSlashClosed(true);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [slashOpen]);
   const disabled = !session || state.loading;
 
   const openSide = (question?: string) => {
@@ -249,6 +261,9 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
           <button className="tool-btn" disabled={disabled} title="Lists the seats and skills you can start. Typing / does the same." onClick={openList}>/</button>
           <button className="tool-btn" disabled={disabled} title="Opens the btw panel on the right, a separate conversation with its own agent. This one goes on and is not told. Ctrl+Alt+S."
             onClick={askFromTheField}>Side question</button>
+          <button className="tool-btn new-conversation-btn" disabled={state.loading}
+            title="Starts a new session with the same agent. The conversation now shown stays in the agent's session list: History opens it again."
+            onClick={() => send({ type: 'newConversation' })}>New session</button>
         </div>
         <span className="toolbar-spacer" />
         {brain ? <PrincipalBrainPicker brain={brain} open={brainMenuOpen} onToggle={() => setBrainMenuOpen(o => !o)} send={send} className="principal-brain" /> : null}

@@ -79,30 +79,45 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
       this.emit('active-session-changed', held.sessionId);
       return held;
     }
-    const current = this.table.active;
-    if (current) { await this.disconnectAgent(current.agentName); }
+    return this.whileOpening(agentName, async () => {
+      const current = this.table.active;
+      if (current) { await this.disconnectAgent(current.agentName); }
 
-    this.host.log.log(`SessionManager: connecting to agent "${agentName}"`);
-    const live = await this.supply.obtain(agentName);
-    const cwd = this.host.settings.workspaceCwd();
+      this.host.log.log(`SessionManager: connecting to agent "${agentName}"`);
+      const live = await this.supply.obtain(agentName);
+      const cwd = this.host.settings.workspaceCwd();
 
-    let answer: NewSessionResponse;
+      let answer: NewSessionResponse;
+      try {
+        answer = await this.signedInFor(live, () => live.connection.connection.newSession({ cwd, mcpServers: [] }));
+      } catch (e) {
+        this.host.log.logError('Failed to create session', e);
+        this.supply.stop(live.agentId);
+        throw e;
+      }
+      // registered at once, so an update the agent sends while its answer is still being read finds the session
+      const session = this.describe(live, answer.sessionId, cwd, answer as SessionAnswer);
+      this.table.add(session);
+      this.table.activate(session.sessionId);
+
+      this.emit('agent-connected', agentName);
+      this.emit('active-session-changed', session.sessionId);
+      this.host.log.log(`Connected to agent ${agentName}, session ${session.sessionId}`);
+      return session;
+    });
+  }
+
+  /** Run a step that starts the agent and opens a session, telling the page it is under way from the first moment to the last, however it ends. */
+  private async whileOpening<T>(agentName: string, job: () => Promise<T>): Promise<T> {
+    this.emit('agent-opening', agentName);
+    let ok = false;
     try {
-      answer = await this.signedInFor(live, () => live.connection.connection.newSession({ cwd, mcpServers: [] }));
-    } catch (e) {
-      this.host.log.logError('Failed to create session', e);
-      this.supply.stop(live.agentId);
-      throw e;
+      const result = await job();
+      ok = true;
+      return result;
+    } finally {
+      this.emit('agent-opened', agentName, ok);
     }
-    // registered at once, so an update the agent sends while its answer is still being read finds the session
-    const session = this.describe(live, answer.sessionId, cwd, answer as SessionAnswer);
-    this.table.add(session);
-    this.table.activate(session.sessionId);
-
-    this.emit('agent-connected', agentName);
-    this.emit('active-session-changed', session.sessionId);
-    this.host.log.log(`Connected to agent ${agentName}, session ${session.sessionId}`);
-    return session;
   }
 
   /** End the session and open a fresh one with the same agent; the page is told to clear. */
@@ -172,11 +187,13 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
    * do that. The decision is made here, once, from what the agent said it can do.
    */
   async open(agentName: string, sessionId: string): Promise<'loaded' | 'resumed'> {
-    await this.supply.obtain(agentName);
-    const can = this.supply.capabilitiesOf(agentName);
-    if (can?.load) { await this.loadSession(agentName, sessionId); return 'loaded'; }
-    if (can?.resume) { await this.resumeSession(agentName, sessionId); return 'resumed'; }
-    throw new Error('the agent can neither load nor resume sessions');
+    return this.whileOpening(agentName, async () => {
+      await this.supply.obtain(agentName);
+      const can = this.supply.capabilitiesOf(agentName);
+      if (can?.load) { await this.loadSession(agentName, sessionId); return 'loaded' as const; }
+      if (can?.resume) { await this.resumeSession(agentName, sessionId); return 'resumed' as const; }
+      throw new Error('the agent can neither load nor resume sessions');
+    });
   }
 
   /** Open a session the agent has without replaying it (`session/resume`). */

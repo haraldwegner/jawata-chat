@@ -49,7 +49,7 @@ export async function loaded(name) {
   try {
     const sessionId = readFileSync(sessionFile(name), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)).find(l => l.msg.method === 'session/load').msg.params.sessionId;
     await c.sessions.listSessions('agent');
-    await c.sessions.loadSession('agent', sessionId);
+    await c.port.deliver({ type: 'openSession', sessionId }); // the way the editor's test opens it: through the page's intent, so the opening is told as well
     for (let i = 0; i < 100 && !c.port.toView.some(m => m.type === 'loadSessionEnd'); i++) { await new Promise(r => setTimeout(r, 50)); }
     await new Promise(r => setTimeout(r, 100));
     return c.port.toView;

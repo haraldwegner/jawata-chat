@@ -37,7 +37,9 @@ test('R6: a listed session opens: its turns arrive as the agent replays them, be
     assert.equal(c.sessions.getActiveSessionId(), id);
     assert.ok(c.chat.snapshot().entries.some(e => e.kind === 'user') && c.chat.snapshot().entries.some(e => e.kind === 'turn'), 'the replayed turns are in the chat');
     // the replay is folded in one pass and told once: no message per update between the load's start and its end, one snapshot with the turns
-    const between = types.slice(types.indexOf('loadSessionStart') + 1, types.indexOf('loadSessionEnd'));
+    // (the load's own start is the last one: the opening of the agent has told the page one before it)
+    const loadStart = types.lastIndexOf('loadSessionStart');
+    const between = types.slice(loadStart + 1, types.indexOf('loadSessionEnd', loadStart));
     assert.deepEqual(between, ['snapshot'], 'what the page was told while the session loaded');
     const [told] = c.port.toView.filter(m => m.type === 'snapshot');
     assert.ok(told.state.entries.some(e => e.kind === 'turn'), 'and the snapshot holds the replayed turns');

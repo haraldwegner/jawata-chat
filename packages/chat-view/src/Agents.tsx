@@ -109,7 +109,7 @@ function principalCalls(state: ViewState): ToolCallView[][] {
 
 const countOf = (n: number): string => `${n} tool call${n === 1 ? '' : 's'}`;
 
-/** Below the principal: the calls of its latest turn that made any, each one line that opens; the earlier turns' calls folded above them. */
+/** Below the principal: the calls of its latest turn that made any, folded and each one line that opens; the earlier turns' calls folded above them. */
 function PrincipalCalls({ state }: { state: ViewState }) {
   const turns = principalCalls(state);
   if (turns.length === 0) { return null; }
@@ -123,8 +123,10 @@ function PrincipalCalls({ state }: { state: ViewState }) {
           {earlier.map(t => <Tool tool={t} key={t.toolCallId} />)}
         </details>
       ) : null}
-      <div className="principal-calls-title" title="The calls the principal made in its latest turn">{countOf(latest.length)}</div>
-      {latest.map(t => <Tool tool={t} key={t.toolCallId} />)}
+      <details className="principal-calls-latest">
+        <summary className="principal-calls-title" title="The calls the principal made in its latest turn; a click shows them">{countOf(latest.length)}</summary>
+        {latest.map(t => <Tool tool={t} key={t.toolCallId} />)}
+      </details>
     </div>
   );
 }

@@ -83,6 +83,9 @@ export class ChatController {
       const models = this.sessions.getActiveSession()?.models;
       if (models) { this.post({ type: 'modelsUpdate', models }); }
     });
+    // the agent is starting and its session opening: the page shows loading, not "No agent is connected" with a Connect button
+    this.listen('agent-opening', () => this.post({ type: 'loadSessionStart' }));
+    this.listen('agent-opened', (_agentName, ok) => this.post({ type: 'loadSessionEnd', ok }));
     this.listen('session-load-start', () => { this.pending = []; this.dropSide(); this.post({ type: 'loadSessionStart' }); this.replay = []; });
     this.listen('session-load-end', (_sessionId, _agentName, ok) => {
       this.endReplay();
@@ -254,6 +257,9 @@ export class ChatController {
         break;
       case 'openSession':
         await this.flow.open(intent.sessionId);
+        break;
+      case 'newConversation':
+        await this.flow.newConversation();
         break;
       case 'listBrains':
         await this.changeActive('list the brains', async id => { this.post({ type: 'brainList', brains: await this.sessions.listBrains(id) }); });

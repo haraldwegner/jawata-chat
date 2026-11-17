@@ -188,7 +188,7 @@ test('open: an agent that can neither load nor resume is an error told to the pe
   } finally { c.dispose(); }
 });
 
-test('open: the session that is open already is left alone; another with messages shown is asked about first', async () => {
+test('open: the session that is open already is left alone; another is opened at once, with no question, because a session is stored', async () => {
   const a = agent({ load: true });
   const c = chatWith(a.run);
   try {
@@ -196,11 +196,10 @@ test('open: the session that is open already is left alone; another with message
     await c.chat.flow.open('old');
     assert.deepEqual(a.log, ['session/load old'], 'the open session is not loaded again');
     assert.ok(c.chat.hasChatContent, 'the replay filled the chat');
-    c.host.chooser.answer = false;
     await c.chat.flow.open('other');
-    assert.deepEqual(c.host.chooser.questions, ['Open a different session? The chat now shown is replaced.']);
-    assert.deepEqual(a.log, ['session/load old'], 'declined: nothing was loaded');
-    assert.equal(c.sessions.getActiveSessionId(), 'old');
+    assert.deepEqual(c.host.chooser.questions, [], 'his words, 2026-11-17: sessions are stored, so opening another is not asked about');
+    assert.deepEqual(a.log, ['session/load old', 'session/load other']);
+    assert.equal(c.sessions.getActiveSessionId(), 'other');
   } finally { c.dispose(); }
 });
 

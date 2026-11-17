@@ -105,11 +105,29 @@ export function EntryList({ entries, processing }: { entries: ViewState['entries
   );
 }
 
+/** How far from the bottom of the list counts as being at it, in pixels. */
+const AT_THE_BOTTOM = 24;
+
 export function Messages({ state, onConnect, onConfigure, onHistory }: { state: ViewState; onConnect: () => void; onConfigure: () => void; onHistory: () => void }) {
   const el = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (el.current) { el.current.scrollTop = el.current.scrollHeight; } }, [state.entries, state.processing]);
+  // The list follows the output only while the person is at its bottom: once he scrolls up to read, new output leaves him where he is (28h S19-3).
+  const following = useRef(true);
+  const shown = useRef(0);
+  useEffect(() => {
+    const list = el.current;
+    if (!list) { return; }
+    const last = state.entries.at(-1);
+    // his own message takes him to the bottom, where the answer comes; so does a conversation that is shorter than the one before (another one opened)
+    if (state.entries.length < shown.current || (state.entries.length > shown.current && last?.kind === 'user')) { following.current = true; }
+    shown.current = state.entries.length;
+    if (following.current) { list.scrollTop = list.scrollHeight; }
+  }, [state.entries, state.processing]);
+  const noticeScroll = () => {
+    const list = el.current;
+    if (list) { following.current = list.scrollHeight - list.scrollTop - list.clientHeight <= AT_THE_BOTTOM; }
+  };
   return (
-    <div className="messages" ref={el}>
+    <div className="messages" ref={el} onScroll={noticeScroll}>
       {!state.session && state.entries.length === 0 && !state.loading ? <EmptyState onConnect={onConnect} onConfigure={onConfigure} onHistory={onHistory} /> : null}
       <EntryList entries={state.entries} processing={state.processing} />
     </div>

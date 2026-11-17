@@ -14,31 +14,59 @@ const turnEnded = (v) => v.$('.turn .message.assistant') && !v.$('.send-stop-btn
 const postUpdate = (v, update) => v.port.post({ type: 'sessionUpdate', sessionId: v.sessions.getActiveSessionId(), update });
 const chunkOf = (kind, text) => ({ sessionUpdate: kind, content: { type: 'text', text } });
 
-test('the waiting line shows from the send until answer text begins, names the tool under way, and goes with the turn', async () => {
+test('28h D57 (i): the working line keeps its dots and seconds and says beside them what goes on now, overwritten as it changes, gone when the answer begins', async () => {
   const v = await viewOn('R1');
   try {
     await v.connect();
     await v.settle();
-    assert.ok(!v.$('.waiting-line'), 'nothing while idle');
+    assert.ok(!v.$('.working'), 'nothing while idle');
     await act(async () => { v.port.post({ type: 'userPrompt', text: 'q' }); v.port.post({ type: 'promptStart' }); });
-    assert.equal(v.$('.waiting-line').textContent, 'Thinking...', 'from the send, before anything arrives');
-    assert.ok(v.$('.waiting-line .dots'), 'with moving dots');
-    await act(async () => { postUpdate(v, chunkOf('agent_thought_chunk', 'hm')); });
-    assert.ok(v.$('.waiting-line'), 'while it thinks');
+    assert.equal(v.$$('.working-dots i').length, 3, 'the three dots');
+    assert.match(v.$('.working-time').textContent, /^\d+s$/, 'the seconds');
+    assert.equal(v.$('.working .working-activity').textContent, 'Thinking', 'from the send, before anything arrives');
+    await act(async () => { postUpdate(v, chunkOf('agent_thought_chunk', 'Which file?')); });
+    const thought = v.$('.working details.working-activity');
+    assert.equal(thought.querySelector('summary').textContent, 'Thinking', 'while it thinks');
+    thought.open = true;
+    assert.equal(thought.querySelector('.working-detail').textContent, 'Which file?', 'the thought opens in place');
     await act(async () => { postUpdate(v, { sessionUpdate: 'tool_call', toolCallId: 't', title: 'Preparing file…', status: 'pending', kind: 'edit' }); });
-    assert.equal(v.$('.waiting-line .waiting-tool').textContent, 'Preparing file…');
-    await act(async () => { postUpdate(v, { sessionUpdate: 'tool_call_update', toolCallId: 't', title: 'Write hello.txt', status: 'in_progress' }); });
-    assert.equal(v.$('.waiting-line .waiting-tool').textContent, 'Write hello.txt', 'the tool\'s current title');
+    assert.equal(v.$$('.working .working-activity').length, 1, 'one line: the activity is overwritten, not added');
+    assert.equal(v.$('.working .working-activity').textContent, 'Preparing file…');
+    await act(async () => { postUpdate(v, { sessionUpdate: 'tool_call_update', toolCallId: 't', title: 'Write hello.txt', status: 'in_progress', rawInput: { path: 'hello.txt' } }); });
+    assert.equal(v.$('.working .working-activity summary').textContent, 'Write hello.txt', 'the tool\'s current title');
+    assert.match(v.$('.working .working-activity .working-detail').textContent, /hello\.txt/, 'what went into the tool opens in place');
     await act(async () => { postUpdate(v, { sessionUpdate: 'tool_call_update', toolCallId: 't', status: 'completed' }); });
-    assert.equal(v.$('.waiting-line').textContent, 'Thinking...', 'after the call ended, before the answer');
+    assert.equal(v.$('.working .working-activity').textContent, 'Thinking', 'after the call ended, before the answer');
     await act(async () => { postUpdate(v, chunkOf('agent_message_chunk', 'Done')); });
-    assert.ok(!v.$('.waiting-line'), 'answer text has begun');
+    assert.ok(v.$('.working-time'), 'the dots and seconds stay while the turn runs');
+    assert.ok(!v.$('.working-activity'), 'the answer replaces the activity');
     await act(async () => { v.port.post({ type: 'promptEnd', stopReason: 'end_turn' }); });
-    assert.ok(!v.$('.waiting-line'));
+    assert.ok(!v.$('.working'));
+    assert.equal(v.$$('.tool-call-inline').length + v.$$('.turn-tools').length, 0, 'the chat holds no tool-call rows');
   } finally { v.dispose(); }
 });
 
-test('an answer shows its parts in the order they came: thought, text, tool calls, thought, text', async () => {
+test('28h D57 (i): while the principal delegates, the line names the hire and opens to the prompt it sent; then it says whom it waits on', async () => {
+  const v = await viewOn('R1');
+  try {
+    await v.connect();
+    await v.settle();
+    const hire = { planId: 'p1', seat: 'chief-engineer', name: 'Rafael', task: 'INSTRUCTION 1\nTOOL: Edit', brain: 'claude', model: '', state: 'running', elapsedMs: 0, tokens: 0 };
+    await act(async () => {
+      v.port.post({ type: 'promptStart' });
+      postUpdate(v, { sessionUpdate: 'tool_call', toolCallId: 'h', title: 'hire', status: 'in_progress', kind: 'other', _meta: { 'jawata/hire': hire } });
+    });
+    const line = v.$('.working details.working-activity');
+    assert.equal(line.querySelector('summary').textContent, 'Delegating to Rafael · chief-engineer');
+    assert.equal(line.open, false, 'folded');
+    line.open = true;
+    assert.equal(line.querySelector('.working-detail').textContent, 'INSTRUCTION 1\nTOOL: Edit', 'unfolded: the prompt the chief engineer was sent');
+    await act(async () => { postUpdate(v, { sessionUpdate: 'tool_call_update', toolCallId: 'h', status: 'completed' }); });
+    assert.equal(v.$('.working .working-activity summary').textContent, 'Waiting on Rafael · chief-engineer');
+  } finally { v.dispose(); }
+});
+
+test('an answer shows its parts in the order they came, thought, text, thought, text, and no tool calls', async () => {
   const v = await viewOn('R1');
   try {
     await v.connect();
@@ -54,19 +82,19 @@ test('an answer shows its parts in the order they came: thought, text, tool call
       v.port.post({ type: 'promptEnd', stopReason: 'end_turn' });
     });
     const order = [...v.$('.turn').children].map(e => e.className.split(' ')[0] + ':' + (e.querySelector('.thought-content')?.textContent ?? e.textContent).replace(/\s+/g, ' ').trim().slice(0, 14));
-    assert.deepEqual(order, ['thought-block:first', 'message:Hello', 'turn-tools:▾ 2 tool calls', 'thought-block:second', 'message:Bye'], 'several thoughts stay several, tool calls that follow each other are one run');
+    assert.deepEqual(order, ['thought-block:first', 'message:Hello', 'thought-block:second', 'message:Bye'], 'several thoughts stay several; the calls are in Agent Control');
   } finally { v.dispose(); }
 });
 
-test('R2: a tool call line shows its kind, status and title; unfolded it shows what went in, the diff and what came out', async () => {
-  const v = await viewOn('R2');
+test('28h D57 (i), R2: Agent Control shows the principal\'s calls below the principal; a call shows its kind, status and title, and unfolded what went in, the diff and what came out', async () => {
+  const v = await viewOn('R2', { role: 'agents' });
   try {
     await v.connect();
     await v.settle();
-    await v.type('go');
-    await v.key('Enter');
-    await v.settle(() => v.$$('.tool-call-inline').length > 0 && !v.$('.send-stop-btn.stop'));
-    const call = v.$('.tool-call-inline');
+    await act(async () => { await v.chat.sendPrompt('go'); });
+    await v.settle(() => v.$$('.principal-calls .tool-call-inline .tc-icon.completed').length > 0);
+    const call = v.$('.hire.principal .principal-calls .tool-call-inline');
+    assert.ok(call, 'below the principal');
     assert.equal(call.open, false, 'folded');
     assert.ok(call.querySelector('summary .tc-kind').textContent.length > 0, 'an icon for its kind');
     assert.ok(call.querySelector('summary .tc-title').textContent.length > 0, 'a title');
@@ -162,7 +190,7 @@ test('a message of another version of the contract is refused with a notice that
 
 
 test('a tool call whose output is a terminal says so in words and shows no internal id', async () => {
-  const v = await viewOn('R1');
+  const v = await viewOn('R1', { role: 'agents' });
   try {
     await v.connect();
     await v.settle();
@@ -170,7 +198,7 @@ test('a tool call whose output is a terminal says so in words and shows no inter
       v.port.post({ type: 'promptStart' });
       postUpdate(v, { sessionUpdate: 'tool_call', toolCallId: 'x', title: 'Run tests', status: 'completed', kind: 'execute', content: [{ type: 'terminal', terminalId: 'term-7f3a' }] });
     });
-    const call = v.$('.tool-call-inline');
+    const call = v.$('.principal-calls .tool-call-inline');
     call.open = true;
     assert.equal(call.querySelector('.tc-content').textContent, 'Its output is in a terminal of its own.');
     assert.ok(!call.textContent.includes('term-7f3a'));

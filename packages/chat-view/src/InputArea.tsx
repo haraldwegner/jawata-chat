@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AUTONOMY_OPTION, autonomyOf, type ViewIntent, type ViewState } from '@jawata/chat-core/view';
 import { AutonomyButton, PrincipalBrainPicker, principalBrainOf } from './Pickers.js';
+import { Picture } from './Picture.js';
 
 /** How long the person stops typing before the core is told what the draft is. */
 const DRAFT_PAUSE_MS = 250;
@@ -72,7 +73,9 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   // grouped, in the order of the groups; within a group, in the order the agent sent them
   const order = [...GROUPS.map(g => g.key), 'other'];
   const filtered = [...matching].sort((a, b) => order.indexOf(groupOf(a)) - order.indexOf(groupOf(b)));
-  const slashOpen = filtered.length > 0;
+  // 28h D57 (h): / in a session the agent sent no commands for says so in one sentence, instead of showing nothing
+  const noCommands = text === '/' && commands.length === 0 && !slashClosed && !!session;
+  const slashOpen = filtered.length > 0 || noCommands;
   const disabled = !session || state.loading;
 
   const openSide = (question?: string) => {
@@ -130,7 +133,8 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
       askFromTheField(); // the editor's own binding only opens the panel: it cannot read this field
       return;
     }
-    if (slashOpen) {
+    if (noCommands && e.key === 'Escape') { e.preventDefault(); setSlashClosed(true); return; }
+    if (filtered.length > 0) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setSlashIndex(i => Math.min(i + 1, filtered.length - 1)); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSlashIndex(i => Math.max(i - 1, 0)); return; }
       if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); pick(filtered[slashIndex]?.name ?? ''); return; }
@@ -202,6 +206,7 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   return (
     <div className={'input-area' + (disabled ? ' disabled' : '')}>
       <div className={'slash-popup' + (slashOpen ? ' open' : '')}>
+        {noCommands ? <div className="slash-popup-group">The agent sent no commands for this session, so there is nothing to pick here.</div> : null}
         {filtered.map((c, i) => {
           const group = groupOf(c);
           const heading = i === 0 || groupOf(filtered[i - 1]) !== group ? GROUPS.find(g => g.key === group) ?? { label: 'Other', what: 'commands the agent did not sort into a group' } : null;
@@ -220,6 +225,7 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
         <div className="attachments">
           {state.attachments.map(a => (
             <span className="attachment-chip" key={a.path} title={a.path}>
+              {a.image ? <Picture src={a.image} name={a.name} /> : null}
               <span className="chip-name">{a.name}</span>
               <button className="chip-remove" aria-label={`Remove ${a.name}`} title="Take this file out of the next prompt" onClick={() => send({ type: 'detachFile', path: a.path })}>×</button>
             </span>

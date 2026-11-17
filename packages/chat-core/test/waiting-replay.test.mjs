@@ -1,8 +1,8 @@
-// The waiting line on the recorded sessions the plan names: R1 (real Claude, no thought), R2 (a tool call, then the answer) and
+// The working line's activity (it took over the waiting line, 28h D57 (i)) on the recorded sessions the plan names: R1 (real Claude, no thought), R2 (a tool call, then the answer) and
 // R9 (a thought, derived). Every message the core told the page is folded in order, and the line is read at every step.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialViewState, reduce, waitingLine } from '../dist/view-state.js';
+import { activityLine, initialViewState, reduce } from '../dist/view-state.js';
 import { played } from './play.mjs';
 
 /** The state after each message, with what the line said and what the latest part of the open answer was. */
@@ -13,7 +13,7 @@ async function steps(name) {
     state = reduce(state, message);
     const last = state.entries.at(-1);
     const open = last && last.kind === 'turn' && !last.turn.ended ? last.turn.parts.at(-1) : undefined;
-    out.push({ type: message.type, processing: state.processing, latest: open?.kind, tool: open?.kind === 'tool' ? open.tool : undefined, line: waitingLine(state) });
+    out.push({ type: message.type, processing: state.processing, latest: open?.kind, tool: open?.kind === 'tool' ? open.tool : undefined, line: activityLine(state) });
   }
   return out;
 }
@@ -35,14 +35,14 @@ for (const name of ['R1', 'R2', 'R9']) {
   });
 }
 
-test('R2: while the tool call is pending or running the line carries that tool\'s current title, and after it ended it says only that the agent works', async () => {
+test('R2: while the tool call is pending or running the line carries that tool\'s current title, and after it ended it says the agent thinks', async () => {
   const all = await steps('R2');
   const underway = all.filter(s => s.tool && (s.tool.status === 'pending' || s.tool.status === 'in_progress'));
   assert.ok(underway.length > 0, 'R2 has a tool call under way');
-  for (const s of underway) { assert.equal(s.line.tool, s.tool.title); }
+  for (const s of underway) { assert.deepEqual([s.line.kind, s.line.label], ['tool', s.tool.title]); }
   const done = all.filter(s => s.latest === 'tool' && s.tool.status === 'completed' && s.processing);
   assert.ok(done.length > 0);
-  for (const s of done) { assert.deepEqual(s.line, {}); }
+  for (const s of done) { assert.deepEqual([s.line.kind, s.line.label], ['thinking', 'Thinking']); }
 });
 
 test('R9: the line stays through the thought, up to the first answer text, and the thought stays as a part', async () => {

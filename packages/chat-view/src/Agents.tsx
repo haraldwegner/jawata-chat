@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { isWorking, workingTree } from '@jawata/chat-core/view';
-import type { HireView, ViewIntent, ViewState } from '@jawata/chat-core/view';
+import type { HireView, ToolCallView, ViewIntent, ViewState } from '@jawata/chat-core/view';
+import { Tool } from './Calls.js';
 import { PrincipalBrainPicker, principalBrainOf } from './Pickers.js';
 import { useRunningSeconds } from './Working.js';
 
@@ -53,6 +54,14 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
   const turns = unfolded ? state.transcripts[hire.planId] : undefined;
   // The agent's own figures arrive with its tool calls, so between them the clock runs here.
   const seconds = useRunningSeconds(isWorking(hire));
+  // An opened agent that works is asked again whenever its card changes, so the calls it has made so far show (28h D57 (i)); the first ask
+  // is the fold's own.
+  const card = `${hire.state}/${hire.elapsedMs}/${hire.tokens}`;
+  const firstCard = useRef(card);
+  useEffect(() => {
+    if (!unfolded) { firstCard.current = card; return; }
+    if (card !== firstCard.current) { firstCard.current = card; send({ type: 'openTranscript', planId: hire.planId }); }
+  }, [unfolded, card, hire.planId, send]);
   return (
     <div className={'hire ' + hire.state} data-plan-id={hire.planId} data-depth={depth} style={{ marginLeft: `${depth * 16}px` }}>
       <div className={'hire-row ' + hire.state}>
@@ -72,7 +81,12 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
           ? <button className="hire-stop" title="Ends this agent. The other agents go on." onClick={() => send({ type: 'stopHire', planId: hire.planId })}>Stop</button>
           : null}
       </div>
-      {hire.task ? <div className="hire-task" title={hire.task}>{hire.task}</div> : null}
+      {hire.task ? (
+        <details className="hire-task" title={hire.task}>
+          <summary>{hire.task.trim().split('\n')[0]}</summary>
+          <pre className="hire-task-full">{hire.task}</pre>
+        </details>
+      ) : null}
       {unfolded ? (
         <div className="hire-transcript" role="log" aria-label="Transcript, read only" title="Read only">
           {turns === undefined ? <div className="hire-transcript-wait">Loading…</div>
@@ -80,6 +94,37 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
             : turns.map((t, i) => <div className={'hire-turn ' + t.role} key={i}><span className="hire-role">{t.role}</span> {t.text}</div>)}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The principal's tool calls, turn by turn as they were made, the conversation's first turn first. */
+function principalCalls(state: ViewState): ToolCallView[][] {
+  return state.entries.flatMap(e => {
+    if (e.kind !== 'turn') { return []; }
+    const calls = e.turn.parts.flatMap(p => (p.kind === 'tool' ? [p.tool] : []));
+    return calls.length > 0 ? [calls] : [];
+  });
+}
+
+const countOf = (n: number): string => `${n} tool call${n === 1 ? '' : 's'}`;
+
+/** Below the principal: the calls of its latest turn that made any, each one line that opens; the earlier turns' calls folded above them. */
+function PrincipalCalls({ state }: { state: ViewState }) {
+  const turns = principalCalls(state);
+  if (turns.length === 0) { return null; }
+  const latest = turns[turns.length - 1];
+  const earlier = turns.slice(0, -1).flat();
+  return (
+    <div className="principal-calls">
+      {earlier.length > 0 ? (
+        <details className="principal-calls-earlier">
+          <summary title="The calls the principal made in this conversation before its latest turn, in order">{`Earlier: ${countOf(earlier.length)}`}</summary>
+          {earlier.map(t => <Tool tool={t} key={t.toolCallId} />)}
+        </details>
+      ) : null}
+      <div className="principal-calls-title" title="The calls the principal made in its latest turn">{countOf(latest.length)}</div>
+      {latest.map(t => <Tool tool={t} key={t.toolCallId} />)}
     </div>
   );
 }
@@ -96,6 +141,7 @@ function PrincipalRow({ state, send, menuOpen, onMenu }: { state: ViewState; sen
         {state.processing ? <span className="hire-time" title="How long the principal has been at this message">{elapsed(seconds * 1000)}</span> : null}
         {brain ? <PrincipalBrainPicker brain={brain} open={menuOpen} onToggle={onMenu} send={send} /> : null}
       </div>
+      <PrincipalCalls state={state} />
     </div>
   );
 }

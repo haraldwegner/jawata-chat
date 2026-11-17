@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import { VIEW_CONTRACT_VERSION } from '../dist/view.js';
 import assert from 'node:assert/strict';
-import { initialViewState, reduce, waitingLine } from '../dist/view-state.js';
+import { activityLine, initialViewState, reduce } from '../dist/view-state.js';
 import { chatOn } from './play.mjs';
 import { readFileSync } from 'node:fs';
 import { sessionFile } from './play.mjs';
@@ -98,6 +98,17 @@ test('without a session those updates change nothing', () => {
   assert.equal(s.session, null);
 });
 
+test('28h D57 (b): a picture is kept on its chip and on the message that sent it, and one a session replays joins the message it came with', () => {
+  const picture = 'data:image/png;base64,AAAA';
+  const attached = fold([{ type: 'file-attached', path: 'pasted:1:shot.png', name: 'shot.png', image: picture }]);
+  assert.deepEqual(attached.attachments, [{ path: 'pasted:1:shot.png', name: 'shot.png', image: picture }]);
+  const sent = fold([open, { type: 'userPrompt', text: 'look', files: ['shot.png'], images: [picture] }]);
+  assert.deepEqual(sent.entries[0], { kind: 'user', text: 'look', files: ['shot.png'], images: [picture] });
+  // Claude replays a picture as a block of its own after the words it came with (measured 2026-11-17, 28h-S22-evidence/s26-b-image)
+  const replayed = fold([open, chunk('user_message_chunk', 'look'), update({ sessionUpdate: 'user_message_chunk', content: { type: 'image', mimeType: 'image/png', data: 'AAAA' } })]);
+  assert.deepEqual(replayed.entries, [{ kind: 'user', text: 'look', files: [], images: [picture] }]);
+});
+
 test('loading, clearing, errors and attached files; a prompt carries the names of its files', () => {
   let s = fold([{ type: 'file-attached', path: '/a/b.txt', name: 'b.txt' }]);
   assert.deepEqual(s.attachments, [{ path: '/a/b.txt', name: 'b.txt' }]);
@@ -134,25 +145,6 @@ test('a message of another version of the contract is refused: the view says so 
   assert.equal(snapshotOf1.mismatch, 1);
   assert.equal(snapshotOf1.entries.length, 1, 'the snapshot of another version is not taken');
   assert.equal(was.mismatch, undefined);
-});
-
-test('the waiting line: from the send until answer text starts, naming the tool while one is under way', () => {
-  const sent = fold([open, { type: 'userPrompt', text: 'q' }, { type: 'promptStart' }]);
-  assert.deepEqual(waitingLine(sent), {}, 'from the send, before anything arrives');
-  const thinking = reduce(sent, chunk('agent_thought_chunk', 'hm'));
-  assert.deepEqual(waitingLine(thinking), {}, 'while it thinks');
-  const tool = reduce(thinking, update({ sessionUpdate: 'tool_call', toolCallId: 't', title: 'Preparing file…', status: 'pending' }));
-  assert.deepEqual(waitingLine(tool), { tool: 'Preparing file…' });
-  const named = reduce(tool, update({ sessionUpdate: 'tool_call_update', toolCallId: 't', title: 'Write a.txt', status: 'in_progress' }));
-  assert.deepEqual(waitingLine(named), { tool: 'Write a.txt' }, 'the tool\'s current title');
-  const done = reduce(named, update({ sessionUpdate: 'tool_call_update', toolCallId: 't', status: 'completed' }));
-  assert.deepEqual(waitingLine(done), {}, 'after the call ended and before the answer');
-  const answering = reduce(done, chunk('agent_message_chunk', 'Done'));
-  assert.equal(waitingLine(answering), null, 'answer text has begun');
-  const moreWork = reduce(answering, update({ sessionUpdate: 'tool_call', toolCallId: 'u', title: 'Run tests', status: 'in_progress' }));
-  assert.deepEqual(waitingLine(moreWork), { tool: 'Run tests' }, 'a tool after the text is under way');
-  assert.equal(waitingLine(reduce(answering, { type: 'promptEnd', stopReason: 'end_turn' })), null, 'nothing between turns');
-  assert.equal(waitingLine(initialViewState()), null);
 });
 
 for (const name of ['R1', 'R2', 'R3', 'R6', 'R7']) {
@@ -219,4 +211,32 @@ test('a clear takes the draft and counts; another session keeps it; a snapshot b
   assert.equal(other.draft, 'half a thought', 'opening another session leaves what is typed');
   assert.equal(other.draftResets, typed.draftResets);
   assert.equal(reduce(initialViewState(), { type: 'snapshot', state: typed }).draft, 'half a thought', 'a reloaded page is given it');
+});
+
+test('28h D57 (i): the activity says what goes on now, thinking, the tool in use, delegating or waiting on a hire, and what opening it shows', () => {
+  const sent = fold([open, { type: 'userPrompt', text: 'q' }, { type: 'promptStart' }]);
+  assert.deepEqual(activityLine(sent), { kind: 'thinking', label: 'Thinking' }, 'from the send');
+  const thinking = reduce(sent, chunk('agent_thought_chunk', 'Which file?'));
+  assert.deepEqual(activityLine(thinking), { kind: 'thinking', label: 'Thinking', detail: 'Which file?' }, 'the thought opens in place');
+  const tool = reduce(thinking, update({ sessionUpdate: 'tool_call', toolCallId: 't', title: 'Read a.txt', status: 'in_progress', rawInput: { path: 'a.txt' } }));
+  assert.deepEqual(activityLine(tool), { kind: 'tool', label: 'Read a.txt', detail: JSON.stringify({ path: 'a.txt' }, null, 2) }, 'the tool in use, its input opens');
+  const done = reduce(tool, update({ sessionUpdate: 'tool_call_update', toolCallId: 't', status: 'completed' }));
+  assert.deepEqual(activityLine(done), { kind: 'thinking', label: 'Thinking' }, 'after the call ended');
+  const hire = { planId: 'p1', seat: 'chief-engineer', name: 'Rafael', task: 'Change Foo.\nThen Bar.', brain: 'claude', model: '', state: 'running', elapsedMs: 0, tokens: 0 };
+  const delegating = reduce(done, update({ sessionUpdate: 'tool_call', toolCallId: 'h', title: 'hire', status: 'in_progress', _meta: { 'jawata/hire': hire } }));
+  assert.deepEqual(activityLine(delegating), { kind: 'delegating', label: 'Delegating to Rafael · chief-engineer', detail: 'Change Foo.\nThen Bar.' }, 'the prompt sent opens in place');
+  const waiting = reduce(delegating, update({ sessionUpdate: 'tool_call_update', toolCallId: 'h', status: 'completed' }));
+  assert.deepEqual(activityLine(waiting), { kind: 'waiting', label: 'Waiting on Rafael · chief-engineer', detail: 'Change Foo.\nThen Bar.' }, 'a hire works and nothing else is under way');
+  const answering = reduce(waiting, chunk('agent_message_chunk', 'Done'));
+  assert.equal(activityLine(answering), null, 'replaced by the answer');
+  assert.equal(activityLine(reduce(answering, { type: 'promptEnd', stopReason: 'end_turn' })), null, 'nothing between turns');
+  assert.equal(activityLine(initialViewState()), null);
+});
+
+test('28h D57 (i): a tool call that started a hire carries the hire\'s plan', () => {
+  const hire = { planId: 'p1', seat: 'pm', task: 't', brain: 'claude', model: '', state: 'running', elapsedMs: 0, tokens: 0 };
+  const s = fold([open, { type: 'userPrompt', text: 'q' }, { type: 'promptStart' },
+    update({ sessionUpdate: 'tool_call', toolCallId: 'h', title: 'hire', status: 'pending' }),
+    update({ sessionUpdate: 'tool_call_update', toolCallId: 'h', status: 'in_progress', _meta: { 'jawata/hire': hire } })]);
+  assert.equal(s.entries.at(-1).turn.parts.at(-1).tool.planId, 'p1', 'learned from an update as well');
 });

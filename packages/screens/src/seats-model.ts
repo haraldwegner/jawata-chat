@@ -156,15 +156,20 @@ function loginNote(brain: BrainStatus): string {
  * The brains a seat can be given: each one installed here that a hire of THIS seat can start, with its default model and the models it names
  * for itself. A brain whose writes only an instruction holds is offered only to a seat whose file accepts that, because a hire of any other
  * seat refuses it. The saved choice is always offered, even when this machine cannot start it now, so the list never says something else is
- * chosen.
+ * chosen. A brain the chat can also run on takes its models from the engine's one catalogue, what that brain's own session offers (28h D57
+ * (c)), so every seat is offered the list main is; only a brain with no session of its own falls back to the models its check read.
  */
-export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[]): BrainOption[] {
+export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[], conversation: readonly ConversationBrain[] = [],
+  catalogue: Readonly<Record<string, readonly string[]>> = {}): BrainOption[] {
   const options: BrainOption[] = [];
   for (const brain of brains.filter(one => one.hirable && one.installed && (!one.writesHeldByInstruction || seat.acceptsUncontainedWrites))) {
     const note = loginNote(brain) + (brain.writesHeldByInstruction ? ' (writes held only by an instruction)' : '');
     options.push({ value: `${brain.id}|`, label: `${brain.label} — ${brain.takesModel ? 'its default model' : 'chooses its own model'}${note}` });
     if (brain.takesModel && !isConversation(seat)) {
-      for (const model of brain.models ?? []) { options.push({ value: `${brain.id}|${model}`, label: `${brain.label} — ${model}${note}` }); }
+      const ownSession = conversation.some(one => one.ready && one.id === brain.id);
+      for (const model of (ownSession ? catalogue[brain.id] : brain.models) ?? []) {
+        options.push({ value: `${brain.id}|${model}`, label: `${brain.label} — ${model}${note}` });
+      }
     }
   }
   const current = `${seat.brain}|${seat.model ?? ''}`;

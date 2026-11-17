@@ -28,8 +28,9 @@ export const closeDom = () => window.close();
  * The view mounted on a chat whose agent plays the named session. The person answers the proposals the way the recording
  * says they did, unless `answering` is false: a test of the proposals themselves answers them by clicking.
  */
-export async function viewOn(name, { answering = true, role = 'chat' } = {}) {
-  const session = readSession(sessionFile(name));
+export async function viewOn(name, { answering = true, role = 'chat', without = () => false } = {}) {
+  // `without` leaves recorded lines out, for a case no recording holds (such as an agent that sends no commands)
+  const session = readSession(sessionFile(name)).filter(line => !without(line));
   const port = new LoopbackPort();
   const chat = chatWith((input, output) => replayAgent(session, output, input), port);
   const answers = session.filter(l => l.dir === 'send' && l.msg.result?.outcome?.optionId).map(l => l.msg.result.outcome.optionId);

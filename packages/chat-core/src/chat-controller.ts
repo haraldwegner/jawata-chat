@@ -314,7 +314,8 @@ export class ChatController {
   /** Hold a picture's bytes beside its path until the prompt it goes with is sent. */
   private hold(path: string, image?: PromptImage, name?: string): void {
     if (image) { this.images.set(path, image); }
-    this.post({ type: 'file-attached', path, name: name ?? (path.split(/[\\/]/).pop() || path) });
+    // a picture's chip shows it before it is sent (28h D57 (b))
+    this.post({ type: 'file-attached', path, name: name ?? (path.split(/[\\/]/).pop() || path), ...(image ? { image: dataUrl(image) } : {}) });
   }
 
   /** Tell the page to include this file in the next prompt, and bring the page into view. */
@@ -465,7 +466,9 @@ export class ChatController {
       this.post({ type: 'error', message: 'No active session. Create a session first.' });
       return;
     }
-    this.post({ type: 'userPrompt', text, files: paths.map(baseName) });
+    // the sent message shows the pictures it carries (28h D57 (b)); they are let go of below, once the prompt has them
+    const images = paths.flatMap(path => { const image = this.images.get(path); return image ? [dataUrl(image)] : []; });
+    this.post({ type: 'userPrompt', text, files: paths.map(baseName), ...(images.length > 0 ? { images } : {}) });
     this.post({ type: 'promptStart' });
     try {
       const answer = await this.sessions.sendPrompt(sessionId, text, paths.filter(p => !this.images.has(p)), this.takeImages(paths));
@@ -668,5 +671,8 @@ function pickShown({ sessionId, agentDisplayName, title, cwd, modes, models, con
 }
 
 /** The last part of a path, whichever separator it uses. */
+/** A picture as the page draws it: a data URL of its type and bytes. */
+const dataUrl = (image: PromptImage): string => `data:${image.mimeType};base64,${image.data}`;
+
 /** The name a file goes by in the thread; a pasted picture's path is only a key, so its own name is what is shown. */
 const baseName = (path: string): string => path.replace(/^pasted:\d+:/, '').split(/[\\/]/).pop() || path;

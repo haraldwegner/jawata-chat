@@ -47,6 +47,20 @@ test('a brain whose writes only an instruction holds is offered only to a seat w
 
 const chat = (id, extra = {}) => ({ id, label: id.toUpperCase(), ready: true, install: null, ...extra });
 
+test('28h D57 (c): a hired seat is offered the same models as main, the ones each brain\'s own session offers, and not the list the brain check read', () => {
+  const roster = [brain('claude-code', { models: ['fable', 'opus'] }), brain('cursor')];
+  const conversation = [chat('claude-code'), chat('cursor')];
+  const catalogue = { 'claude-code': ['Opus 5.5', 'Haiku 5.5'], cursor: ['grok-4.7'] };
+
+  const observer = brainOptions(seat('observer'), roster, conversation, catalogue).map(option => option.value);
+  const main = conversationOptions(seat('main'), conversation, roster, catalogue).map(option => option.value);
+
+  assert.deepEqual(observer, ['claude-code|', 'claude-code|Opus 5.5', 'claude-code|Haiku 5.5', 'cursor|', 'cursor|grok-4.7']);
+  assert.deepEqual(observer, main, 'the observer and main are offered different lists');
+  assert.deepEqual(brainOptions(seat('observer'), roster, conversation, {}).map(option => option.value), ['claude-code|', 'cursor|'],
+    'before the catalogue is read only the defaults, never the --help names');
+});
+
 test('main and btw are offered each brain the chat runs on, its default first and then the models its own session offers', () => {
   const conversation = [chat('claude-code'), chat('codex', { ready: false, install: 'npm install -g @zed-industries/codex-acp' })];
   const before = conversationOptions(seat('main'), conversation, [brain('claude-code')], {});

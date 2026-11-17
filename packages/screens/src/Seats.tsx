@@ -35,7 +35,7 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
   }, [port]);
 
   /**
-   * Asked when the person opens a conversation seat's row, or its list, never as the page is read: each brain's first ask opens one session of
+   * Asked when the person opens any seat's row, or its list (28h D57 (c): every seat takes the one catalogue), never as the page is read: each brain's first ask opens one session of
    * it. Opening the row asks before the list is clicked, because a list the browser has already opened does not show options that arrive later.
    */
   const askModels = (): void => {
@@ -125,7 +125,7 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
                     </label>
                   )
                   : <span className="seat-on" />}
-                <details className="screen-fold seat-row" onToggle={isConversation(seat) ? event => { if (event.currentTarget.open) { askModels(); } } : undefined}>
+                <details className="screen-fold seat-row" onToggle={event => { if (event.currentTarget.open) { askModels(); } }}>
                   <summary>
                     <span className="seat-name" title={invocationHint(seat)}>{seatName(seat)}</span>
                     <span className="seat-first">{firstSentence(seat.purpose)}</span>
@@ -140,9 +140,9 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
                         ? 'checking which brains this machine has…'
                         : (
                           <select className="seat-brain" value={`${seat.brain}|${seat.model ?? ''}`} disabled={busy || testing[seat.name] === true}
-                            onFocus={isConversation(seat) ? askModels : undefined} onMouseDown={isConversation(seat) ? askModels : undefined}
+                            onFocus={askModels} onMouseDown={askModels}
                             onChange={event => { void chooseBrain(seat, event.currentTarget.value); }}>
-                            {(isConversation(seat) ? conversationOptions(seat, conversation, brains, models) : brainOptions(seat, brains))
+                            {(isConversation(seat) ? conversationOptions(seat, conversation, brains, models) : brainOptions(seat, brains, conversation, models))
                               .map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                           </select>
                         )}

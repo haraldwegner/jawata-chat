@@ -80,8 +80,8 @@ test('R12: a row shows the seat with its command, the brain, state, time, tokens
     assert.equal(pm.querySelector('.hire-seat').textContent.replace(/\s+/g, ' ').trim(), 'pm (/pm)');
     assert.equal(pm.querySelector('.brain-btn').textContent, 'claude · sonnet ▾');
     assert.equal(pm.querySelector('.hire-state').textContent, 'running');
-    assert.equal(pm.querySelector('.hire-task').textContent, 'Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.');
-    assert.equal(pm.querySelector('.hire-task').getAttribute('title'), pm.querySelector('.hire-task').textContent, 'the task is never cut: the mouseover has it all');
+    assert.equal(pm.querySelector('.hire-task summary').textContent, 'Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.');
+    assert.equal(pm.querySelector('.hire-task').getAttribute('title'), pm.querySelector('.hire-task summary').textContent, 'the task is never cut: the mouseover has it all');
     assert.equal(pm.querySelector('.hire-cost'), null, 'the pm sent no cost: no cost shows, and not $0.000');
     const ce = v.$('.hire[data-plan-id="p-ce"]');
     assert.equal(ce.querySelector('.hire-state').textContent, 'compacting');
@@ -165,5 +165,36 @@ test('R12: the brain is a control: clicking it shows what the agent offers, pick
     assert.equal(intents.filter(i => i.type === 'listBrains').length, 2, 'the list is asked for each time it opens, so a brain the agent gained since shows');
     await v.click(v.$$('.brain-item').find(e => e.textContent.includes('codex')));
     assert.equal(intents.filter(i => i.type === 'chooseBrain').length, 1, 'choosing the brain it already has asks for nothing');
+  } finally { v.dispose(); }
+});
+
+test('28h D57 (i): a hire\'s prompt folds to its first line, and opened it shows all of it', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const hire = { planId: 'p-x', seat: 'chief-engineer', name: 'Rafael', task: 'INSTRUCTION 1\nTOOL: Edit\nFILE: a.txt', brain: 'claude', model: '', state: 'running', elapsedMs: 0, tokens: 0 };
+    await post(v, { sessionUpdate: 'tool_call', toolCallId: 'hx', title: 'hire', status: 'completed', kind: 'other', _meta: { 'jawata/hire': hire } });
+    const task = v.$('.hire[data-plan-id="p-x"] .hire-task');
+    assert.equal(task.querySelector('summary').textContent, 'INSTRUCTION 1', 'one line');
+    assert.equal(task.open, false, 'folded');
+    task.open = true;
+    assert.equal(task.querySelector('.hire-task-full').textContent, 'INSTRUCTION 1\nTOOL: Edit\nFILE: a.txt', 'all of it');
+  } finally { v.dispose(); }
+});
+
+test('28h D57 (i): an opened agent that still works is asked again for what it said each time its card changes, so its calls so far show', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const intents = await intentsOf(v);
+    const hire = { planId: 'p-y', seat: 'developer', task: 'Edit Foo', brain: 'claude', model: '', state: 'running', elapsedMs: 1000, tokens: 0 };
+    await post(v, { sessionUpdate: 'tool_call', toolCallId: 'hy', title: 'hire', status: 'completed', kind: 'other', _meta: { 'jawata/hire': hire } });
+    await v.click(v.$('.hire[data-plan-id="p-y"] .hire-fold'));
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-y', turns: [{ role: 'user', text: 'Edit Foo' }, { role: 'tool', text: 'Read Foo.java' }] }); });
+    assert.deepEqual(v.$$('.hire[data-plan-id="p-y"] .hire-turn').map(e => e.textContent.replace(/\s+/g, ' ').trim()), ['user Edit Foo', 'tool Read Foo.java'], 'its prompt, then its calls');
+    const asked = () => intents.filter(i => i.type === 'openTranscript' && i.planId === 'p-y').length;
+    assert.equal(asked(), 1);
+    await act(async () => { v.port.post({ type: 'hireChanged', hire: { ...hire, elapsedMs: 4000, tokens: 900 } }); });
+    assert.equal(asked(), 2, 'asked again when the card changed');
   } finally { v.dispose(); }
 });

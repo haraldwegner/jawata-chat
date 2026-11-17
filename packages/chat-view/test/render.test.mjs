@@ -60,14 +60,26 @@ test('a one-word answer is one text node on one line: it is not split', async ()
   } finally { v.dispose(); }
 });
 
-test('R2: a tool call shows with its title and its outcome, and the turn counts its calls', async () => {
+test('28h D57 (i), R2: the chat shows the answer and no tool call', async () => {
   const v = await viewOn('R2');
   try {
     await v.connect();
     await v.settle();
     await v.type('go');
     await v.key('Enter');
-    await v.settle(() => v.$$('.tool-call-inline').length > 0 && !v.$('.send-stop-btn.stop'));
+    await v.settle(() => turnEnded(v));
+    assert.ok(v.$('.turn .message.assistant'), 'the answer');
+    assert.equal(v.$$('.tool-call-inline').length + v.$$('.turn-tools').length, 0, 'no call rows');
+  } finally { v.dispose(); }
+});
+
+test('28h D57 (i), R2: Agent Control lists each of the principal\'s calls below it, with the agent\'s title and the outcome, and the count', async () => {
+  const v = await viewOn('R2', { role: 'agents' });
+  try {
+    await v.connect();
+    await v.settle();
+    await act(async () => { await v.chat.sendPrompt('go'); });
+    await v.settle(() => v.$$('.principal-calls .tool-call-inline .tc-icon.completed').length > 0);
     const calls = notifications('R2', 'tool_call');
     assert.ok(calls.length > 0);
     // the title of each call as the agent last gave it: its own, or a later update's
@@ -77,7 +89,8 @@ test('R2: a tool call shows with its title and its outcome, and the turn counts 
     assert.deepEqual(titles, calls.map(c => lastTitle.get(c.toolCallId)), 'one line per call, with the agent\'s title');
     assert.ok(titles.every(t => t.length > 0 && t !== 'Tool Call'), 'not the placeholder');
     assert.ok(v.$('.tool-call-inline .tc-icon.completed') || v.$('.tool-call-inline .tc-icon.failed'), 'the outcome shows');
-    assert.match(v.$('.turn-tools-summary').textContent, /\d+ tool calls?/);
+    assert.ok(['completed', 'failed', 'running', 'waiting to start'].includes(v.$('.tc-icon').getAttribute('title')), 'a call says its state');
+    assert.match(v.$('.principal-calls-title').textContent, /\d+ tool calls?/);
   } finally { v.dispose(); }
 });
 
@@ -277,7 +290,7 @@ test('the blocks that no one decides with are gone: no icon, title or hint in th
   } finally { v.dispose(); }
 });
 
-test('what a control does is in its mouseover: connect, configure, send, stop, the banner, the calls, the thought, the error', async () => {
+test('what a control does is in its mouseover: connect, configure, send, stop, the banner, the thought, the error', async () => {
   const v = await viewOn('R2');
   try {
     const say = (el) => el.getAttribute('title');
@@ -292,9 +305,7 @@ test('what a control does is in its mouseover: connect, configure, send, stop, t
     assert.equal(v.$$('.session-banner .cwd').length, 0, 'and not a line of its own');
     await v.type('go');
     await v.key('Enter');
-    await v.settle(() => v.$$('.tool-call-inline').length > 0 && !v.$('.send-stop-btn.stop'));
-    assert.match(say(v.$('.turn-tools-summary')), /show or fold the calls/);
-    assert.ok(['completed', 'failed', 'running', 'waiting to start'].includes(say(v.$('.tc-icon'))), 'a call says its state');
+    await v.settle(() => turnEnded(v));
     await act(async () => { v.port.post({ type: 'promptStart' }); });
     assert.match(say(v.$('.send-stop-btn.stop')), /Stop the running answer/);
     await act(async () => { v.port.post({ type: 'error', message: 'x' }); });

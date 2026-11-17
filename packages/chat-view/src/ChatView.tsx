@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from 'react';
-import { READY_INTENT, initialViewState, reduce, type PageTransport } from '@jawata/chat-core/view';
+import { READY_INTENT, activityLine, initialViewState, reduce, type PageTransport } from '@jawata/chat-core/view';
 import { AgentsPanel } from './Agents.js';
 import { History } from './History.js';
 import { InputArea } from './InputArea.js';
@@ -54,7 +54,7 @@ export function ChatView({ transport, role = 'chat' }: { transport: PageTranspor
         onConnect={() => transport.send({ type: 'connectAgent' })}
         onConfigure={() => transport.send({ type: 'configureAgent' })} />
       <Proposals state={state} send={transport.send.bind(transport)} />
-      <Working running={state.processing} />
+      <Working running={state.processing} activity={activityLine(state)} />
       <InputArea state={state} send={transport.send.bind(transport)} />
       <div className={'load-overlay' + (state.loading ? ' visible' : '')} role="status" aria-live="polite">
         <div className="spinner" />

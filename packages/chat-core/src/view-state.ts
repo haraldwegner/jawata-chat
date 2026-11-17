@@ -21,6 +21,8 @@ export interface ToolCallView {
   output?: unknown;
   /** Diffs, terminal output and other content the call produced. */
   content: ToolCallContent[];
+  /** The plan of the hire this call started, when it is a hire call. */
+  planId?: string;
 }
 
 /** One hired agent as the agents view shows it: what the agent sent in `_meta["jawata/hire"]`, kept by plan. */
@@ -156,6 +158,8 @@ interface TurnView {
 interface PromptView {
   text: string;
   files: string[];
+  /** The pictures sent with it, as data URLs; absent when none was (28h D57 (b)). */
+  images?: string[];
 }
 
 /** What the conversation holds, in order. */
@@ -184,7 +188,7 @@ export interface ViewState {
   /** A session is being loaded: its history is replaying. */
   loading: boolean;
   /** Files the person attached for the next prompt. */
-  attachments: { path: string; name: string }[];
+  attachments: { path: string; name: string; image?: string }[];
   /** Prompts typed during a turn, to be sent when it ends, oldest first. */
   queued: PromptView[];
   /** The agents hired in this conversation, as the agent last said about each. Not part of the conversation. */
@@ -281,6 +285,12 @@ function withSession(state: ViewState, change: (session: ViewSession) => ViewSes
   return state.session ? { ...state, session: change(state.session) } : state;
 }
 
+/** A picture's data URL, from a content block that carries one; undefined for any other block (28h D57 (b)). */
+function imageOf(content: unknown): string | undefined {
+  const c = content as { type?: unknown; mimeType?: unknown; data?: unknown } | undefined;
+  return c && c.type === 'image' && typeof c.mimeType === 'string' && typeof c.data === 'string' && c.data ? `data:${c.mimeType};base64,${c.data}` : undefined;
+}
+
 function textOf(content: unknown): string | undefined {
   const c = content as { type?: unknown; text?: unknown } | undefined;
   return c && c.type === 'text' && typeof c.text === 'string' ? c.text : undefined;
@@ -302,7 +312,7 @@ function mergedTool(old: ToolCallView, update: ToolUpdate): ToolCallView {
 }
 
 /** The state with the tool call this update names merged with what it says; unchanged if no answer holds that call. */
-function withUpdatedTool(state: ViewState, update: ToolUpdate): ViewState {
+function withUpdatedTool(state: ViewState, update: ToolUpdate, planId?: string): ViewState {
   for (let i = state.entries.length - 1; i >= 0; i--) {
     const entry = state.entries[i];
     if (entry.kind !== 'turn') { continue; }
@@ -311,7 +321,8 @@ function withUpdatedTool(state: ViewState, update: ToolUpdate): ViewState {
     while (at >= 0) { const p = entry.turn.parts[at]; if (p.kind === 'tool' && p.tool.toolCallId === update.toolCallId) { break; } at--; }
     if (at < 0) { continue; }
     const part = entry.turn.parts[at] as Extract<PartView, { kind: 'tool' }>;
-    const parts = replacingAt(entry.turn.parts, at, { kind: 'tool', tool: mergedTool(part.tool, update) });
+    const merged = mergedTool(part.tool, update);
+    const parts = replacingAt(entry.turn.parts, at, { kind: 'tool', tool: planId ? { ...merged, planId } : merged });
     return { ...state, entries: replacingAt(state.entries, i, { kind: 'turn', turn: { ...entry.turn, parts } }) };
   }
   return state;
@@ -336,10 +347,18 @@ function reduceUpdate(state: ViewState, update: Extract<ViewMessage, { type: 'se
     }
     case 'user_message_chunk': {
       // only a replayed session carries the person's earlier messages; they end the answer before them
+      const image = imageOf(update.content);
       const text = textOf(update.content);
-      if (text === undefined) { return state; }
+      if (text === undefined && image === undefined) { return state; }
       const ended = withTurnEnded(state);
       const last = ended.entries[ended.entries.length - 1];
+      if (image !== undefined) {
+        // a picture the agent replays belongs to the message it came with (28h D57 (b)): Claude replays it as a block of its own
+        return last && last.kind === 'user'
+          ? { ...ended, entries: replacingLast(ended.entries, { ...last, images: [...(last.images ?? []), image] }) }
+          : { ...ended, entries: appending(ended.entries, { kind: 'user', text: '', files: [], images: [image] }) };
+      }
+      if (text === undefined) { return state; }
       if (last && last.kind === 'user') {
         return { ...ended, entries: replacingLast(ended.entries, { ...last, text: last.text + text }) };
       }
@@ -355,6 +374,7 @@ function reduceUpdate(state: ViewState, update: Extract<ViewMessage, { type: 'se
         ...(update.rawInput !== undefined ? { input: update.rawInput } : {}),
         ...(update.rawOutput !== undefined ? { output: update.rawOutput } : {}),
         content: update.content ?? [],
+        ...(hire ? { planId: hire.planId } : {}),
       };
       const withTool = withParts(state, parts => appending(parts, { kind: 'tool', tool }));
       return hire ? { ...withTool, hires: withHire(withTool.hires, hire) } : withTool;
@@ -362,7 +382,7 @@ function reduceUpdate(state: ViewState, update: Extract<ViewMessage, { type: 'se
     case 'tool_call_update': {
       const hire = hireIn(update._meta);
       const noted = hire ? { ...state, hires: withHire(state.hires, hire) } : state;
-      return withUpdatedTool(noted, update);
+      return withUpdatedTool(noted, update, hire?.planId);
     }
     case 'plan':
       return { ...state, plan: update.entries };
@@ -426,7 +446,8 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
     case 'userPrompt': {
       const sent: PromptView = { text: message.text, files: message.files ?? [] };
       const ended = withTurnEnded(state);
-      return { ...ended, attachments: [], queued: withoutQueuedHead(state.queued, sent), entries: appending(ended.entries, { kind: 'user', ...sent }) };
+      const images = message.images && message.images.length > 0 ? { images: message.images } : {};
+      return { ...ended, attachments: [], queued: withoutQueuedHead(state.queued, sent), entries: appending(ended.entries, { kind: 'user', ...sent, ...images }) };
     }
     case 'promptQueued':
       return { ...state, attachments: [], queued: [...state.queued, { text: message.text, files: message.files ?? [] }] };
@@ -487,33 +508,48 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
     case 'sideClosed':
       return { ...state, side: null };
     case 'file-attached':
-      return { ...state, attachments: [...state.attachments, { path: message.path, name: message.name }] };
+      return { ...state, attachments: [...state.attachments, { path: message.path, name: message.name, ...(message.image ? { image: message.image } : {}) }] };
     case 'file-detached':
       return { ...state, attachments: state.attachments.filter(a => a.path !== message.path) };
   }
 }
 
-/** What the waiting line says. */
-export interface WaitingLine {
-  /** The title of the tool call that is under way, if one is; otherwise the line says only that the agent is thinking. */
-  tool?: string;
+/** What goes on now, as the working line says it beside its dots and seconds. */
+export interface Activity {
+  kind: 'thinking' | 'tool' | 'delegating' | 'waiting';
+  /** The words on the line: "Thinking", the tool's title, "Delegating to Rafael · pm", "Waiting on Rafael · pm". */
+  label: string;
+  /** What opening the line shows: the thought so far, what went into the tool, the prompt the hire was sent. Absent when there is no more. */
+  detail?: string;
 }
 
+/** A hire as the line names it: its name and its seat, or its seat alone. */
+const hireName = (hire: HireView): string => (hire.name ? `${hire.name} · ${hire.seat}` : hire.seat);
+
 /**
- * The line the chat shows while the agent is working and has not begun to write its answer: from the
- * send until answer text starts, which includes the time after a tool call has ended and the time after
- * a thought. Nothing while answer text is the latest part, and nothing between turns. While a tool
- * call is pending or running it names the tool.
+ * What the agent does now, from the send until answer text starts: the tool in use (a hire call says whom it delegates to and the prompt
+ * it sent), else the hire it waits on while one works, else that it thinks. Nothing while answer text is the latest part, and nothing
+ * between turns: the answer replaces the line.
  */
-export function waitingLine(state: ViewState): WaitingLine | null {
+export function activityLine(state: ViewState): Activity | null {
   if (!state.processing) { return null; }
-  const turn = openTurn(state);
-  const parts = turn ? turn.parts : [];
-  if (parts.length > 0 && parts[parts.length - 1].kind === 'text') { return null; }
+  const parts = openTurn(state)?.parts ?? [];
+  const last = parts[parts.length - 1];
+  if (last && last.kind === 'text') { return null; }
   for (let i = parts.length - 1; i >= 0; i--) {
     const part = parts[i];
     if (part.kind === 'text') { break; }
-    if (part.kind === 'tool' && (part.tool.status === 'pending' || part.tool.status === 'in_progress')) { return { tool: part.tool.title }; }
+    if (part.kind !== 'tool' || (part.tool.status !== 'pending' && part.tool.status !== 'in_progress')) { continue; }
+    const hire = part.tool.planId ? state.hires.find(h => h.planId === part.tool.planId) : undefined;
+    if (hire) { return { kind: 'delegating', label: `Delegating to ${hireName(hire)}`, ...(hire.task ? { detail: hire.task } : {}) }; }
+    const input = part.tool.input === undefined ? '' : typeof part.tool.input === 'string' ? part.tool.input : JSON.stringify(part.tool.input, null, 2);
+    return { kind: 'tool', label: part.tool.title, ...(input && input !== '{}' ? { detail: input } : {}) };
   }
-  return {};
+  const working = state.hires.filter(isWorking);
+  if (working.length > 0) {
+    const latest = working[working.length - 1];
+    const others = working.length > 1 ? ` and ${working.length - 1} more` : '';
+    return { kind: 'waiting', label: `Waiting on ${hireName(latest)}${others}`, ...(latest.task ? { detail: latest.task } : {}) };
+  }
+  return { kind: 'thinking', label: 'Thinking', ...(last && last.kind === 'thought' && last.text.trim() ? { detail: last.text } : {}) };
 }

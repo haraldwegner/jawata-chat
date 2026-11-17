@@ -32,8 +32,9 @@ export interface Disposable {
  * 8: the Agent Control panel (CR2): the hires are a tree and carry a seat command, a task and an optional cost; the person can ask for the
  *    brains on offer and replace an agent's (`listBrains`, `chooseBrain`; `brainList`, `hireChanged`; the state's `brains`).
  * 10: what the person typed and sent, kept across conversations for the input's arrows (28h D56 (g)): `inputHistory`, and the state's `inputHistory`.
+ * 11: a picture is shown before and after it is sent (28h D57 (b)): `file-attached` carries its `image`, `userPrompt` its `images`.
  */
-export const VIEW_CONTRACT_VERSION = 10;
+export const VIEW_CONTRACT_VERSION = 11;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -64,7 +65,8 @@ export type ViewMessage =
   | { type: 'state'; contractVersion: number; activeSessionId: string | null; session: ViewSession | null }
   | { type: 'sessionUpdate'; update: SessionNotification['update']; sessionId: string }
   /** The prompt the person sent, from the page or from a command: the page draws it from this, so a prompt sent any way shows. */
-  | { type: 'userPrompt'; text: string; files?: string[] }
+  /** `images`: the pictures sent with it, as data URLs, so the sent message shows them (28h D57 (b)). */
+  | { type: 'userPrompt'; text: string; files?: string[]; images?: string[] }
   /** A prompt typed while a turn ran: it waits, and is sent (as a `userPrompt`) when the turn ends. */
   | { type: 'promptQueued'; text: string; files?: string[] }
   | { type: 'promptStart' }
@@ -77,7 +79,8 @@ export type ViewMessage =
   | { type: 'loadSessionEnd'; ok: boolean }
   | { type: 'sessionInfoUpdate'; title: string | null }
   | { type: 'clearChat' }
-  | { type: 'file-attached'; path: string; name: string }
+  /** `image`: a picture's data URL, so its chip shows it before it is sent (28h D57 (b)); absent for any other file. */
+  | { type: 'file-attached'; path: string; name: string; image?: string }
   /** The person took an attached file back out before sending. */
   | { type: 'file-detached'; path: string }
   /** What the agent answered when asked for a hired agent's transcript. */
@@ -171,7 +174,7 @@ type Mismatched<U extends { type: string }, R extends { readonly [T in U['type']
 export const VIEW_MESSAGE_FIELDS = {
   state: ['contractVersion', 'activeSessionId', 'session'],
   sessionUpdate: ['update', 'sessionId'],
-  userPrompt: ['text', 'files'],
+  userPrompt: ['text', 'files', 'images'],
   promptQueued: ['text', 'files'],
   promptStart: [],
   promptEnd: ['stopReason', 'usage'],
@@ -183,7 +186,7 @@ export const VIEW_MESSAGE_FIELDS = {
   loadSessionEnd: ['ok'],
   sessionInfoUpdate: ['title'],
   clearChat: [],
-  'file-attached': ['path', 'name'],
+  'file-attached': ['path', 'name', 'image'],
   'file-detached': ['path'],
   hireTranscript: ['planId', 'turns'],
   brainList: ['brains'],

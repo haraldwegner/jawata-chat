@@ -38,6 +38,8 @@ suite('The chat page is the chat-view bundle', function () {
 			assert.ok(html.value.includes(`<script nonce="${nonce}" src="https://webview.test${vscode.Uri.file(path.join(root, 'dist', 'webview.js')).path}"></script>`), html.value);
 			assert.ok(html.value.includes('<div id="root"></div>'));
 			assert.ok(!/<script nonce="[^"]*">/.test(html.value), 'no inline script');
+			// 28h D57 (b): a pasted picture is a data URL, and the page loads no picture from anywhere else
+			assert.ok(/img-src data:[;"]/.test(html.value), `pictures as data URLs, and only those: ${html.value}`);
 			seen.add(nonce);
 		}
 		assert.strictEqual(seen.size, 50, 'every page has a nonce of its own');

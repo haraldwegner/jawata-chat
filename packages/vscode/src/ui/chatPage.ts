@@ -15,7 +15,8 @@ export interface PageHost {
 export function pageHtml(webview: vscode.Webview, extensionUri: vscode.Uri, role: 'chat' | 'agents' | 'side' = 'chat'): string {
   const nonce = randomBytes(16).toString('base64url');
   const script = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));
-  const policy = [`default-src 'none'`, `style-src ${webview.cspSource} 'unsafe-inline'`, `script-src 'nonce-${nonce}'`].join('; ');
+  // a picture the person pasted is shown as a data URL, and nothing else is loaded as an image (28h D57 (b))
+  const policy = [`default-src 'none'`, `style-src ${webview.cspSource} 'unsafe-inline'`, `script-src 'nonce-${nonce}'`, `img-src data:`].join('; ');
   return [
     '<!DOCTYPE html>',
     '<html lang="en">',

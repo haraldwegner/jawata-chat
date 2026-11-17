@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
-import { createChat, type ChatController, type HostPorts, type SessionManager } from '@jawata/chat-core';
+import { AGENT_KEY, createChat, type ChatController, type HostPorts, type SessionManager } from '@jawata/chat-core';
+import { connectsAtStart } from './startup';
 import { chatCommands } from './commands';
 import { createVscodeHost } from './host/vscodeHost';
 import { version as extensionVersion } from '../package.json';
@@ -33,6 +34,8 @@ export interface JawataChatApi {
   recordingsDir: string;
   /** The places whose page has said ready, in the order it did. */
   readyPlaces: readonly Place[];
+  /** Settles when the chat's connect at start is over, whether it connected or said why not; at once when it did not connect at start. */
+  started: Promise<void>;
 }
 
 /** @public called by the editor */
@@ -114,8 +117,14 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
     },
   );
 
+  // the chat opens with the window and connects in a new session, with no click (28h D57 (e)); the connect waits for the studio and the
+  // engine (holdUntil above), its progress says so meanwhile, and a connect that fails says why
+  const started = connectsAtStart(Boolean(host.settings.agents()[AGENT_KEY]), testMode, process.env)
+    ? showChat().then(() => chat.flow.connect(), error => { logError('the chat could not be opened at start', error); })
+    : Promise.resolve();
+
   log('jawata chat extension activated.');
-  return testMode ? { chat, sessionManager, host, recordingsDir, readyPlaces } : undefined;
+  return testMode ? { chat, sessionManager, host, recordingsDir, readyPlaces, started } : undefined;
 }
 
 /** @public called by the editor */

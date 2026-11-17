@@ -27,6 +27,8 @@ const TOKENS = `
   --jc-gap: 8px;
   --jc-pad: 12px;
   --jc-round: 8px;
+  /* what lies behind a picture shown full size over the chat (28h D57 (b)) */
+  --jc-backdrop: color-mix(in srgb, var(--jc-ground) 85%, transparent);
 `;
 
 /** Rules as [selectors, declarations]; the scope is put in front of every selector here, once. */
@@ -84,14 +86,8 @@ const RULES: Rule[] = [
   ['.thought-block[open] .thought-gist', 'display: none;'],
   ['.thought-label', 'font-weight: 600;'],
   ['.thought-block .thought-content', 'margin-top: 4px; padding-left: 10px; border-left: 2px solid var(--jc-edge); white-space: pre-wrap;'],
-  ['.waiting-line', 'color: var(--jc-quiet);'],
-  ['.waiting-tool', 'font-weight: 600;'],
-  ['.dots', 'display: inline-block; overflow: hidden; vertical-align: bottom; width: 0; animation: jc-dots 1.2s steps(4, end) infinite;'],
 
-  // tool calls: a line that folds
-  ['.turn-tools-summary', 'cursor: pointer; user-select: none; color: var(--jc-quiet); font-size: 0.92em;'],
-  ['.turn-tools-list', 'display: flex; flex-direction: column; gap: 2px; margin-top: 2px;'],
-  ['.turn-tools-list.collapsed', 'display: none;'],
+  // tool calls, in Agent Control below the agent that made them: a line that folds
   ['.tool-call-inline', 'font-size: 0.92em;'],
   ['.tool-call-inline summary', 'display: flex; gap: 6px; align-items: baseline; cursor: pointer; list-style: none;'],
   ['.tool-call-inline summary::-webkit-details-marker', 'display: none;'],
@@ -121,6 +117,11 @@ const RULES: Rule[] = [
   ['.hire-fold', 'font: inherit; font-size: 0.9em; padding: 0 2px; cursor: pointer; color: var(--jc-quiet); background: none; border: 0;'],
   ['.hire-cmd', 'font-family: var(--jc-mono, monospace); font-size: 0.9em; font-weight: 400; color: var(--jc-quiet);'],
   ['.hire-task', 'margin: 1px 0 0 22px; overflow-wrap: anywhere;'],
+  ['.hire-task summary', 'cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
+  ['.hire-task-full', 'margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit;'],
+  ['.principal-calls', 'margin: 2px 0 0 22px; display: flex; flex-direction: column; gap: 2px;'],
+  ['.principal-calls-title, .principal-calls-earlier summary', 'color: var(--jc-quiet); font-size: 0.92em;'],
+  ['.principal-calls-earlier summary', 'cursor: pointer;'],
   ['.hire-transcript-empty', 'color: var(--jc-quiet); font-style: italic;'],
   ['.agents-none', 'color: var(--jc-quiet); padding: 2px 0;'],
   ['.brain-wrap', 'position: relative; display: inline-block;'],
@@ -190,6 +191,13 @@ const RULES: Rule[] = [
   ['.attachment-chip', 'display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 8px; border-radius: 10px; font-size: 0.9em; background: var(--jc-mine); color: var(--jc-mine-text);'],
   ['.chip-remove', 'font: inherit; line-height: 1; padding: 0 4px; border: 0; border-radius: 50%; cursor: pointer; background: transparent; color: inherit;'],
   ['.chip-remove:hover', 'background: var(--jc-edge);'],
+  // a picture shown small before and after it is sent, and full size over the chat when clicked (28h D57 (b))
+  ['.picture-thumb', 'padding: 0; border: 0; background: transparent; cursor: zoom-in; line-height: 0;'],
+  ['.picture-thumb img', 'max-height: 48px; max-width: 96px; border-radius: 4px; object-fit: cover;'],
+  ['.user-images', 'display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;'],
+  ['.user-images .picture-thumb img', 'max-height: 120px; max-width: 240px;'],
+  ['.picture-full', 'position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: var(--jc-backdrop); cursor: zoom-out;'],
+  ['.picture-full img', 'max-width: 95vw; max-height: 95vh; object-fit: contain;'],
   ['.input-toolbar', 'display: flex; align-items: center;'],
   ['.picker-row', 'display: flex; flex-wrap: wrap; gap: 4px;'],
   ['.picker-wrap', 'position: relative;'],
@@ -213,6 +221,9 @@ const RULES: Rule[] = [
   ['.working-dots i', 'display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: var(--jc-accent); animation: jc-pulse 1.2s infinite;'],
   ['.working-dots i:nth-child(2)', 'animation-delay: 0.2s;'],
   ['.working-dots i:nth-child(3)', 'animation-delay: 0.4s;'],
+  ['.working-activity', 'min-width: 0; flex: 1;'],
+  ['.working-activity summary', 'cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
+  ['.working-detail', 'margin: 4px 0 0; max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--jc-host-mono, ui-monospace, monospace); font-size: 0.92em;'],
   ['.side-head', 'display: flex; align-items: center; justify-content: space-between;'],
   ['.side-title', 'font-size: 0.85em; text-transform: uppercase; color: var(--jc-quiet);'],
   ['.side-close-btn', 'font: inherit; font-size: 0.85em; padding: 1px 8px; border-radius: 4px; cursor: pointer; color: var(--jc-text); background: transparent; border: 1px solid var(--jc-edge);'],
@@ -248,10 +259,9 @@ const RULES: Rule[] = [
 const MOTION = `
 @keyframes jc-spin { to { transform: rotate(360deg); } }
 @keyframes jc-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
-@keyframes jc-dots { to { width: 1.2em; } }
 @media (prefers-reduced-motion: reduce) {
   ${SCOPE} .spinner { animation: none; }
-  ${SCOPE} .dots { animation: none; width: auto; }
+  ${SCOPE} .working-dots i { animation: none; }
 }`;
 
 export const CHAT_CSS = `${hostRule}\n${scoped(RULES)}\n${MOTION}\n`;

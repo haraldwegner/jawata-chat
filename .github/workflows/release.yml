@@ -86,8 +86,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p engine
-          gh release download --repo haraldwegner/jawata-mcp --pattern 'jawata-*-linux-x64.tar.gz' --dir engine
-          tar -xzf engine/jawata-*-linux-x64.tar.gz -C engine
+          # A read only download of another repository's public release, made with curl: the step must also run on a dispatch run, and the test
+          # of this file (release-workflow.test.mjs) holds every step that calls the GitHub command line about a release to a tag run.
+          URL="$(curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" https://api.github.com/repos/haraldwegner/jawata-mcp/releases/latest \
+            | jq -r '.assets[] | select(.name | endswith("linux-x64.tar.gz")) | .browser_download_url')"
+          [ -n "$URL" ] || { echo "::error::the engine's latest release names no linux-x64 download"; exit 1; }
+          curl -fsSL -o engine/engine.tar.gz "$URL"
+          tar -xzf engine/engine.tar.gz -C engine
           JAR="$(find "$PWD/engine" -name jawata.jar | head -1)"
           [ -s "$JAR" ] || { echo "::error::the downloaded engine holds no jawata.jar"; exit 1; }
           echo "JAWATA_ENGINE_JAR=$JAR" >> "$GITHUB_ENV"

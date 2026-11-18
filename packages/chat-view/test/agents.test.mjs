@@ -40,7 +40,7 @@ test('R12: the panel is there with no agent, and says none works', async () => {
   } finally { v.dispose(); }
 });
 
-test('R12: the working agents stand as a tree, the pm at the root; an agent that has ended is not shown, and the count says how many ended', async () => {
+test('R12: the working agents stand as a tree, the pm at the root; the agents of the latest team stay shown after they end (Stage 27 (u)), and the count says how many ended', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
@@ -48,7 +48,7 @@ test('R12: the working agents stand as a tree, the pm at the root; an agent that
     for (const update of hireUpdates) { await post(v, update); seen.push({ title: title(v), shape: shape(v).join(' ') }); }
     assert.ok(seen.some(s => s.shape === '0:pm 1:chief-engineer 2:dev'), 'three levels at once');
     assert.ok(seen.some(s => s.title === '3 agents working'));
-    assert.equal(seen.at(-1).shape, '0:pm', 'at the end only the pm works');
+    assert.equal(seen.at(-1).shape, '0:pm 1:chief-engineer 2:dev', 'at the end only the pm works, and the chief engineer and the dev that ended stay under it, being of the latest team');
     assert.equal(seen.at(-1).title, '2 agents working · 2 finished', 'the pm and the principal');
     assert.equal(v.$('.hire[data-depth="0"]').style.marginLeft, '0px');
     const all = seen.find(s => s.shape === '0:pm 1:chief-engineer 2:dev');
@@ -129,7 +129,7 @@ test('R12: what an agent said is folded until asked for; unfolding asks for it, 
   } finally { v.dispose(); }
 });
 
-test('two sprints: each pm stands at the root with its own agents under it, in the order they began; a failed agent is not a row', async () => {
+test('two sprints: each pm stands at the root with its own agents under it, in the order they began; a failed agent of the latest team stays a row under its parent', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
@@ -137,8 +137,8 @@ test('two sprints: each pm stands at the root with its own agents under it, in t
       _meta: { 'jawata/hire': { planId, seat, seatCommand: '/' + seat, task: 'task of ' + planId, brain: 'claude', model: 'sonnet', state, elapsedMs: 1000, tokens: 10, ...(parentPlanId ? { parentPlanId } : {}) } } });
     for (const h of [hire('pm1', 'pm', 'running'), hire('ce1', 'chief-engineer', 'running', 'pm1'), hire('pm2', 'pm', 'running'), hire('ce2', 'chief-engineer', 'running', 'pm2'),
       hire('dev2', 'dev', 'running', 'ce2'), hire('dev1', 'dev', 'running', 'ce1'), hire('bad', 'dev', 'failed', 'ce1')]) { await post(v, h); }
-    assert.deepEqual(shape(v), ['0:pm', '1:chief-engineer', '2:dev', '0:pm', '1:chief-engineer', '2:dev']);
-    assert.deepEqual(rowsOf(v).map(r => r.getAttribute('data-plan-id')), ['pm1', 'ce1', 'dev1', 'pm2', 'ce2', 'dev2'], 'each under its own parent');
+    assert.deepEqual(shape(v), ['0:pm', '1:chief-engineer', '2:dev', '2:dev', '0:pm', '1:chief-engineer', '2:dev']);
+    assert.deepEqual(rowsOf(v).map(r => r.getAttribute('data-plan-id')), ['pm1', 'ce1', 'dev1', 'bad', 'pm2', 'ce2', 'dev2'], 'each under its own parent, the failed one among them');
     assert.equal(title(v), '7 agents working · 1 finished');
   } finally { v.dispose(); }
 });

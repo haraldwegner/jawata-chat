@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isWorking, workingTree } from '@jawata/chat-core/view';
+import { isWorking, latestTeam, workingTree } from '@jawata/chat-core/view';
 import type { HireView, ToolCallView, ViewIntent, ViewState } from '@jawata/chat-core/view';
 import { Tool } from './Calls.js';
 import { PrincipalBrainPicker, principalBrainOf } from './Pickers.js';
@@ -74,6 +74,9 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
         <span className="hire-state" title={STATE_WORDS[hire.state] ?? hire.state}>{hire.state}</span>
         <span className="hire-time" title="How long this agent has been at it">{elapsed(Math.max(hire.elapsedMs, seconds * 1000))}</span>
         <span className="hire-tokens" title="Tokens this agent has used so far">{tokensOf(hire.tokens)} tokens</span>
+        {!isWorking(hire) && hire.changedFileCount !== undefined
+          ? <span className="hire-files" title="How many files this agent's run changed, counted by what the files held before and after. 0 means it changed nothing, whatever it said.">{hire.changedFileCount === 1 ? '1 file changed' : `${hire.changedFileCount} files changed`}</span>
+          : null}
         {hire.costUsd !== undefined
           ? <span className="hire-cost" title="What this agent reports it has cost, in US dollars at API prices. On a subscription nothing is charged for it.">{costOf(hire.costUsd)}</span>
           : null}
@@ -155,7 +158,9 @@ function PrincipalRow({ state, send, menuOpen, onMenu }: { state: ViewState; sen
 export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: ViewIntent) => void }) {
   const [unfolded, setUnfolded] = useState<Record<string, boolean>>({});
   const [menu, setMenu] = useState<string | null>(null);
-  const rows = workingTree(state.hires);
+  const team = latestTeam(state);
+  const rows = workingTree(state.hires, team);
+  const earlier = state.hires.filter(h => !isWorking(h) && !team.has(h.planId)).length;
   const hired = state.hires.filter(isWorking).length;
   const working = hired + (state.processing ? 1 : 0);
   const finished = state.hires.length - hired;
@@ -180,6 +185,7 @@ export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: 
         <Row key={hire.planId} hire={hire} depth={depth} state={state} send={send}
           unfolded={!!unfolded[hire.planId]} onFold={() => fold(hire.planId)} menuOpen={menu === hire.planId} onMenu={() => toggleMenu(hire.planId)} />
       ))}
+      {earlier > 0 ? <div className="agents-earlier" title="Agents hired in earlier turns of this conversation that have ended. The latest team stays listed above.">{`Earlier: ${earlier} agent${earlier === 1 ? '' : 's'} finished`}</div> : null}
     </div>
   );
 }

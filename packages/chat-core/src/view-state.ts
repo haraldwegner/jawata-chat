@@ -46,6 +46,8 @@ export interface HireView {
   /** What the agent reported; absent when it reported none (never 0 for a missing figure). */
   costUsd?: number;
   brainSessionId?: string;
+  /** How many files the run changed, as the engine counted them when the hire ended; absent when the agent sent no count (never 0 for a missing one). */
+  changedFileCount?: number;
 }
 
 /** A brain and model the agent offers; the person picks one to replace an agent's. */
@@ -81,6 +83,7 @@ export function hireFromEntry(h: Record<string, unknown>): HireView | undefined 
     ...(typeof h.costUsd === 'number' ? { costUsd: h.costUsd } : {}),
     ...(typeof h.parentPlanId === 'string' ? { parentPlanId: h.parentPlanId } : {}),
     ...(typeof h.brainSessionId === 'string' ? { brainSessionId: h.brainSessionId } : {}),
+    ...(typeof h.changedFileCount === 'number' ? { changedFileCount: h.changedFileCount } : {}),
   };
 }
 
@@ -91,10 +94,11 @@ export interface TreeRow {
 }
 
 /**
- * The hires that work, as the tree they were hired in: a hire shows when it works or when something under it does, so the tree keeps
- * its shape; a hire whose parent is not in the list is a root. Each hire stands under its parent, in the order they first appeared.
+ * The hires that work, as the tree they were hired in: a hire shows when it works, when something under it does, or when it belongs to the
+ * `team` given (the latest hiring turn's, which stays shown after it ends); a hire whose parent is not in the list is a root. Each hire
+ * stands under its parent, in the order they first appeared.
  */
-export function workingTree(hires: HireView[]): TreeRow[] {
+export function workingTree(hires: HireView[], team: ReadonlySet<string> = new Set()): TreeRow[] {
   const known = new Set(hires.map(h => h.planId));
   const children = new Map<string | undefined, HireView[]>();
   for (const h of hires) {
@@ -102,7 +106,7 @@ export function workingTree(hires: HireView[]): TreeRow[] {
     children.set(parent, [...(children.get(parent) ?? []), h]);
   }
   const shows = (h: HireView, seen: Set<string>): boolean =>
-    isWorking(h) || (!seen.has(h.planId) && (children.get(h.planId) ?? []).some(c => shows(c, new Set(seen).add(h.planId))));
+    isWorking(h) || team.has(h.planId) || (!seen.has(h.planId) && (children.get(h.planId) ?? []).some(c => shows(c, new Set(seen).add(h.planId))));
   const rows: TreeRow[] = [];
   const walk = (parent: string | undefined, depth: number, seen: Set<string>) => {
     for (const h of children.get(parent) ?? []) {
@@ -113,6 +117,30 @@ export function workingTree(hires: HireView[]): TreeRow[] {
   };
   walk(undefined, 0, new Set());
   return rows;
+}
+
+/**
+ * The latest team (Stage 27 (u), his ruling 2026-11-18): the hires the principal made in the latest turn that hired anyone, and every hire
+ * under them. They stay shown after they end, so what each did (how it ended, how many files it changed) is visible; an earlier team is
+ * counted, not listed. Empty when no turn of the conversation hired anyone.
+ */
+export function latestTeam(state: Pick<ViewState, 'entries' | 'hires'>): Set<string> {
+  const team = new Set<string>();
+  for (let i = state.entries.length - 1; i >= 0 && team.size === 0; i--) {
+    const entry = state.entries[i];
+    if (entry.kind !== 'turn') { continue; }
+    for (const part of entry.turn.parts) {
+      if (part.kind === 'tool' && part.tool.planId) { team.add(part.tool.planId); }
+    }
+  }
+  let grown = true;
+  while (grown) {
+    grown = false;
+    for (const h of state.hires) {
+      if (h.parentPlanId && team.has(h.parentPlanId) && !team.has(h.planId)) { team.add(h.planId); grown = true; }
+    }
+  }
+  return team;
 }
 
 /** The hires with this one added or replaced by its plan, in the order they first appeared. */

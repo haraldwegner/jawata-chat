@@ -163,6 +163,8 @@ const RULES: Rule[] = [
   ['.history-id', 'color: var(--jc-quiet); cursor: copy;'],
   ['.md-rendered pre', 'position: relative;'],
   ['.code-copy', 'position: absolute; top: 4px; right: 4px; font: inherit; font-size: 0.85em; padding: 0 8px; border-radius: 4px; cursor: pointer; color: var(--jc-text); background: var(--jc-ground); border: 1px solid var(--jc-edge);'],
+  ['.hire-files', 'color: var(--jc-quiet);'],
+  ['.agents-earlier', 'color: var(--jc-quiet); margin-top: 4px;'],
   ['.history-name', 'min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'],
   ['.history-when', 'flex: none; color: var(--jc-quiet);'],
   ['.history-more', 'font: inherit; align-self: flex-start; padding: 0 8px; border-radius: 4px; cursor: pointer; color: var(--jc-text); background: transparent; border: 1px solid var(--jc-edge);'],

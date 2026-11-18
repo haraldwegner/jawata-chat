@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isWorking, latestTeam, workingTree } from '@jawata/chat-core/view';
-import type { HireView, ToolCallView, ViewIntent, ViewState } from '@jawata/chat-core/view';
+import type { HireView, ToolCallView, ToolUseView, ViewIntent, ViewState } from '@jawata/chat-core/view';
 import { Tool } from './Calls.js';
 import { PrincipalBrainPicker, principalBrainOf } from './Pickers.js';
 import { useRunningSeconds } from './Working.js';
@@ -47,6 +47,37 @@ function BrainPicker({ hire, state, send, open, onToggle }: { hire: HireView; st
   );
 }
 
+const callsOf = (n: number): string => (n === 1 ? '1 call' : `${n} calls`);
+
+/** How one agent's calls split: jawata, other and shell on Java; a run whose calls nobody could name says so and shows no figure. */
+function UseFigures({ use }: { use: ToolUseView }) {
+  if (!use.observed) {
+    return <span className="hire-use" title="This agent's program did not name its calls, so how it used jawata is not known. It does not mean it used none.">calls not observed</span>;
+  }
+  const shell = use.shellOnJava.length;
+  return (
+    <span className={'hire-use' + (shell > 0 ? ' shell' : '')}
+      title="How this agent's calls split. A jawata call is a call to a jawata tool. A shell call on Java is a shell command that names a .java file: the agent worked on Java without the jawata tools. Unfold the agent to see each one.">
+      {`${callsOf(use.jawata + use.other + shell)} · ${use.jawata} jawata · ${use.other} other · ${shell} shell on Java`}
+    </span>
+  );
+}
+
+/** The shell calls on Java of one run, each with the reason it declared; they come before everything else the agent said. */
+function ShellOnJavaList({ use }: { use: ToolUseView }) {
+  return (
+    <div className="hire-exceptions" aria-label="Shell calls on Java"
+      title="Commands this agent ran in a shell on a .java file instead of using a jawata tool. The reason is what the agent wrote in the command (jawata-fallback or jawata-author).">
+      {use.shellOnJava.map((s, i) => (
+        <div className="hire-exception" key={i}>
+          <code className="hire-exception-command">{s.command}</code>{' '}
+          <span className="hire-exception-reason">{s.declared ? `— ${s.declared}` : '— no reason declared'}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
   hire: HireView; depth: number; state: ViewState; send: (intent: ViewIntent) => void;
   unfolded: boolean; onFold: () => void; menuOpen: boolean; onMenu: () => void;
@@ -77,6 +108,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
         {!isWorking(hire) && hire.changedFileCount !== undefined
           ? <span className="hire-files" title="How many files this agent's run changed, counted by what the files held before and after. 0 means it changed nothing, whatever it said.">{hire.changedFileCount === 1 ? '1 file changed' : `${hire.changedFileCount} files changed`}</span>
           : null}
+        {hire.toolUse ? <UseFigures use={hire.toolUse} /> : null}
         {hire.costUsd !== undefined
           ? <span className="hire-cost" title="What this agent reports it has cost, in US dollars at API prices. On a subscription nothing is charged for it.">{costOf(hire.costUsd)}</span>
           : null}
@@ -90,6 +122,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
           <pre className="hire-task-full">{hire.task}</pre>
         </details>
       ) : null}
+      {unfolded && hire.toolUse && hire.toolUse.shellOnJava.length > 0 ? <ShellOnJavaList use={hire.toolUse} /> : null}
       {unfolded ? (
         <div className="hire-transcript" role="log" aria-label="Transcript, read only" title="Read only">
           {turns === undefined ? <div className="hire-transcript-wait">Loading…</div>

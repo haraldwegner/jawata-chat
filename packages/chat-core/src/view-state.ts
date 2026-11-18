@@ -48,6 +48,19 @@ export interface HireView {
   brainSessionId?: string;
   /** How many files the run changed, as the engine counted them when the hire ended; absent when the agent sent no count (never 0 for a missing one). */
   changedFileCount?: number;
+  /** How the run used jawata, as the engine counted it when the hire ended; absent when the agent sent none. */
+  toolUse?: ToolUseView;
+}
+
+/**
+ * How one run used jawata (Stage 27 (o)): its calls split into jawata calls, other calls and shell calls on Java. `observed` is false when the
+ * run's calls were counted and not named, and the counts are then 0 and mean nothing; a shell call on Java keeps the reason it declared.
+ */
+export interface ToolUseView {
+  observed: boolean;
+  jawata: number;
+  other: number;
+  shellOnJava: { command: string; declared?: string }[];
 }
 
 /** A brain and model the agent offers; the person picks one to replace an agent's. */
@@ -84,6 +97,26 @@ export function hireFromEntry(h: Record<string, unknown>): HireView | undefined 
     ...(typeof h.parentPlanId === 'string' ? { parentPlanId: h.parentPlanId } : {}),
     ...(typeof h.brainSessionId === 'string' ? { brainSessionId: h.brainSessionId } : {}),
     ...(typeof h.changedFileCount === 'number' ? { changedFileCount: h.changedFileCount } : {}),
+    ...toolUseOf(h.toolUse),
+  };
+}
+
+/** The `toolUse` an engine card carries, as the field to spread into a hire; nothing when the card carries none or it is not an object. */
+function toolUseOf(x: unknown): { toolUse?: ToolUseView } {
+  if (typeof x !== 'object' || x === null) { return {}; }
+  const u = x as { observed?: unknown; jawata?: unknown; other?: unknown; shellOnJava?: unknown };
+  if (u.observed !== true) { return { toolUse: { observed: false, jawata: 0, other: 0, shellOnJava: [] } }; }
+  const shell = Array.isArray(u.shellOnJava) ? u.shellOnJava : [];
+  return {
+    toolUse: {
+      observed: true,
+      jawata: typeof u.jawata === 'number' ? u.jawata : 0,
+      other: typeof u.other === 'number' ? u.other : 0,
+      shellOnJava: shell.flatMap(s => {
+        const c = s as { command?: unknown; declared?: unknown };
+        return typeof c.command === 'string' ? [{ command: c.command, ...(typeof c.declared === 'string' && c.declared !== '' ? { declared: c.declared } : {}) }] : [];
+      }),
+    },
   };
 }
 

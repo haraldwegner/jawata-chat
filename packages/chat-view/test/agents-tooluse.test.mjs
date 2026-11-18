@@ -41,6 +41,25 @@ test('a run whose calls were counted and not named says so, and a card with no f
   } finally { v.dispose(); }
 });
 
+test('a run that had jawata calls fail or be refused says how many in its row, and unfolded lists each with its tool and error code; a run with none says nothing of it', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const withFailures = { observed: true, jawata: 4, other: 0, shellOnJava: [], failed: [{ tool: 'rename_symbol', code: 'REFACTORING_FAILED' }, { tool: 'files', code: 'ACCESS_DENIED' }] };
+    await post(v, card('dev', 'done', { toolUse: withFailures }));
+    await post(v, card('ok', 'done', { toolUse: { observed: true, jawata: 4, other: 0, shellOnJava: [], failed: [] } }));
+    assert.equal(useOf(v, 'dev'), '4 calls · 4 jawata · 0 other · 0 shell on Java · 2 failed', 'THE CLAIM: the failed calls were shown nowhere');
+    assert.equal(useOf(v, 'ok'), '4 calls · 4 jawata · 0 other · 0 shell on Java', 'CONTROL: a run with no failures was given a failed count');
+    await v.click(v.$('.hire[data-plan-id="dev"] .hire-fold'));
+    const rows = v.$$('.hire[data-plan-id="dev"] .hire-exception').map(r => r.textContent);
+    assert.equal(rows.length, 2);
+    assert.match(rows[0], /rename_symbol/);
+    assert.match(rows[0], /REFACTORING_FAILED/);
+    assert.match(rows[1], /files/);
+    assert.match(rows[1], /ACCESS_DENIED/);
+  } finally { v.dispose(); }
+});
+
 test('unfolded, the shell calls on Java come first, each with the reason it declared or the words that it declared none', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {

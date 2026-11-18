@@ -51,27 +51,37 @@ const callsOf = (n: number): string => (n === 1 ? '1 call' : `${n} calls`);
 
 /** How one agent's calls split: jawata, other and shell on Java; a run whose calls nobody could name says so and shows no figure. */
 function UseFigures({ use }: { use: ToolUseView }) {
+  const failed = use.failed.length > 0 ? ` · ${use.failed.length} failed` : '';
   if (!use.observed) {
-    return <span className="hire-use" title="This agent's program did not name its calls, so how it used jawata is not known. It does not mean it used none.">calls not observed</span>;
+    return <span className={'hire-use' + (failed ? ' shell' : '')} title="This agent's program did not name its calls, so how it used jawata is not known. It does not mean it used none.">{'calls not observed' + failed}</span>;
   }
   const shell = use.shellOnJava.length;
   return (
-    <span className={'hire-use' + (shell > 0 ? ' shell' : '')}
-      title="How this agent's calls split. A jawata call is a call to a jawata tool. A shell call on Java is a shell command that names a .java file: the agent worked on Java without the jawata tools. Unfold the agent to see each one.">
-      {`${callsOf(use.jawata + use.other + shell)} · ${use.jawata} jawata · ${use.other} other · ${shell} shell on Java`}
+    <span className={'hire-use' + (shell > 0 || failed ? ' shell' : '')}
+      title="How this agent's calls split. A jawata call is a call to a jawata tool. A shell call on Java is a shell command that names a .java file: the agent worked on Java without the jawata tools. A failed call is a jawata call the engine answered with an error or refused. Unfold the agent to see each one.">
+      {`${callsOf(use.jawata + use.other + shell)} · ${use.jawata} jawata · ${use.other} other · ${shell} shell on Java${failed}`}
     </span>
   );
 }
 
-/** The shell calls on Java of one run, each with the reason it declared; they come before everything else the agent said. */
+/**
+ * The exceptions of one run, before everything else the agent said: each shell call on Java with the reason it declared, then each jawata call
+ * that failed or was refused with its tool and error code.
+ */
 function ShellOnJavaList({ use }: { use: ToolUseView }) {
   return (
-    <div className="hire-exceptions" aria-label="Shell calls on Java"
-      title="Commands this agent ran in a shell on a .java file instead of using a jawata tool. The reason is what the agent wrote in the command (jawata-fallback or jawata-author).">
+    <div className="hire-exceptions" aria-label="Shell calls on Java and failed calls"
+      title="Commands this agent ran in a shell on a .java file instead of using a jawata tool (the reason is what the agent wrote in the command: jawata-fallback or jawata-author), and jawata calls the engine answered with an error or refused.">
       {use.shellOnJava.map((s, i) => (
-        <div className="hire-exception" key={i}>
+        <div className="hire-exception" key={'shell-' + i}>
           <code className="hire-exception-command">{s.command}</code>{' '}
           <span className="hire-exception-reason">{s.declared ? `— ${s.declared}` : '— no reason declared'}</span>
+        </div>
+      ))}
+      {use.failed.map((f, i) => (
+        <div className="hire-exception" key={'failed-' + i}>
+          <code className="hire-exception-command">{f.tool}</code>{' '}
+          <span className="hire-exception-reason">{`— failed or refused: ${f.code}`}</span>
         </div>
       ))}
     </div>
@@ -122,7 +132,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
           <pre className="hire-task-full">{hire.task}</pre>
         </details>
       ) : null}
-      {unfolded && hire.toolUse && hire.toolUse.shellOnJava.length > 0 ? <ShellOnJavaList use={hire.toolUse} /> : null}
+      {unfolded && hire.toolUse && (hire.toolUse.shellOnJava.length > 0 || hire.toolUse.failed.length > 0) ? <ShellOnJavaList use={hire.toolUse} /> : null}
       {unfolded ? (
         <div className="hire-transcript" role="log" aria-label="Transcript, read only" title="Read only">
           {turns === undefined ? <div className="hire-transcript-wait">Loading…</div>

@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import DOMPurify from 'dompurify';
+import { addCopyButtons } from './copy.js';
 import { renderMarkdown } from './markdown.js';
 import { Picture } from './Picture.js';
 import type { PartView, ViewState } from '@jawata/chat-core/view';
@@ -10,7 +11,10 @@ type Turn = Extract<Entry, { kind: 'turn' }>['turn'];
 function Markdown({ text }: { text: string }) {
   // the core renders; sanitising is the view's, which has a DOM
   const html = DOMPurify.sanitize(renderMarkdown(text));
-  return <div className="message assistant md-rendered" dangerouslySetInnerHTML={{ __html: html }} />;
+  const box = useRef<HTMLDivElement>(null);
+  // every code block gets its copy button; the html is set again whenever the answer grows, which drops the buttons, so they are put back each time
+  useLayoutEffect(() => { if (box.current) { addCopyButtons(box.current); } }, [html]);
+  return <div ref={box} className="message assistant md-rendered" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 /** The first line the agent wrote, which is what the folded line shows of it. */

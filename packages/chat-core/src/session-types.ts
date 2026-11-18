@@ -80,7 +80,7 @@ export interface ChatSessions {
   setModel(sessionId: string, modelId: string): Promise<void>;
   setConfigOption(sessionId: string, configId: string, value: string): Promise<SessionConfigOption[] | null>;
   /** The sessions the agent lists (`session/list`), a page at a time. */
-  listSessions(agentName: string, page?: { cwd?: string; cursor?: string }): Promise<{ sessions: { sessionId: string; title?: string | null; updatedAt?: string | null }[]; nextCursor?: string }>;
+  listSessions(agentName: string, page?: { cwd?: string; cursor?: string }): Promise<{ sessions: { sessionId: string; title?: string | null; updatedAt?: string | null; _meta?: { [key: string]: unknown } | null }[]; nextCursor?: string }>;
   /** Ask a side question: a prompt of a second session with the active session's agent, opened by the first one (CR3). */
   askSide(text: string): Promise<PromptResponse>;
   /** The side session's id; null when none is open. What it says is not the active session's. */

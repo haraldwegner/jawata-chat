@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AUTONOMY_OPTION, autonomyOf, type ViewIntent, type ViewState } from '@jawata/chat-core/view';
 import { AutonomyButton, PrincipalBrainPicker, principalBrainOf } from './Pickers.js';
 import { Picture } from './Picture.js';
+import { useEscape } from './escape.js';
 
 /** How long the person stops typing before the core is told what the draft is. */
 const DRAFT_PAUSE_MS = 250;
@@ -76,18 +77,8 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
   // 28h D57 (h): / in a session the agent sent no commands for says so in one sentence, instead of showing nothing
   const noCommands = text === '/' && commands.length === 0 && !slashClosed && !!session;
   const slashOpen = filtered.length > 0 || noCommands;
-  // Esc closes the list wherever the focus is (his words, 2026-11-17: with the chat out of focus Esc did nothing); the field's own Esc handler has
-  // already prevented the default when it closed the list, so this one then does nothing
-  useEffect(() => {
-    if (!slashOpen) { return undefined; }
-    const closeOnEscape = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) { return; }
-      e.preventDefault();
-      setSlashClosed(true);
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [slashOpen]);
+  // Esc closes the list wherever the focus is, as the topmost open thing (his words, 2026-11-17 and 2026-11-18)
+  useEscape(slashOpen, () => setSlashClosed(true));
   const disabled = !session || state.loading;
 
   const openSide = (question?: string) => {

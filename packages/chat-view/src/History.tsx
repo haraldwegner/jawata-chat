@@ -1,4 +1,6 @@
 import type { ViewIntent, ViewState } from '@jawata/chat-core/view';
+import { useEscape } from './escape.js';
+
 
 /** A time the agent sent as the person reads it: a local date and minute; what the agent sent, if it is not a time. */
 const whenIs = (sent: string): string => {
@@ -10,6 +12,7 @@ const whenIs = (sent: string): string => {
 export function History({ state, send, onClose }: { state: ViewState; send: (intent: ViewIntent) => void; onClose: () => void }) {
   const history = state.history;
   const current = state.session?.sessionId;
+  useEscape(true, onClose); // Esc closes the panel; a click beside it does not, it has its own Close (his ruling 2026-11-18)
   return (
     <div className="history" role="dialog" aria-label="Past sessions">
       <div className="history-head">
@@ -21,12 +24,13 @@ export function History({ state, send, onClose }: { state: ViewState; send: (int
       {history?.sessions.map(s => (
         <button key={s.sessionId} className={'history-item' + (s.sessionId === current ? ' current' : '')} title={`Open this session (${s.sessionId})`}
           onClick={() => { send({ type: 'openSession', sessionId: s.sessionId }); onClose(); }}>
+          {s.client ? <span className="history-client" title="The client this conversation was had in">{s.clientName ?? s.client}</span> : null}
           <span className="history-name">{s.title || 'Untitled session'}</span>
           {s.updatedAt ? <span className="history-when" title={`When the agent last changed this session (${s.updatedAt})`}>{whenIs(s.updatedAt)}</span> : null}
         </button>
       ))}
       {history?.nextCursor ? (
-        <button className="history-more" title="Ask the agent for the next sessions" onClick={() => send({ type: 'listSessions', cursor: history.nextCursor! })}>More</button>
+        <button className="history-more" title="Ask the agent for the next sessions" onClick={() => send({ type: 'listSessions', cursor: history.nextCursor! })}>Show more</button>
       ) : null}
     </div>
   );

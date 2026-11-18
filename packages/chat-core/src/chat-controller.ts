@@ -256,7 +256,7 @@ export class ChatController {
         await this.listSessions(intent.cursor);
         break;
       case 'openSession':
-        await this.flow.open(intent.sessionId);
+        await this.flow.open(intent.sessionId, this.view.history?.sessions.find(s => s.sessionId === intent.sessionId));
         break;
       case 'newConversation':
         await this.flow.newConversation();
@@ -613,7 +613,7 @@ export class ChatController {
       const page = await this.sessions.listSessions(AGENT_KEY, cursor ? { cursor } : {});
       this.post({
         type: 'sessionList', append: cursor !== undefined, nextCursor: page.nextCursor ?? null,
-        sessions: page.sessions.map(s => ({ sessionId: s.sessionId, title: s.title, updatedAt: s.updatedAt })),
+        sessions: page.sessions.map(s => ({ sessionId: s.sessionId, title: s.title, updatedAt: s.updatedAt, client: metaOf(s, 'jawata/client'), clientName: metaOf(s, 'jawata/clientName') })),
         ...(show ? { show: true } : {}),
       });
     } catch (e) {
@@ -682,3 +682,9 @@ const dataUrl = (image: PromptImage): string => `data:${image.mimeType};base64,$
 
 /** The name a file goes by in the thread; a pasted picture's path is only a key, so its own name is what is shown. */
 const baseName = (path: string): string => path.replace(/^pasted:\d+:/, '').split(/[\\/]/).pop() || path;
+
+/** A text the agent puts in a listed session's `_meta` (the client it was had in, and that client's name); undefined when it names none. */
+function metaOf(session: { _meta?: { [key: string]: unknown } | null }, key: string): string | undefined {
+  const named = session._meta?.[key];
+  return typeof named === 'string' && named !== '' ? named : undefined;
+}

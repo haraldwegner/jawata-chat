@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useEscape } from './escape.js';
 import { AUTONOMY_OPTION, type ViewIntent, type ViewSession } from '@jawata/chat-core/view';
 
 /** The option that holds the principal's brain, sent by the agent with the session. */
@@ -37,15 +38,14 @@ export function PrincipalBrainPicker({ brain, open, onToggle, send, className }:
     onToggle();
     if (value !== brain.current) { send({ type: 'setConfigOption', configId: brain.configId, value }); }
   };
-  // The list closes on Esc wherever the focus is, and on a click beside it (his words, 2026-11-17: only choosing a model closed it).
+  // The list closes on Esc (the topmost open thing first) and on a click beside it, being a dropdown (his words, 2026-11-17 and 2026-11-18).
   const wrap = useRef<HTMLSpanElement>(null);
+  useEscape(open, onToggle);
   useEffect(() => {
     if (!open) { return undefined; }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onToggle(); } };
     const onPress = (e: MouseEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) { onToggle(); } };
-    document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onPress);
-    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onPress); };
+    return () => document.removeEventListener('mousedown', onPress);
   }, [open, onToggle]);
   return (
     <span className="brain-wrap" ref={wrap}>

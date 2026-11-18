@@ -1,6 +1,10 @@
 import { AGENT_KEY, type HostPorts } from './ports.js';
 import type { SessionLifecycle } from './session-types.js';
 
+/** The client name the engine's own conversations carry in a session list; the person is told nothing of other clients about these. */
+const OWN_CLIENT = 'jawata-agent';
+
+
 type Needs = Pick<HostPorts, 'settings' | 'chooser' | 'notifier' | 'log' | 'actions'>;
 
 /**
@@ -55,13 +59,18 @@ export class ConversationFlow {
   }
 
   /** Open a session the agent has. The sessions decide how (loaded, so the earlier conversation shows, or resumed, so it does not); the person is told which. */
-  async open(sessionId: string): Promise<void> {
+  async open(sessionId: string, listed?: { client?: string | null; clientName?: string | null }): Promise<void> {
     if (this.sessions.getActiveSessionId() === sessionId) { return; }
     // no question when another session is shown: sessions are stored, so opening one loses nothing (his words, 2026-11-17)
-    await this.attempt('open the session', async () => {
+    const opened = await this.attempt('open the session', async () => {
       const how = await this.host.notifier.progress('Opening the session…', () => this.sessions.open(AGENT_KEY, sessionId));
       if (how === 'resumed') { this.host.notifier.info('Resumed the session; its earlier messages are not shown.'); }
     });
+    // a session another client recorded is shown from what was recorded: that client's own memory of it is not resumed (his ruling 2026-11-18)
+    const other = listed?.client === undefined || listed.client === null || listed.client === OWN_CLIENT ? undefined : listed.clientName ?? listed.client;
+    if (opened && other !== undefined) {
+      this.host.notifier.info(`This is a ${other} session. Its recorded messages are shown; a new message here starts with fresh context, because ${other} does not resume it.`);
+    }
   }
 
   /** Run a job; if it throws, log it and tell the person what could not be done. */

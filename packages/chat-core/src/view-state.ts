@@ -133,6 +133,10 @@ export interface PastSession {
   sessionId: string;
   title?: string | null;
   updatedAt?: string | null;
+  /** Which client the conversation was had in, as the agent names it in `_meta` (`jawata-agent`, `claude-code`, `cursor`); absent when it does not say. */
+  client?: string | null;
+  /** The name a person knows that client by, as the agent gives it in `_meta` ("Claude Code", "jawata"); the page shows it as the agent wrote it. */
+  clientName?: string | null;
 }
 
 /** The sessions the agent listed, a page at a time. */

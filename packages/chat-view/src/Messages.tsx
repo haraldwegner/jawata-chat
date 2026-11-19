@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { addCopyButtons } from './copy.js';
 import { renderMarkdown } from './markdown.js';
@@ -15,6 +15,27 @@ function Markdown({ text }: { text: string }) {
   // every code block gets its copy button; the html is set again whenever the answer grows, which drops the buttons, so they are put back each time
   useLayoutEffect(() => { if (box.current) { addCopyButtons(box.current); } }, [html]);
   return <div ref={box} className="message assistant md-rendered" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/** How many lines of a message of his are shown before it is folded (Stage 27 (z3), his words 2026-11-19: "my replies can be long as well"). */
+const FOLD_AFTER = 6;
+
+/**
+ * What the person wrote. A message of more than {@link FOLD_AFTER} lines shows its first lines under a fade, with a button that says how many
+ * lines it holds; a click opens it for good. The whole text is in the page either way, so a copy of it is always the whole message.
+ */
+function UserText({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const count = text.split('\n').length;
+  const folded = count > FOLD_AFTER && !open;
+  return (
+    <>
+      <div className={'user-text' + (folded ? ' folded' : '')}>{text}</div>
+      {folded
+        ? <button type="button" className="user-more" title="Shows the whole message. Its text is there to copy either way." onClick={() => setOpen(true)}>{`Show all (${count} lines)`}</button>
+        : null}
+    </>
+  );
 }
 
 /** The first line the agent wrote, which is what the folded line shows of it. */
@@ -94,7 +115,7 @@ export function EntryList({ entries, processing }: { entries: ViewState['entries
         switch (entry.kind) {
           case 'user': return (
             <div className="message user" key={i}>
-              {entry.text}
+              <UserText text={entry.text} />
               {entry.images && entry.images.length > 0
                 ? <div className="user-images">{entry.images.map((src, j) => <Picture src={src} name={`picture ${j + 1}`} key={j} />)}</div>
                 : null}

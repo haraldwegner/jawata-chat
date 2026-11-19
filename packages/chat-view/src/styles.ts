@@ -61,6 +61,10 @@ const RULES: Rule[] = [
   ['.messages', 'flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--jc-gap); padding: var(--jc-pad);'],
   ['.message', 'padding: 8px 12px; border-radius: var(--jc-round); overflow-wrap: anywhere;'],
   ['.message.user', 'align-self: flex-end; max-width: 92%; white-space: pre-wrap; background: var(--jc-mine); color: var(--jc-mine-text);'],
+  // a message of his of more than six lines is shown folded: its first six lines under a fade, and a button to open it (Stage 27 (z3))
+  ['.user-text', 'line-height: 1.5;'],
+  ['.user-text.folded', 'max-height: 9em; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, currentColor 60%, transparent); mask-image: linear-gradient(to bottom, currentColor 60%, transparent);'],
+  ['.user-more', 'display: block; margin: 4px 0 0 auto; font: inherit; font-size: 0.85em; padding: 0 8px; border-radius: 4px; cursor: pointer; color: var(--jc-mine-text); background: transparent; border: 1px solid currentColor;'],
   ['.message.assistant', 'align-self: stretch; padding-inline: 0; white-space: pre-wrap;'],
   ['.message.assistant.md-rendered', 'white-space: normal;'],
   ['.message.error', 'color: var(--jc-bad); border: 1px solid var(--jc-bad); background: color-mix(in srgb, var(--jc-bad) 10%, transparent);'],

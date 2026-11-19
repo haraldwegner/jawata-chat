@@ -82,7 +82,7 @@ function ShellOnJavaList({ use }: { use: ToolUseView }) {
       {use.stepsOpen > 0 ? (
         <div className="hire-exception" key="steps-open">
           <code className="hire-exception-command">{use.stepsOpen === 1 ? '1 step' : `${use.stepsOpen} steps`}</code>{' '}
-          <span className="hire-exception-reason">— the run ended and no gate passed for it, so what it did there was not checked</span>
+          <span className="hire-exception-reason">— no gate passed for this step: its check failed, did not run, or was not reached</span>
         </div>
       ) : null}
       {use.failed.map((f, i) => (

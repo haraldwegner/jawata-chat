@@ -77,3 +77,22 @@ test('the agent\'s answer is not folded however long it is', async () => {
     assert.equal(v.$$('.message.assistant .folded').length, 0, 'an answer of the agent was folded');
   } finally { v.dispose(); }
 });
+
+test('C27: one long paragraph with no line break is folded too, because it wraps over many lines on screen, and a short one is not', async () => {
+  const v = await viewOn('R5');
+  try {
+    await v.connect();
+    await v.settle();
+    await send(v, 'a long brief written as one paragraph '.repeat(40).trim());
+    const long = v.$('.message.user');
+    assert.ok(long.querySelector('.user-text.folded'), 'a paragraph of about 1500 characters is not folded');
+    assert.ok(long.querySelector('button.user-more'), 'a folded paragraph has no button to open it');
+  } finally { v.dispose(); }
+  const w = await viewOn('R5');
+  try {
+    await w.connect();
+    await w.settle();
+    await send(w, 'a short question that fits on one or two lines of the chat');
+    assert.equal(w.$('.message.user').querySelector('button.user-more'), null, 'a short message got a fold button');
+  } finally { w.dispose(); }
+});

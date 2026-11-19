@@ -20,13 +20,17 @@ function Markdown({ text }: { text: string }) {
 /** How many lines of a message of his are shown before it is folded (Stage 27 (z3), his words 2026-11-19: "my replies can be long as well"). */
 const FOLD_AFTER = 6;
 
+/** About how many characters fit on one line of the chat, so a long paragraph is counted as the lines it takes on screen. */
+const WRAP_AT = 100;
+
 /**
  * What the person wrote. A message of more than {@link FOLD_AFTER} lines shows its first lines under a fade, with a button that says how many
  * lines it holds; a click opens it for good. The whole text is in the page either way, so a copy of it is always the whole message.
  */
 function UserText({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
-  const count = text.split('\n').length;
+  // A paragraph with no line break wraps over several lines on screen, so a line is also counted for every WRAP_AT characters (C27).
+  const count = text.split('\n').reduce((lines, line) => lines + Math.max(1, Math.ceil(line.length / WRAP_AT)), 0);
   const folded = count > FOLD_AFTER && !open;
   return (
     <>

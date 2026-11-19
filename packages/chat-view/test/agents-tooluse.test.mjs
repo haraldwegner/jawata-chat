@@ -77,3 +77,19 @@ test('unfolded, the shell calls on Java come first, each with the reason it decl
     assert.ok(first?.classList.contains('hire-exceptions'), 'the exceptions did not come before the transcript');
   } finally { v.dispose(); }
 });
+
+test('a run with steps whose gate did not pass says how many in its row and, unfolded, as an exception; a run with none says nothing of it', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    await post(v, card('dev', 'done', { toolUse: { observed: true, jawata: 4, other: 0, shellOnJava: [], failed: [], stepsOpen: 2 } }));
+    await post(v, card('ok', 'done', { toolUse: { observed: true, jawata: 4, other: 0, shellOnJava: [], failed: [] } }));
+    assert.equal(useOf(v, 'dev'), '4 calls · 4 jawata · 0 other · 0 shell on Java · 2 steps with no passed gate', 'THE CLAIM: a run whose steps were called done with no passing gate looked like any other');
+    assert.equal(useOf(v, 'ok'), '4 calls · 4 jawata · 0 other · 0 shell on Java', 'CONTROL: a run whose gates passed was given a step count');
+    await v.click(v.$('.hire[data-plan-id="dev"] .hire-fold'));
+    const rows = v.$$('.hire[data-plan-id="dev"] .hire-exception').map(r => r.textContent);
+    assert.equal(rows.length, 1);
+    assert.match(rows[0], /2 steps/);
+    assert.match(rows[0], /no gate passed/);
+  } finally { v.dispose(); }
+});

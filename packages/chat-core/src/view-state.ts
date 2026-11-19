@@ -63,6 +63,8 @@ export interface ToolUseView {
   shellOnJava: { command: string; declared?: string }[];
   /** The jawata calls of the run that failed or were refused, each with the tool and the error code; the engine knows these whatever the stream named. */
   failed: { tool: string; code: string }[];
+  /** How many of the run's declared steps ended with no passed gate; 0 when every gate passed or the card says nothing of it. */
+  stepsOpen: number;
 }
 
 /** A brain and model the agent offers; the person picks one to replace an agent's. */
@@ -106,17 +108,19 @@ export function hireFromEntry(h: Record<string, unknown>): HireView | undefined 
 /** The `toolUse` an engine card carries, as the field to spread into a hire; nothing when the card carries none or it is not an object. */
 function toolUseOf(x: unknown): { toolUse?: ToolUseView } {
   if (typeof x !== 'object' || x === null) { return {}; }
-  const u = x as { observed?: unknown; jawata?: unknown; other?: unknown; shellOnJava?: unknown; failed?: unknown };
+  const u = x as { observed?: unknown; jawata?: unknown; other?: unknown; shellOnJava?: unknown; failed?: unknown; stepsOpen?: unknown };
+  const stepsOpen = typeof u.stepsOpen === 'number' && u.stepsOpen > 0 ? u.stepsOpen : 0;
   const failed = (Array.isArray(u.failed) ? u.failed : []).flatMap(f => {
     const c = f as { tool?: unknown; code?: unknown };
     return typeof c.tool === 'string' ? [{ tool: c.tool, code: typeof c.code === 'string' ? c.code : 'ERROR' }] : [];
   });
-  if (u.observed !== true) { return { toolUse: { observed: false, jawata: 0, other: 0, shellOnJava: [], failed } }; }
+  if (u.observed !== true) { return { toolUse: { observed: false, jawata: 0, other: 0, shellOnJava: [], failed, stepsOpen } }; }
   const shell = Array.isArray(u.shellOnJava) ? u.shellOnJava : [];
   return {
     toolUse: {
       observed: true,
       failed,
+      stepsOpen,
       jawata: typeof u.jawata === 'number' ? u.jawata : 0,
       other: typeof u.other === 'number' ? u.other : 0,
       shellOnJava: shell.flatMap(s => {

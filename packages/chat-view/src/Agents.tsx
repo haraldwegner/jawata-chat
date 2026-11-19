@@ -51,14 +51,15 @@ const callsOf = (n: number): string => (n === 1 ? '1 call' : `${n} calls`);
 
 /** How one agent's calls split: jawata, other and shell on Java; a run whose calls nobody could name says so and shows no figure. */
 function UseFigures({ use }: { use: ToolUseView }) {
-  const failed = use.failed.length > 0 ? ` · ${use.failed.length} failed` : '';
+  const failed = (use.failed.length > 0 ? ` · ${use.failed.length} failed` : '')
+    + (use.stepsOpen > 0 ? ` · ${use.stepsOpen === 1 ? '1 step' : `${use.stepsOpen} steps`} with no passed gate` : '');
   if (!use.observed) {
     return <span className={'hire-use' + (failed ? ' shell' : '')} title="This agent's program did not name its calls, so how it used jawata is not known. It does not mean it used none.">{'calls not observed' + failed}</span>;
   }
   const shell = use.shellOnJava.length;
   return (
     <span className={'hire-use' + (shell > 0 || failed ? ' shell' : '')}
-      title="How this agent's calls split. A jawata call is a call to a jawata tool. A shell call on Java is a shell command that names a .java file: the agent worked on Java without the jawata tools. A failed call is a jawata call the engine answered with an error or refused. Unfold the agent to see each one.">
+      title="How this agent's calls split. A jawata call is a call to a jawata tool. A shell call on Java is a shell command that names a .java file: the agent worked on Java without the jawata tools. A failed call is a jawata call the engine answered with an error or refused. A step with no passed gate is a check this agent's run was given that did not pass when it ended. Unfold the agent to see each one.">
       {`${callsOf(use.jawata + use.other + shell)} · ${use.jawata} jawata · ${use.other} other · ${shell} shell on Java${failed}`}
     </span>
   );
@@ -78,6 +79,12 @@ function ShellOnJavaList({ use }: { use: ToolUseView }) {
           <span className="hire-exception-reason">{s.declared ? `— ${s.declared}` : '— no reason declared'}</span>
         </div>
       ))}
+      {use.stepsOpen > 0 ? (
+        <div className="hire-exception" key="steps-open">
+          <code className="hire-exception-command">{use.stepsOpen === 1 ? '1 step' : `${use.stepsOpen} steps`}</code>{' '}
+          <span className="hire-exception-reason">— the run ended and no gate passed for it, so what it did there was not checked</span>
+        </div>
+      ) : null}
       {use.failed.map((f, i) => (
         <div className="hire-exception" key={'failed-' + i}>
           <code className="hire-exception-command">{f.tool}</code>{' '}
@@ -132,7 +139,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
           <pre className="hire-task-full">{hire.task}</pre>
         </details>
       ) : null}
-      {unfolded && hire.toolUse && (hire.toolUse.shellOnJava.length > 0 || hire.toolUse.failed.length > 0) ? <ShellOnJavaList use={hire.toolUse} /> : null}
+      {unfolded && hire.toolUse && (hire.toolUse.shellOnJava.length > 0 || hire.toolUse.failed.length > 0 || hire.toolUse.stepsOpen > 0) ? <ShellOnJavaList use={hire.toolUse} /> : null}
       {unfolded ? (
         <div className="hire-transcript" role="log" aria-label="Transcript, read only" title="Read only">
           {turns === undefined ? <div className="hire-transcript-wait">Loading…</div>

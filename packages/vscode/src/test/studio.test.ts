@@ -5,7 +5,7 @@ import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
 import { AgentProcesses } from '../host/AgentProcesses';
-import { lookAfterStudio } from '../host/lookAfterStudio';
+import { handOnEveryFolderChange, lookAfterStudio } from '../host/lookAfterStudio';
 import { addressOf, ASKING_WAIT_MS, editorFoldersOf, HANDOFF_WAIT_MS, handoffId, launchArguments, nodePorts, POLL_MS, STALE_MS, StudioStart, toldToThePerson, WAIT_MS, windowRegister, type StudioOutcome, type StudioPorts, type StudioSetting } from '../studio';
 
 /** A server on a free local port that answers every request with `status`, or never answers; `port` is where it is (or will be). */
@@ -573,6 +573,24 @@ suite('The chat hands the window\'s folders to the studio', () => {
 			assert.deepStrictEqual(JSON.parse(fs.readFileSync(out, 'utf8')), ['http://127.0.0.1:1', 'plain']);
 		} finally {
 			agents.dispose();
+		}
+	});
+});
+
+suite('The chat hands the window\'s folders again when they change', () => {
+	test('his word 2026-11-20: a folder the window opens or closes is handed to the studio at once, whichever of the editor and the engine started first, and nothing is handed while the folders stay as they are', async () => {
+		const changes = new vscode.EventEmitter<vscode.WorkspaceFoldersChangeEvent>();
+		const handed: (readonly string[])[] = [];
+		const studio = new StudioStart(ports(), new Map());
+		const listening = handOnEveryFolderChange(studio, changes.event, async (_studio, folders) => { handed.push(folders); return { kind: 'answers', why: 'test' }; }, () => ['/w/one', '/w/two']);
+		try {
+			assert.deepStrictEqual(handed, [], 'folders were handed before they changed');
+			changes.fire({ added: [], removed: [] });
+			await new Promise(resolve => setTimeout(resolve, 0));
+			assert.deepStrictEqual(handed, [['/w/one', '/w/two']], 'the changed folders were not handed to the studio');
+		} finally {
+			listening.dispose();
+			changes.dispose();
 		}
 	});
 });

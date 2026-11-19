@@ -3,6 +3,20 @@ import type { AgentConfigEntry } from '@jawata/chat-core';
 import { addressOf, editorFoldersOf, StudioStart, toldToThePerson, type StudioOutcome, type StudioSetting } from '../studio';
 import { log } from '../utils/Logger';
 
+/**
+ * Hands the window's folders to the studio again whenever they change (his word 2026-11-20): the studio writes them where the engine reads its
+ * access on every call, so a folder the window opens is reached by jawata's agents at once and one it closes is not, whether the engine was
+ * started before the editor or after. The disposable stops it.
+ */
+export function handOnEveryFolderChange(
+  studio: StudioStart,
+  changed: vscode.Event<vscode.WorkspaceFoldersChangeEvent> = vscode.workspace.onDidChangeWorkspaceFolders,
+  look: (studio: StudioStart, folders: readonly string[]) => Promise<StudioOutcome> = lookAfterStudio,
+  folders: () => string[] = windowFolders,
+): vscode.Disposable {
+  return changed(() => { void look(studio, folders()); });
+}
+
 /** The folders the window has open (the ones on disk), by their real paths. */
 function windowFolders(): string[] {
   return editorFoldersOf((vscode.workspace.workspaceFolders ?? []).filter(folder => folder.uri.scheme === 'file').map(folder => folder.uri.fsPath));

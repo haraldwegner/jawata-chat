@@ -42,7 +42,6 @@ suite('Visual: Stage 27 screens against a live engine', function () {
 		const prompt = fs.readFileSync(process.env.JAWATA_WINDOW_PROMPT!, 'utf8').replace(/\{SEATS\}/g, engine.seats).replace(/\{PROJECT\}/g, engine.project);
 		await vscode.commands.executeCommand('jawataChat.sendPrompt', prompt);
 		await pause(9000);
-		shoot('s27-i-1-working-line.png');
 		await pause(70000);
 		shoot('s27-i-2-after-the-hire.png');
 		// the principal's calls and the hire's card, opened by their own arrows
@@ -76,5 +75,71 @@ suite('Visual: Stage 27 screens against a live engine', function () {
 		execFileSync('xdotool', ['type', '--window', windowOfTheRun(), '/']);
 		await pause(1500);
 		shoot('s27-h-4-slash-after-restart.png');
+	});
+
+	test('window run 3: the working line while the principal works, then autocontinue typed and ended by a typed Fix', async function () {
+		if (process.env.JAWATA_WINDOW_STEP !== '3') { this.skip(); }
+		await connectToTheEngine();
+		const engine = JSON.parse(fs.readFileSync(process.env.JAWATA_WINDOW_ENGINE!, 'utf8'));
+		const prompt = fs.readFileSync(process.env.JAWATA_WINDOW_PROMPT!, 'utf8').replace(/\{SEATS\}/g, engine.seats).replace(/\{PROJECT\}/g, engine.project);
+		await vscode.commands.executeCommand('jawataChat.sendPrompt', prompt);
+		// the working line while the turn runs and while the hire is out: one picture every two seconds
+		for (let n = 0; n < 24; n++) {
+			await pause(2000);
+			shoot(`s27-i-w-${String(n).padStart(2, '0')}.png`);
+		}
+		await pause(20000);
+		// `/autocontinue` TYPED (no click), sent with Return: the button must read on, and the typed words stay in the conversation
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--window', windowOfTheRun(), '/autocontinue']);
+		await pause(800);
+		shoot('s27-m-5-autocontinue-typed.png');
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(1500);
+		// a list entry taken by the first Return is sent by the second; an empty input sends nothing
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(15000);
+		shoot('s27-m-6-autocontinue-on.png');
+		// now a typed `Fix` while the autonomy is still on: it must end it
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--window', windowOfTheRun(), 'Fix']);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(2000);
+		shoot('s27-m-7-fix-typed-while-on.png');
+		await pause(25000);
+		shoot('s27-m-8-after-the-typed-fix.png');
+	});
+
+	test('window run 5: the working line while the principal uses a tool, the prompt typed so the turn is still running when the pictures are taken', async function () {
+		if (process.env.JAWATA_WINDOW_STEP !== '5') { this.skip(); }
+		await connectToTheEngine();
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--delay', '5', '--window', windowOfTheRun(), 'Read /tmp/m17-win/project/app.ts, then list the files in /tmp/m17-win/project, then say in one line which colour app.ts holds.']);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		for (let n = 0; n < 30; n++) {
+			await pause(1000);
+			shoot(`s27-i-t-${String(n).padStart(2, '0')}.png`);
+		}
+	});
+
+	test('window run 4: /ux typed in a session opened again from History after an engine restart', async function () {
+		if (process.env.JAWATA_WINDOW_STEP !== '4') { this.skip(); }
+		await connectToTheEngine();
+		click(766, 86);
+		await pause(2500);
+		click(300, 162);
+		await pause(6000);
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--window', windowOfTheRun(), '/ux']);
+		await pause(1200);
+		shoot('s27-h-5-ux-filtered.png');
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(1500);
+		shoot('s27-h-6-ux-taken.png');
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(2000);
+		shoot('s27-h-6-ux-sent.png');
+		await pause(90000);
+		shoot('s27-h-7-ux-answered.png');
 	});
 });

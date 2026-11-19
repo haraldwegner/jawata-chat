@@ -198,3 +198,16 @@ test('28h D57 (i): an opened agent that still works is asked again for what it s
     assert.equal(asked(), 2, 'asked again when the card changed');
   } finally { v.dispose(); }
 });
+
+test('28h Stage 27 (i), the ux look: a hire that has reported no tokens shows no tokens figure (not "0 tokens" beside a cost), and one that has shows it', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const hire = { planId: 'p-z', seat: 'developer', task: 'Edit Foo', brain: 'claude', model: '', state: 'done', elapsedMs: 10000, tokens: 0, costUsd: 0.12 };
+    await post(v, { sessionUpdate: 'tool_call', toolCallId: 'hz', title: 'hire', status: 'completed', kind: 'other', _meta: { 'jawata/hire': hire } });
+    assert.ok(!v.$('.hire[data-plan-id="p-z"] .hire-tokens'), 'a figure nobody reported was drawn as 0 tokens');
+    assert.match(v.$('.hire[data-plan-id="p-z"] .hire-cost').textContent, /\$0\.12/, 'the cost it did report still shows');
+    await act(async () => { v.port.post({ type: 'hireChanged', hire: { ...hire, tokens: 900 } }); });
+    assert.equal(v.$('.hire[data-plan-id="p-z"] .hire-tokens').textContent, '900 tokens');
+  } finally { v.dispose(); }
+});

@@ -114,7 +114,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
         <BrainPicker hire={hire} state={state} send={send} open={menuOpen} onToggle={onMenu} />
         <span className="hire-state" title={STATE_WORDS[hire.state] ?? hire.state}>{hire.state}</span>
         <span className="hire-time" title="How long this agent has been at it">{elapsed(Math.max(hire.elapsedMs, seconds * 1000))}</span>
-        <span className="hire-tokens" title="Tokens this agent has used so far">{tokensOf(hire.tokens)} tokens</span>
+        {hire.tokens > 0 ? <span className="hire-tokens" title="Tokens this agent has used so far">{tokensOf(hire.tokens)} tokens</span> : null}
         {!isWorking(hire) && hire.changedFileCount !== undefined
           ? <span className="hire-files" title="How many files this agent's run changed, counted by what the files held before and after. 0 means it changed nothing, whatever it said.">{hire.changedFileCount === 1 ? '1 file changed' : `${hire.changedFileCount} files changed`}</span>
           : null}

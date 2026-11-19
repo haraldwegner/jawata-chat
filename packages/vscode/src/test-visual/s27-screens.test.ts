@@ -35,6 +35,25 @@ suite('Visual: Stage 27 screens', () => {
 		shoot('s27-slash-list.png');
 	});
 
+	test('a code block in an answer carries a copy button', async () => {
+		assert.ok(process.env.JAWATA_VISUAL_OUT, 'JAWATA_VISUAL_OUT is set');
+		await vscode.commands.executeCommand('jawataChat.disconnectAgent');
+		await vscode.workspace.getConfiguration('jawataChat').update('agent', {
+			command: process.env.npm_node_execpath || 'node',
+			args: [require.resolve('@jawata/acp-contract/replay'), path.join(process.env.JAWATA_VISUAL_OUT!, 'code-block.jsonl')],
+		}, vscode.ConfigurationTarget.Global);
+		await vscode.commands.executeCommand('jawataChat.openChat');
+		await vscode.commands.executeCommand('jawataChat.connectAgent', 'agent');
+		await vscode.commands.executeCommand('jawataChat.sendPrompt', 'list');
+		await pause(2500);
+		shoot('s27-code-block.png');
+		// a real click on the first block's Copy, then what the clipboard holds: the block's exact text, no fence lines
+		execFileSync('xdotool', ['mousemove', '--window', windowOfTheRun(), '860', '211', 'click', '1']);
+		await pause(500);
+		shoot('s27-code-block-copied.png');
+		assert.strictEqual(await vscode.env.clipboard.readText(), 'Change the colour in app.ts from red to blue.\nUse `Edit` once, then run the gate.');
+	});
+
 	test('the History list with three clients, its hover and the copy of an id', async () => {
 		assert.ok(process.env.JAWATA_VISUAL_OUT, 'JAWATA_VISUAL_OUT is set');
 		await vscode.commands.executeCommand('jawataChat.disconnectAgent');

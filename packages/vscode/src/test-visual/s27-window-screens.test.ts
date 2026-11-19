@@ -122,6 +122,90 @@ suite('Visual: Stage 27 screens against a live engine', function () {
 		}
 	});
 
+	test('window run 6: Stage 19 chat defects in the window (S19-5, 6, 7, 2, 1, 4)', async function () {
+		if (process.env.JAWATA_WINDOW_STEP !== '6') { this.skip(); }
+		const engine = JSON.parse(fs.readFileSync(process.env.JAWATA_WINDOW_ENGINE!, 'utf8'));
+		await vscode.commands.executeCommand('jawataChat.disconnectAgent');
+		await vscode.workspace.getConfiguration('jawataChat').update('agent', {
+			command: engine.bridge[0], args: engine.bridge.slice(1), env: { JAWATA_URL: engine.url, JAWATA_KEY: engine.key },
+		}, vscode.ConfigurationTarget.Global);
+		await vscode.commands.executeCommand('jawataChat.openChat');
+		await pause(1500);
+		shoot('s19-5-0-before-connecting.png');
+		// S19-5: the connect screen must not show while the agent starts and loads a session
+		const connecting = vscode.commands.executeCommand('jawataChat.connectAgent', 'agent');
+		for (let n = 0; n < 6; n++) { await pause(700); shoot(`s19-5-${n + 1}-while-starting.png`); }
+		await connecting;
+		await pause(3000);
+		shoot('s19-5-7-connected.png');
+		// S19-6: the model list closes on Esc and on a click beside it; the "/" list closes on Esc when the chat has lost focus
+		click(802, 651);
+		await pause(800);
+		shoot('s19-6-1-model-list-open.png');
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Escape']);
+		await pause(600);
+		shoot('s19-6-2-model-list-after-esc.png');
+		click(802, 651);
+		await pause(600);
+		click(450, 300);
+		await pause(600);
+		shoot('s19-6-3-model-list-after-click-beside.png');
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--window', windowOfTheRun(), '/']);
+		await pause(800);
+		shoot('s19-6-4-slash-open.png');
+		click(450, 300);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Escape']);
+		await pause(600);
+		shoot('s19-6-5-slash-after-esc-without-focus.png');
+		// S19-2 and S19-1: a long turn, Stop during it, then a second message that is answered
+		click(475, 695);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'ctrl+a', 'BackSpace']);
+		execFileSync('xdotool', ['type', '--delay', '5', '--window', windowOfTheRun(), 'Count from 1 to 300, one number per line, each followed by a short sentence about it.']);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(7000);
+		shoot('s19-2-1-long-turn-running.png');
+		click(761, 739);
+		await pause(3000);
+		shoot('s19-2-2-after-stop.png');
+		await pause(8000);
+		shoot('s19-2-3-ten-seconds-after-stop.png');
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--delay', '5', '--window', windowOfTheRun(), 'Say hello in one word.']);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(20000);
+		shoot('s19-1-second-message-answered.png');
+		// S19-7: a New session button, and no question
+		click(417, 651);
+		await pause(3000);
+		shoot('s19-7-new-session.png');
+	});
+
+	test('window run 7: S19-4, the model picked in the dropdown is the one the next answer comes from, and the dropdown names it', async function () {
+		if (process.env.JAWATA_WINDOW_STEP !== '7') { this.skip(); }
+		await connectToTheEngine();
+		const ask = async (name: string) => {
+			click(475, 695);
+			execFileSync('xdotool', ['type', '--delay', '5', '--window', windowOfTheRun(), 'Which model are you? Answer with its name only, one line.']);
+			execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+			await pause(25000);
+			shoot(name);
+		};
+		await ask('s19-4-1-first-answer-sonnet.png');
+		click(802, 651);
+		await pause(800);
+		click(703, 300); // claude-code · Opus 5.5
+		await pause(1500);
+		shoot('s19-4-2-after-picking-opus.png');
+		await ask('s19-4-3-answer-after-opus.png');
+		click(802, 651);
+		await pause(800);
+		click(703, 375); // claude-code · Haiku 5.5
+		await pause(1500);
+		shoot('s19-4-4-after-picking-haiku.png');
+		await ask('s19-4-5-answer-after-haiku.png');
+	});
+
 	test('window run 4: /ux typed in a session opened again from History after an engine restart', async function () {
 		if (process.env.JAWATA_WINDOW_STEP !== '4') { this.skip(); }
 		await connectToTheEngine();

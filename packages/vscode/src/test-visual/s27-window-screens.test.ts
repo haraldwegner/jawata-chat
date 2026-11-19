@@ -229,6 +229,21 @@ suite('Visual: Stage 27 screens against a live engine', function () {
 		shoot('s19-7-h5-opened-the-other-one.png');
 	});
 
+	test('window run 10: Stage 27 (o), a hire whose one gate does not pass says so in its row, and unfolded as an exception', async function () {
+		if (process.env.JAWATA_WINDOW_STEP !== '10') { this.skip(); }
+		await connectToTheEngine();
+		const engine = JSON.parse(fs.readFileSync(process.env.JAWATA_WINDOW_ENGINE!, 'utf8'));
+		// the gate searches the folder for a word that is not there and states that it must find one match, so it does not pass
+		const gate = `[{"tool":"files","arguments":{"action":"search","folder":"${engine.project}","pattern":"zzz-not-there"},"expect":{"matches":1}}]`;
+		const hirePrompt = `Call the jawata hire tool exactly once with exactly these arguments: hirer "main", seat "architect", seatFile "${engine.seats}/architect.md", workingDirectory "${engine.project}", steps ${gate}, and this brief: Read app.ts in your working folder with the jawata files tool, then answer in one sentence what it exports. Then end your turn without waiting.`;
+		await vscode.commands.executeCommand('jawataChat.sendPrompt', hirePrompt);
+		await pause(45000);
+		shoot('s27-o-1-hire-ended-row.png');
+		click(920, 177);
+		await pause(3000);
+		shoot('s27-o-2-hire-unfolded-exception.png');
+	});
+
 	test('window run 7: S19-4, the model picked in the dropdown is the one the next answer comes from, and the dropdown names it', async function () {
 		if (process.env.JAWATA_WINDOW_STEP !== '7') { this.skip(); }
 		await connectToTheEngine();

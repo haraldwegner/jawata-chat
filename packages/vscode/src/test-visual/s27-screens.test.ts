@@ -35,6 +35,27 @@ suite('Visual: Stage 27 screens', () => {
 		shoot('s27-slash-list.png');
 	});
 
+	test('the History list with three clients, its hover and the copy of an id', async () => {
+		assert.ok(process.env.JAWATA_VISUAL_OUT, 'JAWATA_VISUAL_OUT is set');
+		await vscode.commands.executeCommand('jawataChat.disconnectAgent');
+		await vscode.workspace.getConfiguration('jawataChat').update('agent', {
+			command: process.env.npm_node_execpath || 'node',
+			args: [require.resolve('@jawata/acp-contract/replay'), path.join(process.env.JAWATA_VISUAL_OUT!, 'history-three-clients.jsonl')],
+		}, vscode.ConfigurationTarget.Global);
+		await vscode.commands.executeCommand('jawataChat.openChat');
+		await pause(1000);
+		execFileSync('xdotool', ['mousemove', '--window', windowOfTheRun(), '572', '364', 'click', '1']);
+		await pause(2000);
+		shoot('s27-history-clients.png');
+		// the hover on the first row's id, taken from the whole display because a tooltip is a window of its own, then the click that copies it
+		execFileSync('xdotool', ['mousemove', '--window', windowOfTheRun(), '728', '122']);
+		await pause(3000);
+		execFileSync('import', ['-window', 'root', path.join(process.env.JAWATA_VISUAL_OUT!, 's27-history-hover.png')]);
+		execFileSync('xdotool', ['click', '1']);
+		await pause(500);
+		shoot('s27-history-copied.png');
+	});
+
 	test('the History list from the empty state', async () => {
 		assert.ok(process.env.JAWATA_VISUAL_OUT, 'JAWATA_VISUAL_OUT is set');
 		await replay('R6');

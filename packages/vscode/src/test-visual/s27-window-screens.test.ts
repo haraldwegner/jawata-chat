@@ -181,6 +181,54 @@ suite('Visual: Stage 27 screens against a live engine', function () {
 		shoot('s19-7-new-session.png');
 	});
 
+	test('window run 8: S19-2 with a hire running (Stop on the main turn, Stop on the hire) and S19-7 (opening a different session from History)', async function () {
+		// run 8 sends the hire with no gate, which the engine refuses; run 9 sends it with one gate, so the hire runs and Stop can be tried on it
+		if (process.env.JAWATA_WINDOW_STEP !== '8' && process.env.JAWATA_WINDOW_STEP !== '9') { this.skip(); }
+		await connectToTheEngine();
+		const engine = JSON.parse(fs.readFileSync(process.env.JAWATA_WINDOW_ENGINE!, 'utf8'));
+		const gates = process.env.JAWATA_WINDOW_STEP === '9' ? `[{"tool":"files","arguments":{"action":"read","path":"${engine.project}/app.ts"}}]` : '[]';
+		const hirePrompt = `Call the jawata hire tool exactly once with exactly these arguments: hirer "main", seat "architect", seatFile "${engine.seats}/architect.md", workingDirectory "${engine.project}", steps ${gates}, and this brief: Read every file under ${engine.project}, then write a design review of 60 numbered points, each a full paragraph, taking your time. Then end your turn without waiting.`;
+		await vscode.commands.executeCommand('jawataChat.sendPrompt', hirePrompt);
+		await pause(8000);
+		shoot('s19-2-h1-hire-running.png');
+		// the main turn works too: a long answer, then Stop on it while the hire still runs
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--delay', '5', '--window', windowOfTheRun(), 'Count from 1 to 300, one number per line, each followed by a short sentence about it.']);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(6000);
+		shoot('s19-2-h2-main-turn-and-hire-running.png');
+		click(761, 739);
+		await pause(3000);
+		shoot('s19-2-h3-after-stop-on-the-main-turn.png');
+		await pause(5000);
+		shoot('s19-2-h4-hire-after-main-stop.png');
+		// the per-hire Stop, in Agent Control beside the hire's row
+		click(1088, 198);
+		await pause(4000);
+		shoot('s19-2-h5-after-stop-on-the-hire.png');
+		await pause(8000);
+		shoot('s19-2-h6-hire-eight-seconds-later.png');
+		// S19-7: a second session, then the first one opened from History
+		click(417, 651);
+		await pause(1500);
+		shoot('s19-7-h1-new-session-asked.png');
+		click(1060, 744);
+		await pause(3000);
+		click(475, 695);
+		execFileSync('xdotool', ['type', '--delay', '5', '--window', windowOfTheRun(), 'Say hi in one word.']);
+		execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+		await pause(15000);
+		shoot('s19-7-h2-second-session.png');
+		click(766, 86);
+		await pause(2500);
+		shoot('s19-7-h3-history-two-sessions.png');
+		click(300, 190);
+		await pause(1500);
+		shoot('s19-7-h4-opened-the-other-one-asked.png');
+		await pause(5000);
+		shoot('s19-7-h5-opened-the-other-one.png');
+	});
+
 	test('window run 7: S19-4, the model picked in the dropdown is the one the next answer comes from, and the dropdown names it', async function () {
 		if (process.env.JAWATA_WINDOW_STEP !== '7') { this.skip(); }
 		await connectToTheEngine();

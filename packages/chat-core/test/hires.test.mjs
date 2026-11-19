@@ -82,6 +82,23 @@ test('an update without hire fields leaves the hire as it was; one with unusable
   assert.deepEqual(reduce(initialViewState(), tool({ _meta: { 'jawata/hire': { seat: 'no plan' } } })).hires, []);
 });
 
+test('28h D57 (i), 28h-C27-5: a hire call that comes back failed with no card in the update was refused, so the card its earlier updates made goes; a card the agent sends as failed stays', () => {
+  const update = (extra) => ({ type: 'sessionUpdate', sessionId: 's', update: { toolCallId: 't', ...extra } });
+  const card = (state) => ({ 'jawata/hire': { planId: 'p', seat: 'developer', brain: 'b', model: 'm', state, elapsedMs: 1, tokens: 0 } });
+  const shown = reduce(initialViewState(), update({ sessionUpdate: 'tool_call', title: 'x', status: 'pending', _meta: card('running') }));
+  assert.equal(shown.hires.length, 1, 'the card is shown while the call is out');
+
+  const refused = reduce(shown, update({ sessionUpdate: 'tool_call_update', status: 'failed' }));
+  assert.deepEqual(refused.hires, [], 'a refused call left its card in Agent Control');
+  assert.equal(refused.entries.length, 1, 'the call itself stays in the conversation, with its failure');
+
+  const failedByTheAgent = reduce(shown, update({ sessionUpdate: 'tool_call_update', status: 'failed', _meta: card('failed') }));
+  assert.deepEqual(failedByTheAgent.hires.map(h => h.state), ['failed'], 'a card the agent itself sent as failed was taken away');
+
+  const otherTool = reduce(shown, { type: 'sessionUpdate', sessionId: 's', update: { sessionUpdate: 'tool_call_update', toolCallId: 'other', status: 'failed' } });
+  assert.deepEqual(otherTool.hires, shown.hires, 'the failure of a call that is not the hire took the hire away');
+});
+
 // --- the Agent Control tree (R12: a pm, a chief engineer under it, a dev under that) ---
 
 async function playedTree() {

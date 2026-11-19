@@ -400,6 +400,19 @@ function withUpdatedTool(state: ViewState, update: ToolUpdate, planId?: string):
   return state;
 }
 
+/** The state without the card of the hire the call with this id made, while that hire is still working; unchanged when the call made none. */
+function withoutHireOfCall(state: ViewState, toolCallId: string): ViewState {
+  for (const entry of state.entries) {
+    if (entry.kind !== 'turn') { continue; }
+    for (const part of entry.turn.parts) {
+      if (part.kind !== 'tool' || part.tool.toolCallId !== toolCallId || part.tool.planId === undefined) { continue; }
+      const planId = part.tool.planId;
+      return { ...state, hires: state.hires.filter(h => h.planId !== planId || !isWorking(h)) };
+    }
+  }
+  return state;
+}
+
 function reduceUpdate(state: ViewState, update: Extract<ViewMessage, { type: 'sessionUpdate' }>['update']): ViewState {
   switch (update.sessionUpdate) {
     case 'agent_message_chunk': {
@@ -454,7 +467,10 @@ function reduceUpdate(state: ViewState, update: Extract<ViewMessage, { type: 'se
     case 'tool_call_update': {
       const hire = hireIn(update._meta);
       const noted = hire ? { ...state, hires: withHire(state.hires, hire) } : state;
-      return withUpdatedTool(noted, update, hire?.planId);
+      // A hire call that comes back failed with no card in the update was refused or went out empty: no hire exists for it (28h D57 (i)),
+      // so the card its earlier updates made goes. A card the agent sends as failed is a hire that ran, and stays.
+      const kept = !hire && update.status === 'failed' ? withoutHireOfCall(noted, update.toolCallId) : noted;
+      return withUpdatedTool(kept, update, hire?.planId);
     }
     case 'plan':
       return { ...state, plan: update.entries };

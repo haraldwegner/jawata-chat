@@ -37,6 +37,7 @@ function editor({ settings, folders, installed = [], warningAnswer }) {
   const commandNames = [];
   const debugFactories = {};
   const controllers = [];
+  const folderListeners = [];
   const config = (section) => ({ get: (key, fallback) => settings[`${section}.${key}`] ?? fallback });
   const vscode = {
     window: {
@@ -50,6 +51,7 @@ function editor({ settings, folders, installed = [], warningAnswer }) {
       getConfiguration: config,
       workspaceFolders: folders.map(fsPath => ({ uri: { scheme: 'file', fsPath } })),
       registerTextDocumentContentProvider: () => ({ dispose() {} }),
+      onDidChangeWorkspaceFolders: (listener) => { folderListeners.push(listener); return { dispose() {} }; },
     },
     extensions: { all: installed },
     commands: { registerCommand: (name) => { commandNames.push(name); return { dispose() {} }; }, executeCommand: (...args) => { executed.push(args); return Promise.resolve(undefined); } },
@@ -89,7 +91,11 @@ function editor({ settings, folders, installed = [], warningAnswer }) {
   for (const loaded of ['extension', 'features', 'projectsView']) { delete require.cache[require.resolve(`../out/${loaded}.js`)]; }
   const extension = require('../out/extension.js');
   Module._load = load;
-  return { extension, log, warnings, warningButtons, executed, infos, clients, commandNames, debugFactories, controllers, context: { subscriptions } };
+  const changeFolders = (now) => {
+    vscode.workspace.workspaceFolders = now.map(fsPath => ({ uri: { scheme: 'file', fsPath } }));
+    for (const listener of folderListeners) { listener({ added: [], removed: [] }); }
+  };
+  return { extension, log, warnings, warningButtons, executed, infos, clients, commandNames, debugFactories, controllers, changeFolders, context: { subscriptions } };
 }
 
 function setup(steps, withHandoff = true) {
@@ -120,6 +126,20 @@ test('jawata Java hands the window\'s folders to the studio and starts the langu
   assert.ok(!everythingSaid.includes(SECRET), 'the key is not in the log, a warning or a message');
   assert.ok(!everythingSaid.includes(mine), 'nor is the address');
   assert.ok(e.log.some(l => l.startsWith('studio: ready:')), e.log.join('\n'));
+  await e.extension.deactivate();
+});
+
+test('his word 2026-11-20: a folder the window opens later is handed to the studio again, so jawata\'s agents reach it without a restart, also in a window that has only jawata Java', async () => {
+  const mine = await engineService();
+  const s = setup([{ afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }, { afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }]);
+  const later = realpathSync(mkdtempSync(join(tmpdir(), 'jawata-ext-later-')));
+  cleanups.push(() => rmSync(later, { recursive: true, force: true }));
+  const e = editor({ settings: { 'jawataJava.server': { command: 'java', args: ['--lsp'], env: {} }, 'jawataJava.studio': s.studio }, folders: [s.dir] });
+  await e.extension.activate(e.context);
+  assert.deepEqual(s.launches().map(l => l.folders), [[s.folder]], 'CONTROL: the start handed the folders once');
+  e.changeFolders([s.dir, later]);
+  for (let i = 0; i < 100 && s.launches().length < 2; i++) { await new Promise(resolve => setTimeout(resolve, 50)); }
+  assert.deepEqual(s.launches().map(l => l.folders), [[s.folder], [s.folder, later]], 'the changed folders were not handed to the studio');
   await e.extension.deactivate();
 });
 

@@ -172,6 +172,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<Extens
       showPlaces('vscode.executeReferenceProvider', uri, line, character)),
     vscode.commands.registerCommand('jawata.showImplementations', (uri: string, line: number, character: number) =>
       showPlaces('vscode.executeImplementationProvider', uri, line, character)),
+    // a folder the window opens or closes later is handed to the studio too, so jawata's agents reach what the window holds without a
+    // restart, also in a window that has only this extension (his word 2026-11-20)
+    vscode.workspace.onDidChangeWorkspaceFolders(() => { void lookAfterStudio(channel ?? (channel = vscode.window.createOutputChannel(NAME))); }),
   );
   await start(context);
   return {

@@ -4,7 +4,7 @@ import { addressOf, editorFoldersOf, StudioStart, toldToThePerson, type Ask, typ
 import { log } from '../utils/Logger';
 
 /** The name this editor window is known to the studio by, so it keeps one list of folders per window (audit 2026-11-20). */
-export function windowName(): string {
+function windowName(): string {
   return vscode.env.sessionId;
 }
 

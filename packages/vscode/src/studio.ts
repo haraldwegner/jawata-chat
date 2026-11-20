@@ -180,11 +180,13 @@ export function editorFoldersOf(folders: readonly string[], real: (folder: strin
 /**
  * The studio's command line for a window: the setting's own arguments, then `--editor-folder <folder>` for each folder, then
  * `--editor-window <id>` when the window is named, so the studio keeps one list of folders per window, and `--editor-pid` with this window's
- * extension process, so the studio drops the list of a window that ended without saying so (audit 2026-11-20).
+ * extension process, so the studio drops the list of a window that ended without saying so (audit 2026-11-20), and `--editor-seq` with a
+ * number that only rises in this window, so the studio keeps the folders the window sent last even when two launches arrive swapped (third
+ * audit 2026-11-20, finding E).
  * @public read by the tests
  */
 export function launchArguments(args: readonly string[], folders: readonly string[], window?: string): string[] {
-  return [...args, ...folders.flatMap(folder => ['--editor-folder', folder]), ...(window ? ['--editor-window', window, '--editor-pid', String(process.pid)] : [])];
+  return [...args, ...folders.flatMap(folder => ['--editor-folder', folder]), ...(window ? ['--editor-window', window, '--editor-pid', String(process.pid), '--editor-seq', String(nextLaunch())] : [])];
 }
 
 /** How a window asks: `again` when its folders changed, so an earlier answer for the same folders is not reused; `window` names it. */
@@ -315,6 +317,8 @@ export class StudioStart {
   async forget(studio: StudioSetting | undefined, window: string): Promise<void> {
     const setting = studioOf(studio);
     if (studio?.handoffDir === undefined || !setting.ok) { return; }
+    // the studio counts the close as the window's latest launch, so no hand-off begun before it is joined afterwards (third audit, finding B)
+    latest().run = undefined;
     try {
       await this.ports.start(setting.value.command, launchArguments(setting.value.args, [], window));
     } catch {
@@ -477,6 +481,19 @@ function settled(): WeakSet<Promise<StudioOutcome>> {
 }
 
 const LATEST = Symbol.for('jawata.studio.latestHandoff');
+const LAUNCHED = Symbol.for('jawata.studio.lastLaunch');
+
+/**
+ * The next number of a launch of this window, shared by both extensions: the clock in milliseconds, raised past the last one, so it only rises,
+ * also across a restart of the window's extensions.
+ * @public read by the tests
+ */
+export function nextLaunch(): number {
+  const holder = globalThis as unknown as Record<symbol, number | undefined>;
+  const next = Math.max(Date.now(), (holder[LAUNCHED] ?? 0) + 1);
+  holder[LAUNCHED] = next;
+  return next;
+}
 
 /** The hand-off this window began last, shared by both extensions as the register is. */
 function latest(): { run?: Promise<StudioOutcome> } {

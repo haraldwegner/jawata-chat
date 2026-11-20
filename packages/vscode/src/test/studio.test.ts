@@ -566,6 +566,23 @@ suite('The chat hands the window\'s folders to the studio', () => {
 		await Promise.all([first, back]);
 	});
 
+	test('sign-off audit 2026-11-20 (note 3): a hand-off is numbered before it reads anything, so a close the window sends while it still reads is numbered above it', async () => {
+		let release: () => void = () => undefined;
+		const gate = new Promise<void>(resolve => { release = resolve; });
+		const p = ports({ readFile: async () => { await gate; return undefined; } });
+		const setting = { command: 'the-studio', args: [], handoffDir: os.tmpdir() };
+		const handing = new StudioStart(p, new Map()).ensure(undefined, setting, ['/home/h/proj'], { window: 'w-n3' });
+		await new Promise<void>(resolve => setImmediate(resolve));
+		await new StudioStart(p, new Map()).forget(setting, 'w-n3');
+		release();
+		await handing;
+		const seqOf = (args: readonly string[]): number => Number(args[args.indexOf('--editor-seq') + 1]);
+		const close = p.started.find(([, args]) => !args.includes('--editor-folder'));
+		const handoff = p.started.find(([, args]) => args.includes('--editor-folder'));
+		assert.ok(close && handoff, 'CONTROL: the close and the hand-off were not both sent: ' + JSON.stringify(p.started));
+		assert.ok(seqOf(handoff[1]) < seqOf(close[1]), 'a hand-off begun before the close was numbered above it: ' + JSON.stringify(p.started));
+	});
+
 	test('audit 2026-11-20: a launch names its window, and a window that closes is forgotten by a launch that names it and hands no folder', async () => {
 		const named = launchArguments(['--background'], ['/a'], 'w-1');
 		assert.deepStrictEqual(named.slice(0, -1), ['--background', '--editor-folder', '/a', '--editor-window', 'w-1', '--editor-pid', String(process.pid), '--editor-seq']);

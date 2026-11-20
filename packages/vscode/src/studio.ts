@@ -349,8 +349,10 @@ export class StudioStart {
   }
 
   private async handOver(address: string | undefined, plan: Plan): Promise<StudioOutcome> {
-    const before = await this.ports.readFile(plan.file);
+    // numbered before anything is awaited, so a close the window sends after this hand-off began is numbered above it (sign-off audit
+    // 2026-11-20, note 3)
     const args = launchArguments(plan.args, plan.folders, plan.window);
+    const before = await this.ports.readFile(plan.file);
     try {
       await this.ports.start(plan.command, args);
     } catch (e) {

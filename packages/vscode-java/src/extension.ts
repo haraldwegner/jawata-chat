@@ -19,6 +19,11 @@ function windowFolders(): string[] {
 }
 
 let studioStart: StudioStart | undefined;
+
+/** Tells the studio this window holds no folder any more (it closed, or its last folder went), so its agents stop reaching them. */
+async function forgetWindow(): Promise<void> {
+  await studioStart?.forget(vscode.workspace.getConfiguration('jawataJava').get<StudioSetting>('studio'), vscode.env.sessionId);
+}
 let projects: ProjectsView | undefined;
 /** The engine the studio named for this window, which the language server's launcher and the debugger's launcher both run against. */
 let engine: EngineAnswer | undefined;
@@ -30,14 +35,16 @@ let engine: EngineAnswer | undefined;
  * found and tells the person when the studio was needed and could not be brought up; never rejects, so the start goes on as it did before
  * whatever happened. The outcome may carry the engine's key: it is not written down here, only handed to the launch.
  */
-async function lookAfterStudio(log: vscode.OutputChannel): Promise<StudioOutcome> {
+async function lookAfterStudio(log: vscode.OutputChannel, again = false): Promise<StudioOutcome> {
   const config = vscode.workspace.getConfiguration('jawataJava');
   studioStart?.dispose();
   const studio = studioStart = new StudioStart(nodePorts(
     (text, job) => Promise.resolve(vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: text, cancellable: false }, job)),
     undefined,
     text => { void vscode.window.showInformationMessage(`jawata Java: ${text}`); }));
-  const outcome = await studio.ensure(addressOf(config.get<ServerSetting>('server')), config.get<StudioSetting>('studio'), windowFolders());
+  // the window is named so the studio keeps one list of folders per window, and a change asks again (audit 2026-11-20)
+  const outcome = await studio.ensure(addressOf(config.get<ServerSetting>('server')), config.get<StudioSetting>('studio'), windowFolders(),
+    { again, window: vscode.env.sessionId });
   log.appendLine(`studio: ${outcome.kind}: ${outcome.why}`);
   if (toldToThePerson(outcome)) { void vscode.window.showWarningMessage(`jawata Java: ${outcome.why}`); }
   return outcome;
@@ -174,7 +181,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Extens
       showPlaces('vscode.executeImplementationProvider', uri, line, character)),
     // a folder the window opens or closes later is handed to the studio too, so jawata's agents reach what the window holds without a
     // restart, also in a window that has only this extension (his word 2026-11-20)
-    vscode.workspace.onDidChangeWorkspaceFolders(() => { void lookAfterStudio(channel ?? (channel = vscode.window.createOutputChannel(NAME))); }),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      const log = channel ?? (channel = vscode.window.createOutputChannel(NAME));
+      void (windowFolders().length === 0 ? forgetWindow() : lookAfterStudio(log, true));
+    }),
   );
   await start(context);
   return {
@@ -184,6 +194,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Extens
 
 /** @public called by the editor */
 export async function deactivate(): Promise<void> {
+  await forgetWindow();
   studioStart?.dispose();
   await stop();
 }

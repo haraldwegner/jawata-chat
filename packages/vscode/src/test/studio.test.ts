@@ -516,6 +516,36 @@ suite('The chat hands the window\'s folders to the studio', () => {
 		assert.strictEqual(w.launches().length, 1);
 	});
 
+	test('audit 2026-11-20 (bug A): a folder change hands the folders again although an earlier answer for the same folders is done, while two extensions asking at once still send one launch', async () => {
+		const service = await engine();
+		const w = world([{ afterMs: 0, state: 'ready', url: service.address, key: SECRET }, { afterMs: 0, state: 'ready', url: service.address, key: SECRET }]);
+		const register = new Map<string, Promise<StudioOutcome>>();
+		await new StudioStart(real(), register).ensure(undefined, w.setting, w.folders);
+		assert.strictEqual(w.launches().length, 1, 'CONTROL: the first ask launched the studio once');
+		await new StudioStart(real(), register).ensure(undefined, w.setting, w.folders);
+		assert.strictEqual(w.launches().length, 1, 'CONTROL: an ordinary second ask reused the answer');
+		const [a, b] = await Promise.all([
+			new StudioStart(real(), register).ensure(undefined, w.setting, w.folders, { again: true }),
+			new StudioStart(real(), register).ensure(undefined, w.setting, w.folders, { again: true }),
+		]);
+		assert.strictEqual(a, b, 'two extensions asking again at once were not joined');
+		// the studio is a process of its own, which writes its launch line when it runs; give it the time to
+		for (let i = 0; i < 100 && w.launches().length < 2; i++) { await later(50); }
+		await later(300);
+		assert.strictEqual(w.launches().length, 2, 'the folders of a changed window were not handed to the studio again, or were handed more than once');
+	});
+
+	test('audit 2026-11-20: a launch names its window, and a window that closes is forgotten by a launch that names it and hands no folder', async () => {
+		assert.deepStrictEqual(launchArguments(['--background'], ['/a'], 'w-1'), ['--background', '--editor-folder', '/a', '--editor-window', 'w-1']);
+		assert.deepStrictEqual(launchArguments(['--background'], ['/a']), ['--background', '--editor-folder', '/a'], 'CONTROL: no window named, none passed');
+		const p = ports();
+		await new StudioStart(p, new Map()).forget({ command: 'the-studio', args: ['--background'], handoffDir: '/x' }, 'w-1');
+		assert.deepStrictEqual(p.started, [['the-studio', ['--background', '--editor-window', 'w-1']]]);
+		const q = ports();
+		await new StudioStart(q, new Map()).forget({ command: 'the-studio', args: [] }, 'w-1');
+		assert.deepStrictEqual(q.started, [], 'CONTROL: a studio setting without a handoffDir takes no folders, so nothing is forgotten');
+	});
+
 	test('without a handoffDir or without folders the address is asked and no folder is passed', async () => {
 		const service = await engine();
 		const p = real();
@@ -582,12 +612,22 @@ suite('The chat hands the window\'s folders again when they change', () => {
 		const changes = new vscode.EventEmitter<vscode.WorkspaceFoldersChangeEvent>();
 		const handed: (readonly string[])[] = [];
 		const studio = new StudioStart(ports(), new Map());
-		const listening = handOnEveryFolderChange(studio, changes.event, async (_studio, folders) => { handed.push(folders); return { kind: 'answers', why: 'test' }; }, () => ['/w/one', '/w/two']);
+		const asks: unknown[] = [];
+		let now = ['/w/one', '/w/two'];
+		let forgotten = 0;
+		const listening = handOnEveryFolderChange(studio, changes.event, async (_studio, folders, ask) => { handed.push(folders); asks.push(ask); return { kind: 'answers', why: 'test' }; },
+			() => now, async () => { forgotten++; });
 		try {
 			assert.deepStrictEqual(handed, [], 'folders were handed before they changed');
 			changes.fire({ added: [], removed: [] });
 			await new Promise(resolve => setTimeout(resolve, 0));
 			assert.deepStrictEqual(handed, [['/w/one', '/w/two']], 'the changed folders were not handed to the studio');
+			assert.strictEqual((asks[0] as { again?: boolean }).again, true, 'a change reused the earlier answer instead of asking again (bug A)');
+			now = [];
+			changes.fire({ added: [], removed: [] });
+			await new Promise(resolve => setTimeout(resolve, 0));
+			assert.strictEqual(forgotten, 1, 'a window left with no folder was not forgotten');
+			assert.strictEqual(handed.length, 1, 'CONTROL: an empty window was handed as folders');
 		} finally {
 			listening.dispose();
 			changes.dispose();

@@ -178,11 +178,18 @@ export function editorFoldersOf(folders: readonly string[], real: (folder: strin
 }
 
 /**
- * The studio's command line for a window: the setting's own arguments, then `--editor-folder <folder>` for each folder.
+ * The studio's command line for a window: the setting's own arguments, then `--editor-folder <folder>` for each folder, then
+ * `--editor-window <id>` when the window is named, so the studio keeps one list of folders per window (audit 2026-11-20).
  * @public read by the tests
  */
-export function launchArguments(args: readonly string[], folders: readonly string[]): string[] {
-  return [...args, ...folders.flatMap(folder => ['--editor-folder', folder])];
+export function launchArguments(args: readonly string[], folders: readonly string[], window?: string): string[] {
+  return [...args, ...folders.flatMap(folder => ['--editor-folder', folder]), ...(window ? ['--editor-window', window] : [])];
+}
+
+/** How a window asks: `again` when its folders changed, so an earlier answer for the same folders is not reused; `window` names it. */
+export interface Ask {
+  readonly again?: boolean;
+  readonly window?: string;
 }
 
 /** The environment of a program started for this window: the one given, with the engine's address and key put over `JAWATA_URL` and `JAWATA_KEY` when the studio gave an engine. */
@@ -203,6 +210,7 @@ interface Plan {
   readonly args: readonly string[];
   readonly file: string;
   readonly folders: readonly string[];
+  readonly window?: string;
 }
 
 /** What one look at the answer file came to. */
@@ -242,11 +250,11 @@ export class StudioStart {
    * Never rejects. With `folders` and a studio setting that carries `handoffDir` the folders are handed to the studio; otherwise the
    * address in the agent setting is asked, as it was before folders were handed over.
    */
-  ensure(address: string | undefined, studio: StudioSetting | undefined, folders: readonly string[] = []): Promise<StudioOutcome> {
-    const plan = planOf(studio, folders);
+  ensure(address: string | undefined, studio: StudioSetting | undefined, folders: readonly string[] = [], ask: Ask = {}): Promise<StudioOutcome> {
+    const plan = planOf(studio, folders, ask.window);
     const run = plan === undefined ? this.viaAddress(address, studio)
       : 'outcome' in plan ? Promise.resolve(plan.outcome)
-        : this.viaHandoff(address, plan);
+        : this.viaHandoff(address, plan, ask.again === true);
     return run.catch((e: unknown): StudioOutcome => ({ kind: 'start-failed', why: `Looking after the studio failed: ${e instanceof Error ? e.message : String(e)}` }));
   }
 
@@ -299,10 +307,25 @@ export class StudioStart {
 
   // ---- the window's folders handed to the studio ----
 
-  private async viaHandoff(address: string | undefined, plan: Plan): Promise<StudioOutcome> {
+  /**
+   * Tells the studio a window closed, so the folders it held stop being reached: a launch that names the window and hands no folder. Only a
+   * studio that takes folders (a setting with `handoffDir`) keeps them, so only such a one is told. Never rejects and waits for nothing.
+   */
+  async forget(studio: StudioSetting | undefined, window: string): Promise<void> {
+    const setting = studioOf(studio);
+    if (studio?.handoffDir === undefined || !setting.ok) { return; }
+    try {
+      await this.ports.start(setting.value.command, launchArguments(setting.value.args, [], window));
+    } catch {
+      // a studio that cannot be started has nothing to forget: its engine reads the lists, and the next start of the window rewrites them
+    }
+  }
+
+  private async viaHandoff(address: string | undefined, plan: Plan, again = false): Promise<StudioOutcome> {
     const key = `folders:${plan.file}`;
     const cached = this.inProgress.get(key);
-    if (cached === undefined) { return this.beginHandoff(key, address, plan); }
+    // a window whose folders changed hands them again, unless the hand-off for them is still under way, which it joins (audit 2026-11-20)
+    if (cached === undefined || (again && settled().has(cached))) { return this.beginHandoff(key, address, plan); }
     const outcome = await cached;
     // an engine that has stopped since is not handed out again: the folders are handed to the studio anew, by one of the askers
     if (outcome.engine === undefined || await this.ports.probe(outcome.engine.url)) { return outcome; }
@@ -313,12 +336,13 @@ export class StudioStart {
   private beginHandoff(key: string, address: string | undefined, plan: Plan): Promise<StudioOutcome> {
     const run = this.handOver(address, plan).catch((e: unknown): StudioOutcome => ({ kind: 'start-failed', why: `Handing the folders to the studio failed: ${e instanceof Error ? e.message : String(e)}` }));
     this.inProgress.set(key, run);
+    void run.then(() => { settled().add(run); });
     return run;
   }
 
   private async handOver(address: string | undefined, plan: Plan): Promise<StudioOutcome> {
     const before = await this.ports.readFile(plan.file);
-    const args = launchArguments(plan.args, plan.folders);
+    const args = launchArguments(plan.args, plan.folders, plan.window);
     try {
       await this.ports.start(plan.command, args);
     } catch (e) {
@@ -428,7 +452,7 @@ export class StudioStart {
 }
 
 /** The plan for handing folders to the studio, or the outcome that says why it cannot be (a setting that is wrong), or nothing when the setting and the window do not call for it. */
-function planOf(setting: StudioSetting | undefined, folders: readonly string[]): Plan | { readonly outcome: StudioOutcome } | undefined {
+function planOf(setting: StudioSetting | undefined, folders: readonly string[], window?: string): Plan | { readonly outcome: StudioOutcome } | undefined {
   const dir = setting?.handoffDir;
   if (dir === undefined || folders.length === 0) { return undefined; }
   const studio = studioOf(setting);
@@ -436,10 +460,17 @@ function planOf(setting: StudioSetting | undefined, folders: readonly string[]):
   if (typeof dir !== 'string' || !path.isAbsolute(dir)) {
     return { outcome: { kind: 'bad-studio-setting', why: 'The studio setting\'s handoffDir has to be an absolute folder; the studio is not started.' } };
   }
-  return { command: studio.value.command, args: studio.value.args, file: path.join(dir, `${handoffId(folders)}.json`), folders };
+  return { command: studio.value.command, args: studio.value.args, file: path.join(dir, `${handoffId(folders)}.json`), folders, window };
 }
 
 const REGISTER = Symbol.for('jawata.studio.startInProgress');
+const SETTLED = Symbol.for('jawata.studio.handoffsDone');
+
+/** The hand-offs of this window that are done, shared by both extensions as the register is, so a changed window can tell finished from under way. */
+function settled(): WeakSet<Promise<StudioOutcome>> {
+  const holder = globalThis as unknown as Record<symbol, WeakSet<Promise<StudioOutcome>> | undefined>;
+  return holder[SETTLED] ??= new WeakSet();
+}
 
 /**
  * The starts under way in this editor window. The chat and jawata Java run in one extension host and each carries its own copy of this

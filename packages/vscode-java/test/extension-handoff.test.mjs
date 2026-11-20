@@ -54,6 +54,7 @@ function editor({ settings, folders, installed = [], warningAnswer }) {
       onDidChangeWorkspaceFolders: (listener) => { folderListeners.push(listener); return { dispose() {} }; },
     },
     extensions: { all: installed },
+    env: { sessionId: 'window-session-1' },
     commands: { registerCommand: (name) => { commandNames.push(name); return { dispose() {} }; }, executeCommand: (...args) => { executed.push(args); return Promise.resolve(undefined); } },
     ProgressLocation: { Notification: 15 },
     EventEmitter: class { event = () => ({ dispose() {} }); fire() {} },
@@ -131,7 +132,7 @@ test('jawata Java hands the window\'s folders to the studio and starts the langu
 
 test('his word 2026-11-20: a folder the window opens later is handed to the studio again, so jawata\'s agents reach it without a restart, also in a window that has only jawata Java', async () => {
   const mine = await engineService();
-  const s = setup([{ afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }, { afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }]);
+  const s = setup([{ afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }, { afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }, { afterMs: 0, state: 'ready', url: mine, key: SECRET, workspace: 'proj' }]);
   const later = realpathSync(mkdtempSync(join(tmpdir(), 'jawata-ext-later-')));
   cleanups.push(() => rmSync(later, { recursive: true, force: true }));
   const e = editor({ settings: { 'jawataJava.server': { command: 'java', args: ['--lsp'], env: {} }, 'jawataJava.studio': s.studio }, folders: [s.dir] });
@@ -140,6 +141,11 @@ test('his word 2026-11-20: a folder the window opens later is handed to the stud
   e.changeFolders([s.dir, later]);
   for (let i = 0; i < 100 && s.launches().length < 2; i++) { await new Promise(resolve => setTimeout(resolve, 50)); }
   assert.deepEqual(s.launches().map(l => l.folders), [[s.folder], [s.folder, later]], 'the changed folders were not handed to the studio');
+  // audit 2026-11-20 (bug A): back to the first set of folders, which an earlier answer was for, is handed again
+  e.changeFolders([s.dir]);
+  for (let i = 0; i < 100 && s.launches().length < 3; i++) { await new Promise(resolve => setTimeout(resolve, 50)); }
+  assert.deepEqual(s.launches().map(l => l.folders), [[s.folder], [s.folder, later], [s.folder]], 'a window back to an earlier set of folders was not handed again');
+  assert.ok(s.launches().every(l => l.argv.includes('--editor-window') && l.argv.includes('window-session-1')), 'a launch does not name its window: ' + JSON.stringify(s.launches().map(l => l.argv)));
   await e.extension.deactivate();
 });
 

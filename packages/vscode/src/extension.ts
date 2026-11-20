@@ -16,7 +16,7 @@ import { VIEW_OF, chosenPlace, type Place } from './ui/places';
 import { log, logError, disposeChannels, setRecordingDir } from './utils/Logger';
 import { InputHistoryFile } from './host/InputHistoryFile';
 import { nodePorts, StudioStart } from './studio';
-import { handOnEveryFolderChange, lookAfterStudio } from './host/lookAfterStudio';
+import { forgetWindow, handOnEveryFolderChange, lookAfterStudio } from './host/lookAfterStudio';
 
 /** How long the editor needs, after the placement setting changes, to bring the views of the chosen place into being. */
 const PLACEMENT_SETTLE_MS = 300;
@@ -53,6 +53,8 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
   host.agents.holdUntil(lookAfterStudio(studioStart));
   // a folder the window opens or closes later is handed too, so access follows the window without a restart (his word 2026-11-20)
   context.subscriptions.push(handOnEveryFolderChange(studioStart));
+  // and when the window closes (the extension's disposables go with it), its folders are forgotten, so its agents stop reaching them
+  context.subscriptions.push({ dispose: () => { void forgetWindow(studioStart); } });
   const built = createChat(host);
   const sessionManager = built.sessions;
   const chat = built.controller;

@@ -535,12 +535,27 @@ suite('The chat hands the window\'s folders to the studio', () => {
 		assert.strictEqual(w.launches().length, 2, 'the folders of a changed window were not handed to the studio again, or were handed more than once');
 	});
 
+	test('second audit 2026-11-20 (finding 6): a change does not join an unfinished hand-off begun before another change in between, so the folders a window sent last reach the studio', async () => {
+		const service = await engine();
+		const w = world([{ afterMs: 0, state: 'asking' }, { afterMs: 1500, state: 'ready', url: service.address, key: SECRET }]);
+		const register = new Map<string, Promise<StudioOutcome>>();
+		const first = new StudioStart(real(), register).ensure(undefined, w.setting, w.folders);
+		const between = new StudioStart(real(), register).ensure(undefined, w.setting, [...w.folders, '/home/h/other'], { again: true });
+		const back = new StudioStart(real(), register).ensure(undefined, w.setting, w.folders, { again: true });
+		for (let i = 0; i < 100 && w.launches().length < 3; i++) { await later(50); }
+		await later(300);
+		const launches = w.launches();
+		assert.strictEqual(launches.length, 3, 'the change back to the first folders joined the hand-off begun before the change in between: ' + JSON.stringify(launches.map(l => l.folders)));
+		assert.strictEqual(launches.filter(l => l.folders.length === 1).length, 2, 'CONTROL: the first folders were not handed twice');
+		await Promise.all([first, between, back]);
+	});
+
 	test('audit 2026-11-20: a launch names its window, and a window that closes is forgotten by a launch that names it and hands no folder', async () => {
-		assert.deepStrictEqual(launchArguments(['--background'], ['/a'], 'w-1'), ['--background', '--editor-folder', '/a', '--editor-window', 'w-1']);
+		assert.deepStrictEqual(launchArguments(['--background'], ['/a'], 'w-1'), ['--background', '--editor-folder', '/a', '--editor-window', 'w-1', '--editor-pid', String(process.pid)]);
 		assert.deepStrictEqual(launchArguments(['--background'], ['/a']), ['--background', '--editor-folder', '/a'], 'CONTROL: no window named, none passed');
 		const p = ports();
 		await new StudioStart(p, new Map()).forget({ command: 'the-studio', args: ['--background'], handoffDir: '/x' }, 'w-1');
-		assert.deepStrictEqual(p.started, [['the-studio', ['--background', '--editor-window', 'w-1']]]);
+		assert.deepStrictEqual(p.started, [['the-studio', ['--background', '--editor-window', 'w-1', '--editor-pid', String(process.pid)]]]);
 		const q = ports();
 		await new StudioStart(q, new Map()).forget({ command: 'the-studio', args: [] }, 'w-1');
 		assert.deepStrictEqual(q.started, [], 'CONTROL: a studio setting without a handoffDir takes no folders, so nothing is forgotten');

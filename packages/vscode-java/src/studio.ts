@@ -179,11 +179,12 @@ export function editorFoldersOf(folders: readonly string[], real: (folder: strin
 
 /**
  * The studio's command line for a window: the setting's own arguments, then `--editor-folder <folder>` for each folder, then
- * `--editor-window <id>` when the window is named, so the studio keeps one list of folders per window (audit 2026-11-20).
+ * `--editor-window <id>` when the window is named, so the studio keeps one list of folders per window, and `--editor-pid` with this window's
+ * extension process, so the studio drops the list of a window that ended without saying so (audit 2026-11-20).
  * @public read by the tests
  */
 export function launchArguments(args: readonly string[], folders: readonly string[], window?: string): string[] {
-  return [...args, ...folders.flatMap(folder => ['--editor-folder', folder]), ...(window ? ['--editor-window', window] : [])];
+  return [...args, ...folders.flatMap(folder => ['--editor-folder', folder]), ...(window ? ['--editor-window', window, '--editor-pid', String(process.pid)] : [])];
 }
 
 /** How a window asks: `again` when its folders changed, so an earlier answer for the same folders is not reused; `window` names it. */
@@ -324,8 +325,10 @@ export class StudioStart {
   private async viaHandoff(address: string | undefined, plan: Plan, again = false): Promise<StudioOutcome> {
     const key = `folders:${plan.file}`;
     const cached = this.inProgress.get(key);
-    // a window whose folders changed hands them again, unless the hand-off for them is still under way, which it joins (audit 2026-11-20)
-    if (cached === undefined || (again && settled().has(cached))) { return this.beginHandoff(key, address, plan); }
+    // a window whose folders changed hands them again. It joins a hand-off for the same folders only while that one is under way AND is the
+    // window's latest, which is the other extension reacting to the same change; one begun before another change in between is not joined,
+    // because the studio keeps only the latest a window sent (second audit 2026-11-20)
+    if (cached === undefined || (again && (settled().has(cached) || latest().run !== cached))) { return this.beginHandoff(key, address, plan); }
     const outcome = await cached;
     // an engine that has stopped since is not handed out again: the folders are handed to the studio anew, by one of the askers
     if (outcome.engine === undefined || await this.ports.probe(outcome.engine.url)) { return outcome; }
@@ -336,6 +339,7 @@ export class StudioStart {
   private beginHandoff(key: string, address: string | undefined, plan: Plan): Promise<StudioOutcome> {
     const run = this.handOver(address, plan).catch((e: unknown): StudioOutcome => ({ kind: 'start-failed', why: `Handing the folders to the studio failed: ${e instanceof Error ? e.message : String(e)}` }));
     this.inProgress.set(key, run);
+    latest().run = run;
     void run.then(() => { settled().add(run); });
     return run;
   }
@@ -470,6 +474,14 @@ const SETTLED = Symbol.for('jawata.studio.handoffsDone');
 function settled(): WeakSet<Promise<StudioOutcome>> {
   const holder = globalThis as unknown as Record<symbol, WeakSet<Promise<StudioOutcome>> | undefined>;
   return holder[SETTLED] ??= new WeakSet();
+}
+
+const LATEST = Symbol.for('jawata.studio.latestHandoff');
+
+/** The hand-off this window began last, shared by both extensions as the register is. */
+function latest(): { run?: Promise<StudioOutcome> } {
+  const holder = globalThis as unknown as Record<symbol, { run?: Promise<StudioOutcome> } | undefined>;
+  return holder[LATEST] ??= {};
 }
 
 /**

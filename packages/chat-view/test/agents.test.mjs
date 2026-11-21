@@ -46,12 +46,12 @@ test('R12: the working agents stand as a tree, the pm at the root; the agents of
     await ready(v);
     const seen = [];
     for (const update of hireUpdates) { await post(v, update); seen.push({ title: title(v), shape: shape(v).join(' ') }); }
-    assert.ok(seen.some(s => s.shape === '0:pm 1:chief-engineer 2:dev'), 'three levels at once');
+    assert.ok(seen.some(s => s.shape === '2:pm 3:chief-engineer 4:dev'), 'three levels at once');
     assert.ok(seen.some(s => s.title === '3 agents working'));
-    assert.equal(seen.at(-1).shape, '0:pm 1:chief-engineer 2:dev', 'at the end only the pm works, and the chief engineer and the dev that ended stay under it, being of the latest team');
+    assert.equal(seen.at(-1).shape, '2:pm 3:chief-engineer 4:dev', 'at the end only the pm works, and the chief engineer and the dev that ended stay under it, being of the latest team');
     assert.equal(seen.at(-1).title, '2 agents working · 2 finished', 'the pm and the principal');
     assert.equal(v.$('.hire[data-depth="0"]').style.marginLeft, '0px');
-    const all = seen.find(s => s.shape === '0:pm 1:chief-engineer 2:dev');
+    const all = seen.find(s => s.shape === '2:pm 3:chief-engineer 4:dev');
     assert.ok(all);
   } finally { v.dispose(); }
 });
@@ -137,7 +137,7 @@ test('two sprints: each pm stands at the root with its own agents under it, in t
       _meta: { 'jawata/hire': { planId, seat, seatCommand: '/' + seat, task: 'task of ' + planId, brain: 'claude', model: 'sonnet', state, elapsedMs: 1000, tokens: 10, ...(parentPlanId ? { parentPlanId } : {}) } } });
     for (const h of [hire('pm1', 'pm', 'running'), hire('ce1', 'chief-engineer', 'running', 'pm1'), hire('pm2', 'pm', 'running'), hire('ce2', 'chief-engineer', 'running', 'pm2'),
       hire('dev2', 'dev', 'running', 'ce2'), hire('dev1', 'dev', 'running', 'ce1'), hire('bad', 'dev', 'failed', 'ce1')]) { await post(v, h); }
-    assert.deepEqual(shape(v), ['0:pm', '1:chief-engineer', '2:dev', '2:dev', '0:pm', '1:chief-engineer', '2:dev']);
+    assert.deepEqual(shape(v), ['2:pm', '3:chief-engineer', '4:dev', '4:dev', '2:pm', '3:chief-engineer', '4:dev']);
     assert.deepEqual(rowsOf(v).map(r => r.getAttribute('data-plan-id')), ['pm1', 'ce1', 'dev1', 'bad', 'pm2', 'ce2', 'dev2'], 'each under its own parent, the failed one among them');
     assert.equal(title(v), '7 agents working · 1 finished');
   } finally { v.dispose(); }
@@ -165,6 +165,23 @@ test('R12: the brain is a control: clicking it shows what the agent offers, pick
     assert.equal(intents.filter(i => i.type === 'listBrains').length, 2, 'the list is asked for each time it opens, so a brain the agent gained since shows');
     await v.click(v.$$('.brain-item').find(e => e.textContent.includes('codex')));
     assert.equal(intents.filter(i => i.type === 'chooseBrain').length, 1, 'choosing the brain it already has asks for nothing');
+  } finally { v.dispose(); }
+});
+
+test('28h z17: the hires stand under the principal in a folded line of their own, "Hires (N)", at the third level; the pm at the root of the team, its agents one step further', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    assert.equal(v.$('details.agents-hires') === null, true, 'control: with no hire there is no Hires line');
+    const hire = (planId, seat, parent) => ({ sessionUpdate: 'tool_call', toolCallId: 't-' + planId, title: seat, kind: 'execute', status: 'in_progress',
+      _meta: { 'jawata/hire': { planId, seat, seatCommand: '/' + seat, task: 'task of ' + planId, brain: 'claude', model: 'sonnet', state: 'running', elapsedMs: 1000, tokens: 10, ...(parent ? { parentPlanId: parent } : {}) } } });
+    await post(v, hire('p-pm', 'pm'));
+    await post(v, hire('p-dev', 'developer', 'p-pm'));
+    const fold = v.$('details.agents-hires');
+    assert.equal(fold?.querySelector('summary').textContent, 'Hires (2)', 'one line that says how many');
+    assert.equal(fold?.open, true, 'open while an agent works');
+    assert.deepEqual([...fold.querySelectorAll('.hire[data-plan-id]')].map(r => `${r.getAttribute('data-depth')}:${r.getAttribute('data-plan-id')}`), ['2:p-pm', '3:p-dev'], 'the hires are inside it, the pm at the third level');
+    assert.equal(v.$('.hire.principal').getAttribute('data-depth'), '0', 'the principal is the root');
   } finally { v.dispose(); }
 });
 

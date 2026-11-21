@@ -54,6 +54,9 @@ function BrainPicker({ hire, state, send, open, onToggle }: { hire: HireView; st
   );
 }
 
+/** The level of the first hire: the principal is level 0, its "Hires" line level 1, and a hire of the principal stands at level 2. */
+const HIRES_DEPTH = 2;
+
 const callsOf = (n: number): string => (n === 1 ? '1 call' : `${n} calls`);
 
 /** How one agent's calls split: jawata, other and shell on Java; a run whose calls nobody could name says so and shows no figure. */
@@ -196,7 +199,7 @@ function PrincipalRow({ state, send, menuOpen, onMenu }: { state: ViewState; sen
   const seconds = useRunningSeconds(state.processing);
   const brain = principalBrainOf(state.session);
   return (
-    <div className="hire principal">
+    <div className="hire principal" data-depth={0} style={{ marginLeft: '0px' }}>
       <div className={'hire-row' + (state.processing ? ' running' : '')}>
         <span className="hire-seat" title="jawata itself: it reads your message and hands the work to the other agents.">principal <span className="hire-cmd">/main</span></span>
         {state.processing ? <span className="hire-state" title={STATE_WORDS.running}>running</span> : <span className="hire-state" title="The principal is waiting for your next message.">waiting for you</span>}
@@ -238,10 +241,15 @@ export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: 
       </div>
       {!state.session && !state.processing && rows.length === 0 ? <div className="agents-none">No agents are working.</div> : null}
       {state.session || state.processing ? <PrincipalRow state={state} send={send} menuOpen={menu === 'principal'} onMenu={() => setMenu(m => (m === 'principal' ? null : 'principal'))} /> : null}
-      {rows.map(({ hire, depth }) => (
-        <Row key={hire.planId} hire={hire} depth={depth} state={state} send={send}
-          unfolded={!!unfolded[hire.planId]} onFold={() => fold(hire.planId)} menuOpen={menu === hire.planId} onMenu={() => toggleMenu(hire.planId)} />
-      ))}
+      {rows.length > 0 ? (
+        <details className="agents-hires" open={hired > 0}>
+          <summary className="agents-hires-title" title="The agents the principal hired in its latest team, and the agents they hired. Open while any of them works.">{`Hires (${rows.length})`}</summary>
+          {rows.map(({ hire, depth }) => (
+            <Row key={hire.planId} hire={hire} depth={depth + HIRES_DEPTH} state={state} send={send}
+              unfolded={!!unfolded[hire.planId]} onFold={() => fold(hire.planId)} menuOpen={menu === hire.planId} onMenu={() => toggleMenu(hire.planId)} />
+          ))}
+        </details>
+      ) : null}
       {earlier > 0 ? <div className="agents-earlier" title="Agents hired in earlier turns of this conversation that have ended. The latest team stays listed above.">{`Earlier: ${earlier} agent${earlier === 1 ? '' : 's'} finished`}</div> : null}
     </div>
   );

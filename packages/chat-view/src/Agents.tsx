@@ -25,6 +25,13 @@ const STATE_WORDS: Record<string, string> = {
 /** The brain and model of one agent as a control: clicking it shows what the agent offers, and the one picked replaces this agent's. */
 function BrainPicker({ hire, state, send, open, onToggle }: { hire: HireView; state: ViewState; send: (intent: ViewIntent) => void; open: boolean; onToggle: () => void }) {
   const label = brainName(hire.brain, hire.model);
+  if (hire.state === 'done' || hire.state === 'failed') {
+    // An agent that has ended cannot be run again on another brain, so a menu here would look as if it changed a finished run.
+    return (
+      <span className="brain-fixed"
+        title={`The program and model this run used. The run has finished, so this cannot change it. To change what the next ${hire.seat} runs on, use the Seats page.`}>{label}</span>
+    );
+  }
   return (
     <span className="brain-wrap">
       <button className="brain-btn" aria-haspopup="listbox" aria-expanded={open}

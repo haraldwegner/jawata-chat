@@ -168,6 +168,26 @@ test('R12: the brain is a control: clicking it shows what the agent offers, pick
   } finally { v.dispose(); }
 });
 
+test('28h z14: the brain of a hire that has ended is not a menu that looks as if it changes the finished run; it says what the run used and where the next hire of the seat is changed', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const hire = (planId, state) => ({ sessionUpdate: 'tool_call', toolCallId: 't-' + planId, title: 'developer', kind: 'execute', status: 'in_progress',
+      _meta: { 'jawata/hire': { planId, seat: 'developer', seatCommand: '/developer', task: 'task of ' + planId, brain: 'claude-code', model: 'Haiku 5.5', state, elapsedMs: 1000, tokens: 10 } } });
+    await post(v, hire('p-live', 'running'));
+    await post(v, hire('p-done', 'done'));
+    const live = v.$('.hire[data-plan-id="p-live"]');
+    const done = v.$('.hire[data-plan-id="p-done"]');
+    assert.equal(Boolean(live.querySelector('.brain-btn')), true, 'control: a running hire still has its brain as a menu');
+    assert.equal(Boolean(done.querySelector('.brain-btn')), false, 'an ended hire offers no menu of a replacement that cannot run');
+    const label = done.querySelector('.brain-fixed');
+    assert.equal(label?.textContent, 'claude-code · Haiku 5.5', 'it still says what the run used');
+    assert.match(String(label?.getAttribute('title')), /finished/, 'the mouseover says the finished run is not changed');
+    assert.match(String(label?.getAttribute('title')), /developer/, 'and names the seat whose next hire is the one to change');
+    assert.match(String(label?.getAttribute('title')), /Seats page/, 'and says where');
+  } finally { v.dispose(); }
+});
+
 test('28h D57 (i): a hire\'s prompt folds to its first line, and opened it shows all of it', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {

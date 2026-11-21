@@ -207,6 +207,24 @@ test('28h z17: an agent row and its brief cannot be taken for each other: the br
   } finally { v.dispose(); }
 });
 
+test('28h z16: the principal\'s earlier calls are not drawn until the fold is opened, so the cost of a state change does not grow with how many calls the conversation has made', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    for (let turn = 0; turn < 3; turn++) {
+      for (let i = 0; i < 50; i++) { await post(v, { sessionUpdate: 'tool_call', toolCallId: `c-${turn}-${i}`, title: 'Read', kind: 'read', status: 'completed' }); }
+      await act(async () => { v.port.post({ type: 'promptStart' }); });
+    }
+    await post(v, { sessionUpdate: 'tool_call', toolCallId: 'c-last', title: 'Read', kind: 'read', status: 'completed' });
+    assert.match(v.$('.principal-calls-earlier summary').textContent, /Earlier: 150 tool calls/, 'the fold still says how many');
+    assert.equal(v.$$('.principal-calls-earlier .tool-call-inline').length, 0, 'closed, the 150 earlier calls are not in the page');
+    assert.equal(v.$$('.principal-calls-latest .tool-call-inline').length, 1, 'control: the latest turn\'s calls are drawn');
+    await v.click(v.$('.principal-calls-earlier summary'));
+    await v.settle(() => v.$$('.principal-calls-earlier .tool-call-inline').length > 0);
+    assert.equal(v.$$('.principal-calls-earlier .tool-call-inline').length, 150, 'opened, they are all there');
+  } finally { v.dispose(); }
+});
+
 test('28h z14: the brain of a hire that has ended is not a menu that looks as if it changes the finished run; it says what the run used and where the next hire of the seat is changed', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {

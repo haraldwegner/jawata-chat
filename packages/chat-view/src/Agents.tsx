@@ -174,6 +174,7 @@ const countOf = (n: number): string => `${n} tool call${n === 1 ? '' : 's'}`;
 
 /** Below the principal: the calls of its latest turn that made any, folded and each one line that opens; the earlier turns' calls folded above them. */
 function PrincipalCalls({ state }: { state: ViewState }) {
+  const [earlierOpen, setEarlierOpen] = useState(false);
   const turns = principalCalls(state);
   if (turns.length === 0) { return null; }
   const latest = turns[turns.length - 1];
@@ -181,9 +182,10 @@ function PrincipalCalls({ state }: { state: ViewState }) {
   return (
     <div className="principal-calls">
       {earlier.length > 0 ? (
-        <details className="principal-calls-earlier">
+        // The earlier calls are drawn only while the fold is open: a conversation can hold tens of thousands, and drawing them all made every state change cost as much as the calls were many.
+        <details className="principal-calls-earlier" open={earlierOpen} onToggle={e => setEarlierOpen((e.currentTarget as HTMLDetailsElement).open)}>
           <summary title="The calls the principal made in this conversation before its latest turn, in order">{`Earlier: ${countOf(earlier.length)}`}</summary>
-          {earlier.map(t => <Tool tool={t} key={t.toolCallId} />)}
+          {earlierOpen ? earlier.map(t => <Tool tool={t} key={t.toolCallId} />) : null}
         </details>
       ) : null}
       <details className="principal-calls-latest">

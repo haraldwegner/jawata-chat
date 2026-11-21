@@ -80,8 +80,8 @@ test('R12: a row shows the seat with its command, the brain, state, time, tokens
     assert.equal(pm.querySelector('.hire-seat').textContent.replace(/\s+/g, ' ').trim(), 'pm (/pm)');
     assert.equal(pm.querySelector('.brain-btn').textContent, 'claude · sonnet ▾');
     assert.equal(pm.querySelector('.hire-state').textContent, 'running');
-    assert.equal(pm.querySelector('.hire-task summary').textContent, 'Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.');
-    assert.equal(pm.querySelector('.hire-task').getAttribute('title'), pm.querySelector('.hire-task summary').textContent, 'the task is never cut: the mouseover has it all');
+    assert.equal(pm.querySelector('.hire-task summary').textContent, 'Brief: Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.');
+    assert.equal(pm.querySelector('.hire-task').getAttribute('title'), 'Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.', 'the task is never cut: the mouseover has it all');
     assert.equal(pm.querySelector('.hire-cost'), null, 'the pm sent no cost: no cost shows, and not $0.000');
     const ce = v.$('.hire[data-plan-id="p-ce"]');
     assert.equal(ce.querySelector('.hire-state').textContent, 'compacting');
@@ -185,6 +185,28 @@ test('28h z17: the hires stand under the principal in a folded line of their own
   } finally { v.dispose(); }
 });
 
+test('28h z17: an agent row and its brief cannot be taken for each other: the brief is labelled "Brief", and the fold marker of both is one glyph in one weight', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    await post(v, { sessionUpdate: 'tool_call', toolCallId: 't-b', title: 'pm', kind: 'execute', status: 'in_progress',
+      _meta: { 'jawata/hire': { planId: 'p-b', seat: 'pm', seatCommand: '/pm', task: 'Check the jawata version\nand dogfood', brain: 'claude', model: 'sonnet', state: 'running', elapsedMs: 1000, tokens: 0 } } });
+    const row = v.$('.hire[data-plan-id="p-b"]');
+    assert.equal(row.querySelector('.hire-task summary .hire-brief-label')?.textContent, 'Brief:', 'the brief says what it is');
+    assert.equal(row.querySelector('.hire-row .hire-brief-label'), null, 'control: the agent\'s own row is not labelled a brief');
+    const { CHAT_CSS } = await import('../dist/styles.js');
+    const body = (selector) => new RegExp(`${selector.replace(/[.>:[\]]/g, c => '\\' + c)}\\s*\\{([^}]*)\\}`).exec(CHAT_CSS)?.[1] ?? '';
+    const agentMarker = body('.hire-fold');
+    const briefMarker = body('.hire-task > summary::before');
+    assert.match(briefMarker, /content:\s*'▸'/, 'the brief\'s marker is the agent\'s glyph');
+    assert.match(body('.hire-task[open] > summary::before'), /content:\s*'▾'/, 'and its opened glyph');
+    assert.match(body('.hire-task > summary'), /list-style:\s*none/, 'the native bold triangle is not drawn');
+    const weight = (text) => /font-weight:\s*(\d+)/.exec(text)?.[1];
+    assert.equal(weight(briefMarker), weight(agentMarker), 'one weight for both markers');
+    assert.notEqual(weight(agentMarker), undefined, 'and the weight is stated, not inherited by chance');
+  } finally { v.dispose(); }
+});
+
 test('28h z14: the brain of a hire that has ended is not a menu that looks as if it changes the finished run; it says what the run used and where the next hire of the seat is changed', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
@@ -212,7 +234,7 @@ test('28h D57 (i): a hire\'s prompt folds to its first line, and opened it shows
     const hire = { planId: 'p-x', seat: 'chief-engineer', name: 'Rafael', task: 'INSTRUCTION 1\nTOOL: Edit\nFILE: a.txt', brain: 'claude', model: '', state: 'running', elapsedMs: 0, tokens: 0 };
     await post(v, { sessionUpdate: 'tool_call', toolCallId: 'hx', title: 'hire', status: 'completed', kind: 'other', _meta: { 'jawata/hire': hire } });
     const task = v.$('.hire[data-plan-id="p-x"] .hire-task');
-    assert.equal(task.querySelector('summary').textContent, 'INSTRUCTION 1', 'one line');
+    assert.equal(task.querySelector('summary').textContent, 'Brief: INSTRUCTION 1', 'one line, labelled');
     assert.equal(task.open, false, 'folded');
     task.open = true;
     assert.equal(task.querySelector('.hire-task-full').textContent, 'INSTRUCTION 1\nTOOL: Edit\nFILE: a.txt', 'all of it');

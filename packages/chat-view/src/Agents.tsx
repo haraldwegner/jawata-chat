@@ -145,7 +145,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
       </div>
       {hire.task ? (
         <details className="hire-task" title={hire.task}>
-          <summary>{hire.task.trim().split('\n')[0]}</summary>
+          <summary><span className="hire-brief-label">Brief:</span> {hire.task.trim().split('\n')[0]}</summary>
           <pre className="hire-task-full">{hire.task}</pre>
         </details>
       ) : null}

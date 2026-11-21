@@ -40,6 +40,34 @@ test('a team hired in an earlier turn is folded into one line, and the latest te
     await post(v, card('new', 'dev', 'done'));
     const listed = v.$$('.hire[data-plan-id]').map(r => r.getAttribute('data-plan-id'));
     assert.deepEqual(listed, ['new'], 'the earlier team was listed, or the latest was not');
-    assert.match(v.$('.agents-earlier')?.textContent ?? '', /Earlier: 1 agent finished/);
+    assert.equal(v.$('.agents-earlier-run summary')?.textContent, 'task of old · 1 agent · cost not reported', 'with no message of the person to name the run, the first hire\'s brief names it');
+  } finally { v.dispose(); }
+});
+
+const said = (text) => ({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text } });
+
+test('28h z17: each earlier run is one line, newest first, naming its task, its agents and its cost, and unfolds into its team; a cost nobody reported is said, not shown as zero', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    await post(v, said('First task: tidy the notes'));
+    await post(v, card('f1', 'dev', 'done'));
+    await post(v, said('Check the jawata version and dogfood, then report in the usual way\nsecond line'));
+    await post(v, card('old1', 'pm', 'done', { costUsd: 0.2 }));
+    await post(v, card('old2', 'dev', 'done', { parentPlanId: 'old1', costUsd: 0.24 }));
+    await post(v, said('Third task'));
+    await post(v, card('new', 'dev', 'running'));
+    assert.deepEqual(v.$$('.hire[data-plan-id]').map(r => r.getAttribute('data-plan-id')), ['new'], 'only the latest team is listed');
+    const lines = v.$$('.agents-earlier-run > summary').map(e => e.textContent);
+    assert.deepEqual(lines, [
+      'Check the jawata version and dogfood, then report in the… · 2 agents · $0.44',
+      'First task: tidy the notes · 1 agent · cost not reported',
+    ], 'newest first, the task as the first words of the message, the number of agents, the summed cost');
+    await v.click(v.$$('.agents-earlier-run > summary')[0]);
+    await v.settle(() => v.$$('.agents-earlier-run')[0].querySelector('.hire[data-plan-id]'));
+    const run = v.$$('.agents-earlier-run')[0];
+    assert.deepEqual([...run.querySelectorAll('.hire[data-plan-id]')].map(r => r.getAttribute('data-plan-id')), ['old1', 'old2'], 'opened, a run holds its team');
+    assert.equal(run.querySelector('.hire[data-plan-id="old2"]').getAttribute('data-depth'), '3', 'the agents of the run are indented as a team');
+    assert.equal(v.$$('.hire[data-plan-id]').length, 3, 'the other earlier run stays folded');
   } finally { v.dispose(); }
 });

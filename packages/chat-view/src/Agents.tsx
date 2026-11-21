@@ -211,6 +211,68 @@ function PrincipalRow({ state, send, menuOpen, onMenu }: { state: ViewState; sen
   );
 }
 
+/** One earlier run: what the person asked, the agents it hired that have ended, and what they cost. */
+interface EarlierRun { key: string; task: string; hires: HireView[]; cost: number; unreported: number }
+
+const TASK_WORDS = 10;
+
+/** The first words of a message or brief, its first line only, with an ellipsis where words were left out. */
+function firstWords(text: string): string {
+  const words = (text.trim().split('\n')[0] ?? '').split(/\s+/).filter(w => w.length > 0);
+  return words.length > TASK_WORDS ? words.slice(0, TASK_WORDS).join(' ') + '…' : words.join(' ');
+}
+
+/**
+ * The runs before the latest team, newest first: each turn that hired anyone, with the message of the person it answered and the hires under
+ * them that have ended. A hire no turn of this conversation names (one a reloaded conversation brought back) forms a last run of its own.
+ */
+function earlierRuns(state: ViewState, team: ReadonlySet<string>): EarlierRun[] {
+  const byPlan = new Map(state.hires.map(h => [h.planId, h]));
+  const taken = new Set<string>(team);
+  const groups: { ids: Set<string>; asked: string }[] = [];
+  let asked = '';
+  for (const entry of state.entries) {
+    if (entry.kind === 'user') { asked = entry.text; continue; }
+    if (entry.kind !== 'turn') { continue; }
+    const ids = new Set<string>();
+    for (const part of entry.turn.parts) {
+      if (part.kind === 'tool' && part.tool.planId && byPlan.has(part.tool.planId) && !taken.has(part.tool.planId)) { ids.add(part.tool.planId); }
+    }
+    ids.forEach(id => taken.add(id));
+    for (let grown = true; grown;) {
+      grown = false;
+      for (const h of state.hires) {
+        if (h.parentPlanId && ids.has(h.parentPlanId) && !taken.has(h.planId)) { ids.add(h.planId); taken.add(h.planId); grown = true; }
+      }
+    }
+    if (ids.size > 0) { groups.push({ ids, asked }); }
+  }
+  const unnamed = state.hires.filter(h => !taken.has(h.planId)).map(h => h.planId);
+  const runs = groups.map(g => ({ ids: g.ids, asked: g.asked }));
+  if (unnamed.length > 0) { runs.unshift({ ids: new Set(unnamed), asked: '' }); }
+  return runs.reverse().flatMap(g => {
+    const hires = state.hires.filter(h => g.ids.has(h.planId) && !isWorking(h));
+    if (hires.length === 0) { return []; }
+    const reported = hires.filter(h => h.costUsd !== undefined);
+    return [{
+      key: hires[0].planId,
+      task: firstWords(g.asked) || firstWords(hires[0].task),
+      hires,
+      cost: reported.reduce((sum, h) => sum + (h.costUsd ?? 0), 0),
+      unreported: hires.length - reported.length,
+    }];
+  });
+}
+
+/** The line of one earlier run: its task, its agents and what they cost; a cost nobody reported is said, never shown as zero. */
+function earlierLine(run: EarlierRun): string {
+  const agents = `${run.hires.length} agent${run.hires.length === 1 ? '' : 's'}`;
+  const cost = run.unreported === 0 ? costOf(run.cost)
+    : run.unreported === run.hires.length ? 'cost not reported'
+    : `${costOf(run.cost)} and ${run.unreported} not reported`;
+  return `${run.task} · ${agents} · ${cost}`;
+}
+
 /**
  * The Agent Control panel: always shown, the principal from the moment a message is sent, and the agents that work as the tree they were
  * hired in. Each agent's talk is folded until asked for, and its brain is a control that replaces it. Nothing here is typed into.
@@ -220,7 +282,8 @@ export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: 
   const [menu, setMenu] = useState<string | null>(null);
   const team = latestTeam(state);
   const rows = workingTree(state.hires, team);
-  const earlier = state.hires.filter(h => !isWorking(h) && !team.has(h.planId)).length;
+  const runs = earlierRuns(state, team);
+  const [openRuns, setOpenRuns] = useState<Record<string, boolean>>({});
   const hired = state.hires.filter(isWorking).length;
   const working = hired + (state.processing ? 1 : 0);
   const finished = state.hires.length - hired;
@@ -250,7 +313,21 @@ export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: 
           ))}
         </details>
       ) : null}
-      {earlier > 0 ? <div className="agents-earlier" title="Agents hired in earlier turns of this conversation that have ended. The latest team stays listed above.">{`Earlier: ${earlier} agent${earlier === 1 ? '' : 's'} finished`}</div> : null}
+      {runs.length > 0 ? (
+        <div className="agents-earlier">
+          <div className="agents-earlier-title" title="Runs of this conversation before the latest team, newest first. Each line gives what you asked, how many agents it used and what they cost; open one to see its team.">Earlier</div>
+          {runs.map(run => (
+            <details className="agents-earlier-run" key={run.key} open={!!openRuns[run.key]}
+              onToggle={e => { const now = (e.currentTarget as HTMLDetailsElement).open; setOpenRuns(o => (!!o[run.key] === now ? o : { ...o, [run.key]: now })); }}>
+              <summary title={`${run.task} — the agents of this run that have ended. A cost an agent did not report is not counted as zero.`}>{earlierLine(run)}</summary>
+              {openRuns[run.key] ? workingTree(run.hires, new Set(run.hires.map(h => h.planId))).map(({ hire, depth }) => (
+                <Row key={hire.planId} hire={hire} depth={depth + HIRES_DEPTH} state={state} send={send}
+                  unfolded={!!unfolded[hire.planId]} onFold={() => fold(hire.planId)} menuOpen={menu === hire.planId} onMenu={() => toggleMenu(hire.planId)} />
+              )) : null}
+            </details>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -18,6 +18,7 @@ const brainName = (brain: string, model: string | undefined): string => (model ?
 const STATE_WORDS: Record<string, string> = {
   running: 'The agent is working.',
   compacting: 'The agent is shortening its own conversation so it can go on.',
+  stalled: 'The agent has shown no sign of life for five minutes; the engine stops it at the second ceiling.',
   done: 'The agent has finished.',
   failed: 'The agent ended with a failure.',
 };

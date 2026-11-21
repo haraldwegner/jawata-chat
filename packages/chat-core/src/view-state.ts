@@ -79,8 +79,8 @@ export interface TranscriptTurn {
   text: string;
 }
 
-/** Whether a hire still works: it is running or compacting. */
-export const isWorking = (hire: HireView): boolean => hire.state === 'running' || hire.state === 'compacting';
+/** Whether a hire still works: it is running, compacting, or stalled (the engine says stalled when it has shown no sign of life for five minutes and stops it at the second ceiling). */
+export const isWorking = (hire: HireView): boolean => hire.state === 'running' || hire.state === 'compacting' || hire.state === 'stalled';
 
 /** What a tool call's `_meta` says about the hire it is, if it is one; undefined when it says nothing usable. */
 function hireIn(meta: unknown): HireView | undefined {

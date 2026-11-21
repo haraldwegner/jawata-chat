@@ -151,6 +151,7 @@ const RULES: Rule[] = [
   ['.hire-tokens', 'color: var(--jc-quiet);'],
   ['.hire-cost', 'color: var(--jc-quiet);'],
   ['.hire-row.compacting .hire-state', 'font-style: italic;'],
+  ['.hire-row.stalled .hire-state', 'font-weight: 600;'],
   ['.hire-row.failed .hire-state', 'font-weight: 600;'],
   ['.hire-stop', 'font: inherit; font-size: 0.9em; padding: 0 8px; border-radius: 4px; cursor: pointer; color: var(--jc-text); background: transparent; border: 1px solid var(--jc-edge);'],
   ['.hire-transcript-btn', 'font: inherit; font-size: 0.9em; padding: 0 8px; border-radius: 4px; cursor: pointer; color: var(--jc-text); background: transparent; border: 1px solid var(--jc-edge);'],

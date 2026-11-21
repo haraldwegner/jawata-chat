@@ -13,7 +13,7 @@ export type CommandGroup = (typeof COMMAND_GROUPS)[number];
 
 /** E3: a hire as a tool call, in `_meta["jawata/hire"]` of `tool_call` and `tool_call_update`. */
 export const META_HIRE = 'jawata/hire';
-export const HIRE_STATES = ['running', 'compacting', 'done', 'failed'] as const;
+export const HIRE_STATES = ['running', 'compacting', 'stalled', 'done', 'failed'] as const;
 export type HireState = (typeof HIRE_STATES)[number];
 export interface HireMeta {
   planId: string;

@@ -181,3 +181,9 @@ test('28h S24 (D55): a hire card with a name keeps it, and a card without one, o
   assert.equal(hireFromEntry({ ...base, name: 'Claudia' }).name, 'Claudia');
   for (const card of [base, { ...base, name: '' }, { ...base, name: 5 }]) { assert.equal('name' in hireFromEntry(card), false); }
 });
+
+test('a hire the engine calls stalled still works: it counts as working and keeps its Stop', () => {
+  const stalled = hireFromEntry({ planId: 'p-quiet', seat: 'developer', state: 'stalled', elapsedMs: 400000, tokens: 0, task: 'Build it.' });
+  assert.equal(stalled?.state, 'stalled');
+  assert.equal(isWorking(stalled), true, 'the engine stops it at the second ceiling; until then it is a working hire');
+});

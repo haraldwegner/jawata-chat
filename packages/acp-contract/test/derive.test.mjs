@@ -21,6 +21,7 @@ test('real recordings carry no Level-1 field and pass the check', () => {
 test('a hire with a state the contract does not name, or a missing field, is a violation', () => {
   assert.deepEqual(checkLevel1([callWith(hire())]), []);
   assert.deepEqual(checkLevel1([callWith(hire({ state: 'compacting' }))]), []);
+  assert.deepEqual(checkLevel1([callWith(hire({ state: 'stalled' }))]), [], 'a hire that shows no sign of life is told as stalled');
   assert.match(checkLevel1([callWith(hire({ state: 'bogus' }))])[0], /state/);
   const { task, ...missing } = hire();
   assert.match(checkLevel1([callWith(missing)])[0], /task/);

@@ -69,6 +69,9 @@ export function Seats({ port, handle }: ScreenProps): ReactElement {
   useEffect(() => {
     handle.refresh = refresh;
     void refresh();
+    const timer = setInterval(() => { void refresh(); }, 1000);
+    (timer as unknown as { unref?: () => void }).unref?.();
+    return () => clearInterval(timer);
   }, [handle, refresh]);
 
   const change = async (seat: SeatRow, proposed: Json): Promise<void> => {

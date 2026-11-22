@@ -266,7 +266,18 @@ export class ChatController {
         return;
       case 'chooseBrain':
         await this.changeActive('change the brain', async id => {
-          const hire = hireFromEntry(await this.sessions.chooseBrain(id, intent.planId, intent.brain, intent.model));
+          const answer = await this.sessions.chooseBrain(id, intent.planId, intent.brain, intent.model);
+          if (typeof answer.applies === 'string' && typeof answer.seat === 'string') {
+            this.post({
+              type: 'seatChoice',
+              seat: answer.seat,
+              brain: typeof answer.brain === 'string' ? answer.brain : intent.brain,
+              model: typeof answer.model === 'string' ? answer.model : intent.model,
+              applies: answer.applies,
+            });
+            return;
+          }
+          const hire = hireFromEntry(answer);
           if (hire) { this.post({ type: 'hireChanged', hire }); } else { this.post({ type: 'error', message: 'The agent did not say how the agent stands after the change of brain.' }); }
         });
         return;
@@ -420,6 +431,12 @@ export class ChatController {
   }
 
   private handleSessionUpdate(update: SessionNotification): void {
+    const choice = update.update as { sessionUpdate?: string; seat?: unknown; brain?: unknown; model?: unknown; applies?: unknown };
+    if (choice.sessionUpdate === 'jawata_seat_choice' && typeof choice.seat === 'string' && typeof choice.brain === 'string' && typeof choice.model === 'string') {
+      if (update.sessionId !== this.sessions.getActiveSessionId()) { return; }
+      this.post({ type: 'seatChoice', seat: choice.seat, brain: choice.brain, model: choice.model, applies: typeof choice.applies === 'string' ? choice.applies : 'applies from the next hire of this seat' });
+      return;
+    }
     // What the agent says about a session (commands, options, title) is written down by the sessions
     // themselves; this only passes the update on, and only for the one session the page shows.
     if (update.sessionId === this.sessions.getSideSessionId()) { this.post({ type: 'sideUpdate', update: update.update }); return; }
@@ -622,7 +639,7 @@ export class ChatController {
     }
   }
 
-  /** Ask the agent for a hired agent's transcript and tell the page; if it cannot be had, the person is told. */
+  /** Ask the agent for a hired agent's transcript and tell the page; if it cannot be had, that agent's row is told (a turn of role 'missing'), not the person in the chat. */
   private async openTranscript(planId: string): Promise<void> {
     const sessionId = this.sessions.getActiveSessionId();
     if (!sessionId) { return; }
@@ -630,7 +647,7 @@ export class ChatController {
       this.post({ type: 'hireTranscript', planId, turns: await this.sessions.hireTranscript(sessionId, planId) });
     } catch (e) {
       this.host.log.logError('Failed to read a transcript', e);
-      this.post({ type: 'error', message: `Failed to read the transcript: ${(e as Error).message}` });
+      this.post({ type: 'hireTranscript', planId, turns: [{ role: 'missing', text: (e as Error).message }] });
     }
   }
 

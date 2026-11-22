@@ -104,8 +104,18 @@ function replyViolations(method: string, result: any): string[] {
   if (method === '_jawata/hire/stop') {
     return typeof result?.ok === 'boolean' ? [] : ['stop reply: ok is not a boolean'];
   }
-  // the brain request answers with the hire as it now is
-  if (method === '_jawata/hire/brain') { return hireViolations(result).map(v => `brain reply: ${v}`); }
+  // A stored choice answers with the seat, brain, model and that it applies from the next hire.
+  // A recording made when the reply was the hire itself still passes the hire shape.
+  if (method === '_jawata/hire/brain') {
+    if (typeof result?.applies === 'string') {
+      const out: string[] = [];
+      for (const field of ['seat', 'brain', 'model', 'applies', 'planId']) {
+        if (typeof result?.[field] !== 'string') { out.push(`brain reply: ${field} is not a string`); }
+      }
+      return out;
+    }
+    return hireViolations(result).map(v => `brain reply: ${v}`);
+  }
   if (method === BRAIN_LIST_METHOD) {
     const choices = Array.isArray(result?.brains) ? result.brains : null;
     if (!choices) { return ['brains reply: brains is not an array']; }

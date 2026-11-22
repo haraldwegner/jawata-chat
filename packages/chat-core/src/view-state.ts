@@ -273,6 +273,10 @@ export interface ViewState {
   transcripts: Record<string, TranscriptTurn[]>;
   /** The brains the agent offers, once the page asked; null until then. Not part of the conversation. */
   brains: BrainChoice[] | null;
+  /** The stored brain and model of each seat, for the next hire. A card shows what its hire was started with, not this. */
+  seatChoices: Record<string, { brain: string; model: string }>;
+  /** The sentence last said about a stored choice, or empty. */
+  choiceNote: string;
   /** Proposals waiting for an answer, oldest first. */
   proposals: ProposalView[];
   /** What the agent last listed as its sessions; null until the page asked. It is the agent's list: the chat keeps none of its own. */
@@ -291,7 +295,7 @@ export interface ViewState {
 const noAgents = () => ({ hires: [] as HireView[], transcripts: {} as Record<string, TranscriptTurn[]>, proposals: [] as ProposalView[] });
 
 export function initialViewState(): ViewState {
-  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0, inputHistory: [], side: null, brains: null };
+  return { contractVersion: VIEW_CONTRACT_VERSION, session: null, entries: [], plan: null, processing: false, loading: false, attachments: [], queued: [], ...noAgents(), history: null, draft: '', draftResets: 0, inputHistory: [], side: null, brains: null, seatChoices: {}, choiceNote: '' };
 }
 
 /**
@@ -579,6 +583,12 @@ export function reduce(state: ViewState, message: ViewMessage): ViewState {
       return { ...state, proposals: state.proposals.filter(p => p.requestId !== message.requestId) };
     case 'brainList':
       return { ...state, brains: message.brains };
+    case 'seatChoice':
+      return {
+        ...state,
+        choiceNote: message.applies,
+        seatChoices: { ...state.seatChoices, [message.seat]: { brain: message.brain, model: message.model } },
+      };
     case 'hireChanged':
       return { ...state, hires: withHire(state.hires, message.hire) };
     case 'hireTranscript':

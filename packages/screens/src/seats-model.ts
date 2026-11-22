@@ -162,6 +162,7 @@ function loginNote(brain: BrainStatus): string {
 export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[], conversation: readonly ConversationBrain[] = [],
   catalogue: Readonly<Record<string, readonly string[]>> = {}): BrainOption[] {
   const options: BrainOption[] = [];
+  if (!seat.brain) { options.push({ value: '|', label: 'not set' }); }
   for (const brain of brains.filter(one => one.hirable && one.installed && (!one.writesHeldByInstruction || seat.acceptsUncontainedWrites))) {
     const note = loginNote(brain) + (brain.writesHeldByInstruction ? ' (writes held only by an instruction)' : '');
     options.push({ value: `${brain.id}|`, label: `${brain.label} — ${brain.takesModel ? 'its default model' : 'chooses its own model'}${note}` });
@@ -173,7 +174,7 @@ export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[], conv
     }
   }
   const current = `${seat.brain}|${seat.model ?? ''}`;
-  if (!options.some(option => option.value === current)) {
+  if (seat.brain && !options.some(option => option.value === current)) {
     const known = brains.find(one => one.id === seat.brain);
     options.unshift({ value: current, label: `${known?.label ?? seat.brain} — ${seat.model ?? 'its default model'} (not available on this machine)` });
   }
@@ -188,6 +189,7 @@ export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[], conv
 export function conversationOptions(seat: SeatRow, conversation: readonly ConversationBrain[], brains: readonly BrainStatus[],
   models: Readonly<Record<string, readonly string[]>>): BrainOption[] {
   const options: BrainOption[] = [];
+  if (!seat.brain) { options.push({ value: '|', label: 'not set' }); }
   for (const one of conversation.filter(brain => brain.ready)) {
     const status = brains.find(brain => brain.id === one.id);
     const label = status?.label ?? one.label;
@@ -196,7 +198,7 @@ export function conversationOptions(seat: SeatRow, conversation: readonly Conver
     for (const model of models[one.id] ?? []) { options.push({ value: `${one.id}|${model}`, label: `${label} — ${model}${note}` }); }
   }
   const current = `${seat.brain}|${seat.model ?? ''}`;
-  if (!options.some(option => option.value === current)) {
+  if (seat.brain && !options.some(option => option.value === current)) {
     const ready = conversation.some(brain => brain.ready && brain.id === seat.brain);
     const label = brains.find(one => one.id === seat.brain)?.label ?? conversation.find(one => one.id === seat.brain)?.label ?? seat.brain;
     const absent = !ready || models[seat.brain] !== undefined;

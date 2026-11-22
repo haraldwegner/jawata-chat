@@ -20,7 +20,7 @@
     },
     {
       "type": "state",
-      "contractVersion": 12,
+      "contractVersion": 13,
       "activeSessionId": "eb4d7d56-b0b4-40d4-998f-2cf1fa3fd890",
       "session": {
         "sessionId": "sessionId#1",
@@ -40,7 +40,7 @@
     {
       "type": "snapshot",
       "state": {
-        "contractVersion": 12,
+        "contractVersion": 13,
         "session": {
           "sessionId": "sessionId#1",
           "agentName": "Claude Agent",
@@ -82,7 +82,9 @@
         "history": null,
         "draft": "",
         "side": null,
-        "brains": null
+        "brains": null,
+        "seatChoices": {},
+        "choiceNote": ""
       }
     },
     {
@@ -91,7 +93,7 @@
     },
     {
       "type": "state",
-      "contractVersion": 12,
+      "contractVersion": 13,
       "activeSessionId": "eb4d7d56-b0b4-40d4-998f-2cf1fa3fd890",
       "session": {
         "sessionId": "sessionId#1",

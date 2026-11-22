@@ -2036,5 +2036,264 @@
         "planId"
       ]
     }
+  },
+  "13": {
+    "messages": [
+      "brainList",
+      "clearChat",
+      "configOptionsUpdate",
+      "draft",
+      "error",
+      "file-attached",
+      "file-detached",
+      "hireChanged",
+      "hireTranscript",
+      "inputHistory",
+      "loadSessionEnd",
+      "loadSessionStart",
+      "modelsUpdate",
+      "modesUpdate",
+      "permissionRequest",
+      "permissionResolved",
+      "promptEnd",
+      "promptQueued",
+      "promptStart",
+      "seatChoice",
+      "sessionInfoUpdate",
+      "sessionList",
+      "sessionUpdate",
+      "sideAsked",
+      "sideClosed",
+      "sideEnd",
+      "sideError",
+      "sideUpdate",
+      "snapshot",
+      "state",
+      "userPrompt"
+    ],
+    "intents": [
+      "answerPermission",
+      "askSide",
+      "attachPasted",
+      "cancelTurn",
+      "chooseBrain",
+      "chooseFiles",
+      "closeSide",
+      "configureAgent",
+      "connectAgent",
+      "detachFile",
+      "disconnectAgent",
+      "keepDraft",
+      "listBrains",
+      "listSessions",
+      "newConversation",
+      "openSession",
+      "openSide",
+      "openTranscript",
+      "pageFailed",
+      "ready",
+      "sendNow",
+      "sendPrompt",
+      "setConfigOption",
+      "setMode",
+      "setModel",
+      "stopHire"
+    ],
+    "state": [
+      "attachments",
+      "brains",
+      "choiceNote",
+      "contractVersion",
+      "draft",
+      "draftResets",
+      "entries",
+      "hires",
+      "history",
+      "inputHistory",
+      "loading",
+      "plan",
+      "processing",
+      "proposals",
+      "queued",
+      "seatChoices",
+      "session",
+      "side",
+      "transcripts"
+    ],
+    "messageFields": {
+      "brainList": [
+        "brains"
+      ],
+      "clearChat": [],
+      "configOptionsUpdate": [
+        "configOptions"
+      ],
+      "draft": [
+        "text"
+      ],
+      "error": [
+        "message"
+      ],
+      "file-attached": [
+        "image",
+        "name",
+        "path"
+      ],
+      "file-detached": [
+        "path"
+      ],
+      "hireChanged": [
+        "hire"
+      ],
+      "hireTranscript": [
+        "planId",
+        "turns"
+      ],
+      "inputHistory": [
+        "entries"
+      ],
+      "loadSessionEnd": [
+        "ok"
+      ],
+      "loadSessionStart": [],
+      "modelsUpdate": [
+        "models"
+      ],
+      "modesUpdate": [
+        "modes"
+      ],
+      "permissionRequest": [
+        "diffs",
+        "options",
+        "requestId",
+        "title"
+      ],
+      "permissionResolved": [
+        "requestId"
+      ],
+      "promptEnd": [
+        "stopReason",
+        "usage"
+      ],
+      "promptQueued": [
+        "files",
+        "text"
+      ],
+      "promptStart": [],
+      "seatChoice": [
+        "applies",
+        "brain",
+        "model",
+        "seat"
+      ],
+      "sessionInfoUpdate": [
+        "title"
+      ],
+      "sessionList": [
+        "append",
+        "nextCursor",
+        "sessions",
+        "show"
+      ],
+      "sessionUpdate": [
+        "sessionId",
+        "update"
+      ],
+      "sideAsked": [
+        "text"
+      ],
+      "sideClosed": [],
+      "sideEnd": [
+        "stopReason"
+      ],
+      "sideError": [
+        "message"
+      ],
+      "sideUpdate": [
+        "update"
+      ],
+      "snapshot": [
+        "state"
+      ],
+      "state": [
+        "activeSessionId",
+        "contractVersion",
+        "session"
+      ],
+      "userPrompt": [
+        "files",
+        "images",
+        "text"
+      ]
+    },
+    "intentFields": {
+      "answerPermission": [
+        "optionId",
+        "requestId"
+      ],
+      "askSide": [
+        "text"
+      ],
+      "attachPasted": [
+        "data",
+        "mimeType",
+        "name"
+      ],
+      "cancelTurn": [],
+      "chooseBrain": [
+        "brain",
+        "model",
+        "planId"
+      ],
+      "chooseFiles": [],
+      "closeSide": [],
+      "configureAgent": [],
+      "connectAgent": [],
+      "detachFile": [
+        "path"
+      ],
+      "disconnectAgent": [],
+      "keepDraft": [
+        "text"
+      ],
+      "listBrains": [],
+      "listSessions": [
+        "cursor"
+      ],
+      "newConversation": [],
+      "openSession": [
+        "sessionId"
+      ],
+      "openSide": [
+        "text"
+      ],
+      "openTranscript": [
+        "planId"
+      ],
+      "pageFailed": [
+        "message"
+      ],
+      "ready": [
+        "contractVersion"
+      ],
+      "sendNow": [],
+      "sendPrompt": [
+        "files",
+        "text"
+      ],
+      "setConfigOption": [
+        "configId",
+        "value"
+      ],
+      "setMode": [
+        "modeId"
+      ],
+      "setModel": [
+        "modelId"
+      ],
+      "stopHire": [
+        "planId"
+      ]
+    }
   }
 }

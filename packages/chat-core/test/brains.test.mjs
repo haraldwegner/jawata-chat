@@ -28,6 +28,18 @@ test('an answer that does not describe the hire is told to the person as an erro
   } finally { c.dispose(); }
 });
 
+test('an answer that stores the choice is kept for the next hire and does not change a card', async () => {
+  const c = chatWith(agent({ seat: 's', brain: 'cursor', model: 'Haiku 5.5', applies: 'applies from the next hire of this seat', planId: 'p' }));
+  try {
+    await c.sessions.connectToAgent('agent');
+    await c.port.deliver({ type: 'chooseBrain', planId: 'p', brain: 'cursor', model: 'Haiku 5.5' });
+    const state = c.chat.snapshot();
+    assert.equal(state.hires.length, 0);
+    assert.deepEqual(state.seatChoices.s, { brain: 'cursor', model: 'Haiku 5.5' });
+    assert.equal(state.choiceNote, 'applies from the next hire of this seat');
+  } finally { c.dispose(); }
+});
+
 test('an answer that describes the hire is folded into the panel', async () => {
   const c = chatWith(agent({ planId: 'p', seat: 's', seatCommand: '/s', task: 't', brain: 'x', model: 'y', state: 'running', elapsedMs: 1, tokens: 2 }));
   try {

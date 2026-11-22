@@ -20,7 +20,7 @@
     },
     {
       "type": "state",
-      "contractVersion": 12,
+      "contractVersion": 13,
       "activeSessionId": "12649565-f024-4047-adde-8b98f65efa98",
       "session": {
         "sessionId": "sessionId#1",

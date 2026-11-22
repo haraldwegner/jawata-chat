@@ -46,12 +46,16 @@ suite('Live agent controls', () => {
 		found.brains = brains;
 		assert.ok(brains.length > 0, 'the agent offers at least one brain');
 
-		// a brain other than the one the hire ran on, so the change is visible in the hire the agent answers with
+		// Old assertion: the hire's card brain became the pick (a Replace). A pick is stored for the next hire. The card keeps what this run started on.
 		const other = brains.find(b => b.brain !== hire.brain) ?? brains[0];
 		found.brainChosen = other;
 		await chat.handle({ type: 'chooseBrain', planId: hire.planId, brain: other.brain, model: other.model });
-		found.afterChoice = await waitFor('the hire after the choice', () => chat.snapshot().hires.find(h => h.planId === hire.planId && h.brain === other.brain));
-		assert.notStrictEqual(other.brain, hire.brain, 'the registry offers a second brain, so the choice shows');
+		const stored = await waitFor('the stored choice', () => {
+			const choice = chat.snapshot().seatChoices[hire.seat];
+			return choice && choice.brain === other.brain && choice.model === other.model ? choice : undefined;
+		});
+		found.afterChoice = stored;
+		assert.strictEqual(chat.snapshot().hires.find(h => h.planId === hire.planId)?.brain, hire.brain, 'the running hire was moved');
 
 		const options = chat.snapshot().session?.configOptions ?? [];
 		found.perSeatOptions = options.filter(o => o.id.startsWith('seat-model:')).length;

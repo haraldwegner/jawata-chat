@@ -34,8 +34,10 @@ export interface Disposable {
  * 10: what the person typed and sent, kept across conversations for the input's arrows (28h D56 (g)): `inputHistory`, and the state's `inputHistory`.
  * 11: a picture is shown before and after it is sent (28h D57 (b)): `file-attached` carries its `image`, `userPrompt` its `images`.
  * 12: a new conversation is asked for from the page (`newConversation`), by a button beside the input.
+ * 13: a brain picked for a seat is stored for the next hire (`seatChoice`; the state's `seatChoices` and `choiceNote`). The card of a hire that is
+ *    already running is not changed.
  */
-export const VIEW_CONTRACT_VERSION = 12;
+export const VIEW_CONTRACT_VERSION = 13;
 
 /**
  * The legacy model list of an agent that has no model config option. The SDK 1.x dropped its type:
@@ -90,6 +92,8 @@ export type ViewMessage =
   | { type: 'brainList'; brains: BrainChoice[] }
   /** One hire as the agent now describes it (the answer to a brain change). */
   | { type: 'hireChanged'; hire: HireView }
+  /** The brain and model stored for the next hire of a seat. The hire on a card is not this. */
+  | { type: 'seatChoice'; seat: string; brain: string; model: string; applies: string }
   /** What the person has typed and not sent, as the core keeps it for them. */
   | { type: 'draft'; text: string }
   /** What the person typed in the chat and sent, newest first, as the core keeps it for them across conversations: the page's arrows walk it. */
@@ -194,6 +198,7 @@ export const VIEW_MESSAGE_FIELDS = {
   hireTranscript: ['planId', 'turns'],
   brainList: ['brains'],
   hireChanged: ['hire'],
+  seatChoice: ['seat', 'brain', 'model', 'applies'],
   draft: ['text'],
   inputHistory: ['entries'],
   sessionList: ['sessions', 'nextCursor', 'append', 'show'],

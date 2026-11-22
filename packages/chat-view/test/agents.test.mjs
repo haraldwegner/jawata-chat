@@ -200,28 +200,33 @@ test('two sprints: each pm stands at the root with its own agents under it, in t
   } finally { v.dispose(); }
 });
 
-test('R12: the brain is a control: clicking it shows what the agent offers, picking one replaces this agent\'s brain, and the row shows what the agent answered', async () => {
+test('R12: the brain control stores the next hire and the row keeps what this run started on', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
     const intents = await intentsOf(v);
     await post(v, hireUpdates[0]);
+    assert.equal(v.$('.hire[data-plan-id="p-pm"] .brain-btn').textContent, 'claude · sonnet ▾');
     assert.ok(!v.$('.brain-menu'), 'closed until clicked');
     await v.click(v.$('.hire[data-plan-id="p-pm"] .brain-btn'));
     assert.equal(intents.filter(i => i.type === 'listBrains').length, 1, 'the list is asked for when first needed');
     await v.settle(() => v.$$('.brain-item').length > 0);
-    assert.deepEqual(v.$$('.brain-item').map(e => e.textContent), ['✓claude · sonnet', 'claude · haiku', 'claude · opus', 'codex · gpt-5'].map(t => t.replace('✓', '✓')));
-    assert.equal(v.$('.brain-item[aria-selected="true"]').textContent, '✓claude · sonnet', 'the current one is marked');
-    const codex = v.$$('.brain-item').find(e => e.textContent.includes('codex'));
-    await v.click(codex);
-    assert.deepEqual(intents.filter(i => i.type === 'chooseBrain'), [{ type: 'chooseBrain', planId: 'p-pm', brain: 'codex', model: 'gpt-5' }]);
-    await v.settle(() => v.$('.hire[data-plan-id="p-pm"] .brain-btn').textContent.startsWith('codex'));
-    assert.equal(v.$('.hire[data-plan-id="p-pm"] .brain-btn').textContent, 'codex · gpt-5 ▾');
-    assert.ok(!v.$('.brain-menu'), 'the choice closes the list');
-    await v.click(v.$('.hire[data-plan-id="p-pm"] .brain-btn'));
-    assert.equal(intents.filter(i => i.type === 'listBrains').length, 2, 'the list is asked for each time it opens, so a brain the agent gained since shows');
+    // Old assertion: the running brain was marked '✓claude · sonnet' and a pick replaced the row.
+    // The mark is the stored choice. Nothing is stored yet, so nothing is marked. The row stays what this run started on.
+    assert.equal(v.$('.brain-menu-note').textContent, 'applies from the next hire of this seat');
+    assert.deepEqual(v.$$('.brain-item').map(e => e.textContent), ['claude · sonnet', 'claude · haiku', 'claude · opus', 'codex · gpt-5']);
+    assert.equal(v.$('.brain-item[aria-selected="true"]'), null, 'nothing is stored yet');
+    await act(async () => {
+      v.port.post({ type: 'seatChoice', seat: 'pm', brain: 'codex', model: 'gpt-5', applies: 'applies from the next hire of this seat' });
+    });
+    await v.settle(() => v.$('.brain-item[aria-selected="true"]')?.textContent === '✓codex · gpt-5');
+    assert.equal(v.$('.hire[data-plan-id="p-pm"] .brain-btn').textContent, 'claude · sonnet ▾', 'the row still shows what this run started on');
     await v.click(v.$$('.brain-item').find(e => e.textContent.includes('codex')));
-    assert.equal(intents.filter(i => i.type === 'chooseBrain').length, 1, 'choosing the brain it already has asks for nothing');
+    assert.deepEqual(intents.filter(i => i.type === 'chooseBrain'), [], 'the stored choice is not asked for again');
+    await v.click(v.$('.hire[data-plan-id="p-pm"] .brain-btn'));
+    await v.settle(() => v.$$('.brain-item').length > 0);
+    await v.click(v.$$('.brain-item').find(e => e.textContent.includes('haiku')));
+    assert.deepEqual(intents.filter(i => i.type === 'chooseBrain'), [{ type: 'chooseBrain', planId: 'p-pm', brain: 'claude', model: 'haiku' }]);
   } finally { v.dispose(); }
 });
 

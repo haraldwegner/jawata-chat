@@ -71,3 +71,43 @@ test('28h z17: each earlier run is one line, newest first, naming its task, its 
     assert.equal(v.$$('.hire[data-plan-id]').length, 3, 'the other earlier run stays folded');
   } finally { v.dispose(); }
 });
+
+/** Posts `n` earlier runs, each a message 'run N' and one finished agent, then the latest run, which still works. */
+async function earlierRuns(v, n) {
+  for (let i = 1; i <= n; i++) {
+    await post(v, said(`run ${i}`));
+    await post(v, card(`r${i}`, 'dev', 'done'));
+  }
+  await post(v, said('latest'));
+  await post(v, card('latest', 'dev', 'running'));
+}
+const earlierTasks = (v) => v.$$('.agents-earlier-run > summary').map(e => e.textContent.split(' · ')[0]);
+
+test('eleventhEarlierRunAppearsOnlyAfterMore', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    await earlierRuns(v, 11);
+    assert.equal(v.$$('.agents-earlier-run').length, 10, 'ten runs are listed');
+    assert.ok(!earlierTasks(v).includes('run 1'), 'run 1 is absent');
+    assert.deepEqual(earlierTasks(v), ['run 11', 'run 10', 'run 9', 'run 8', 'run 7', 'run 6', 'run 5', 'run 4', 'run 3', 'run 2'], 'the newest ten, newest first; run 1 is not listed');
+    const more = v.$('.agents-earlier-more');
+    assert.ok(more, 'a button asks for the rest');
+    assert.equal(more.textContent, 'more...');
+    await v.click(more);
+    await v.settle(() => v.$$('.agents-earlier-run').length === 11);
+    assert.equal(v.$$('.agents-earlier-run').length, 11, 'all runs are listed');
+    assert.equal(earlierTasks(v).at(-1), 'run 1', 'run 1 is last');
+    assert.ok(!v.$('.agents-earlier-more'), 'the button is gone');
+  } finally { v.dispose(); }
+});
+
+test('28h z36: with exactly ten earlier runs every one is listed and no more... button is drawn', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    await earlierRuns(v, 10);
+    assert.equal(v.$$('.agents-earlier-run').length, 10);
+    assert.ok(!v.$('.agents-earlier-more'), 'CONTROL: a button was drawn with nothing to show');
+  } finally { v.dispose(); }
+});

@@ -64,6 +64,24 @@ test('R4: a transcript is asked for by plan and arrives as turns to show read-on
   } finally { c.dispose(); }
 });
 
+test('aTranscriptThisAgentDoesNotHaveDoesNotPostAnErrorIntoTheChat', async () => {
+  const c = await played();
+  try {
+    await c.port.deliver({ type: 'openTranscript', planId: 'p-architect' });
+    assert.deepEqual(c.sent('_jawata/hire/transcript'), [{ planId: 'p-architect' }], 'the first read succeeds');
+    c.port.toView.length = 0;
+    const entriesBefore = structuredClone(c.chat.snapshot().entries);
+    await c.port.deliver({ type: 'openTranscript', planId: 'p-architect' }); // the recording has no second answer, so the read fails
+    assert.equal(c.port.toView.filter(m => m.type === 'error').length, 0, 'no error is posted into the chat');
+    const told = c.port.toView.filter(m => m.type === 'hireTranscript' && m.planId === 'p-architect');
+    assert.equal(told.length, 1, 'the row is told once');
+    assert.equal(told[0].turns.length, 1);
+    assert.equal(told[0].turns[0].role, 'missing');
+    assert.ok(told[0].turns[0].text.length > 0, 'and it says why');
+    assert.deepEqual(structuredClone(c.chat.snapshot().entries), entriesBefore, 'the chat\'s entries are unchanged');
+  } finally { c.dispose(); }
+});
+
 test('hires end with the conversation: a clear or a load takes the rows and transcripts with it', async () => {
   const c = await played();
   try {

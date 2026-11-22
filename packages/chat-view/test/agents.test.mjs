@@ -70,7 +70,7 @@ test('28h S24 (D55): a hire that carries a name shows it beside its role, as `Cl
   } finally { v.dispose(); }
 });
 
-test('R12: a row shows the seat with its command, the brain, state, time, tokens, the task in full and a cost only when the agent sent one; every part has a mouseover', async () => {
+test('R12: a row shows the seat with its command, the brain, state, time, tokens, the first line of the brief and a cost only when the agent sent one; every part has a mouseover', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
@@ -80,8 +80,8 @@ test('R12: a row shows the seat with its command, the brain, state, time, tokens
     assert.equal(pm.querySelector('.hire-seat').textContent.replace(/\s+/g, ' ').trim(), 'pm (/pm)');
     assert.equal(pm.querySelector('.brain-btn').textContent, 'claude · sonnet ▾');
     assert.equal(pm.querySelector('.hire-state').textContent, 'running');
-    assert.equal(pm.querySelector('.hire-task summary').textContent, 'Brief: Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.');
-    assert.equal(pm.querySelector('.hire-task').getAttribute('title'), 'Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.', 'the task is never cut: the mouseover has it all');
+    assert.equal(pm.querySelector('.hire-task').textContent, 'Brief: Run sprint 28i: keep the plan\'s stages moving and report at each checkpoint.');
+    assert.equal(pm.querySelector('.hire-task').getAttribute('title'), 'The first line of what this agent was asked to do', 'the mouseover explains the line and does not carry the brief');
     assert.equal(pm.querySelector('.hire-cost'), null, 'the pm sent no cost: no cost shows, and not $0.000');
     const ce = v.$('.hire[data-plan-id="p-ce"]');
     assert.equal(ce.querySelector('.hire-state').textContent, 'compacting');
@@ -109,6 +109,9 @@ test('R12: what an agent said is folded until asked for; unfolding asks for it, 
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
+    // The recording has no transcript to give, so the core would answer "missing" at once; here the core is slow, so the page is seen while it waits.
+    const deliver = v.port.deliver.bind(v.port);
+    v.port.deliver = async (intent) => { if (intent.type === 'openTranscript') { return; } await deliver(intent); };
     const intents = await intentsOf(v);
     await post(v, hireUpdates[0]);
     assert.ok(!v.$('.hire-transcript'), 'folded by default');
@@ -116,16 +119,70 @@ test('R12: what an agent said is folded until asked for; unfolding asks for it, 
     await v.click(v.$('.hire-fold'));
     assert.deepEqual(intents.filter(i => i.type === 'openTranscript'), [{ type: 'openTranscript', planId: 'p-pm' }]);
     assert.ok(v.$('.hire-transcript-wait'), 'it says it is loading');
-    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-pm', turns: [{ role: 'user', text: 'Run the sprint' }, { role: 'assistant', text: 'Starting with S22' }] }); });
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-pm', turns: [{ role: 'user', text: 'Run the sprint' }, { role: 'tool', text: 'Read Foo.java' }, { role: 'assistant', text: 'Starting with S22' }, { role: 'tool', text: 'Edit Foo.java' }] }); });
     const pane = v.$('.hire-transcript');
-    assert.deepEqual(v.$$('.hire-turn').map(e => e.textContent.replace(/\s+/g, ' ').trim()), ['user Run the sprint', 'assistant Starting with S22']);
+    assert.deepEqual(v.$$('.hire-turn').map(e => e.textContent.replace(/\s+/g, ' ').trim()), ['Read Foo.java', 'Edit Foo.java'], 'only the calls');
+    assert.doesNotMatch(pane.textContent, /Run the sprint/, 'the brief is not in the fold');
+    assert.doesNotMatch(pane.textContent, /Starting with S22/, 'nor are the words of the agent');
     assert.equal(pane.querySelectorAll('input, textarea, select, button, [contenteditable]').length, 0, 'nothing in it can be typed into');
     assert.equal(pane.getAttribute('role'), 'log');
     await v.click(v.$('.hire-fold'));
     assert.ok(!v.$('.hire-transcript'), 'it folds again');
     await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-pm', turns: [] }); });
     await v.click(v.$('.hire-fold'));
-    assert.equal(v.$('.hire-transcript-empty').textContent, 'No talk recorded for this agent.');
+    assert.equal(v.$('.hire-transcript-empty').textContent, 'No calls recorded for this agent.');
+    await v.click(v.$('.hire-fold'));
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-pm', turns: [{ role: 'user', text: 'Run the sprint' }, { role: 'assistant', text: 'Starting with S22' }] }); });
+    await v.click(v.$('.hire-fold'));
+    assert.equal(v.$('.hire-transcript-empty').textContent, 'No calls recorded for this agent.', 'a brief and words alone are no calls');
+    assert.equal(v.$$('.hire-turn').length, 0);
+  } finally { v.dispose(); }
+});
+
+test('aHiresFoldListsItsCallsAndNotTheAssistantsWords', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const deliver = v.port.deliver.bind(v.port);
+    v.port.deliver = async (intent) => { if (intent.type === 'openTranscript') { return; } await deliver(intent); };
+    const hire = (planId) => ({ sessionUpdate: 'tool_call', toolCallId: 't-' + planId, title: 'dev', kind: 'execute', status: 'in_progress',
+      _meta: { 'jawata/hire': { planId, seat: 'developer', seatCommand: '/developer', task: 'the brief of ' + planId, brain: 'claude', model: 'sonnet', state: 'running', elapsedMs: 1000, tokens: 10 } } });
+    await post(v, hire('h1'));
+    await post(v, hire('h2'));
+    const fold = (id) => v.$(`.hire[data-plan-id="${id}"] .hire-fold`);
+    assert.ok(fold('h1') && fold('h2'), 'each hire has the same fold');
+    await v.click(fold('h1'));
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'h1', turns: [
+      { role: 'user', text: 'the brief of h1, in full words' }, { role: 'tool', text: 'Read A.java' }, { role: 'tool', text: 'Edit A.java' }, { role: 'assistant', text: 'I changed the file as asked' }] }); });
+    const lines = (id) => v.$$(`.hire[data-plan-id="${id}"] .hire-transcript .hire-turn`).map(e => e.textContent.replace(/\s+/g, ' ').trim());
+    assert.deepEqual(lines('h1'), ['Read A.java', 'Edit A.java'], 'exactly the two calls');
+    const pane = v.$('.hire[data-plan-id="h1"] .hire-transcript');
+    assert.doesNotMatch(pane.textContent, /in full words/, 'not the brief');
+    assert.doesNotMatch(pane.textContent, /I changed the file/, 'not the assistant\'s words');
+    await v.click(fold('h2'));
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'h2', turns: [{ role: 'tool', text: 'Write B.java' }, { role: 'assistant', text: 'finished B' }] }); });
+    assert.deepEqual(lines('h2'), ['Write B.java'], 'the same fold on the second hire lists its calls only');
+    assert.doesNotMatch(v.$('.hire[data-plan-id="h2"] .hire-transcript').textContent, /finished B/);
+  } finally { v.dispose(); }
+});
+
+test('28h z36: a hire whose transcript is missing says so on its own row, draws no call line and sends the chat no error', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const posted = [];
+    const post0 = v.port.post.bind(v.port);
+    v.port.post = (m) => { posted.push(m); return post0(m); };
+    await post(v, hireUpdates[0]);
+    await v.click(v.$('.hire-fold'));
+    await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-pm', turns: [{ role: 'missing', text: 'no hire p-pm was seen by this agent' }] }); });
+    const missing = v.$('.hire[data-plan-id="p-pm"] .hire-transcript-missing');
+    assert.ok(missing, 'the row says it');
+    assert.equal(missing.textContent, 'This agent has no transcript for this hire.');
+    assert.equal(missing.getAttribute('title'), 'no hire p-pm was seen by this agent');
+    assert.equal(v.$$('.hire-turn').length, 0, 'no call line');
+    assert.equal(posted.filter(m => m.type === 'error').length, 0, 'no error message reached the page');
+    assert.ok(!v.$('.message.error'), 'and none is drawn');
   } finally { v.dispose(); }
 });
 
@@ -185,29 +242,19 @@ test('28h z17: the hires stand under the principal in a folded line of their own
   } finally { v.dispose(); }
 });
 
-test('28h z17: an agent row and its brief cannot be taken for each other: the brief is labelled "Brief", and the fold marker of both is one glyph in one weight', async () => {
+test('28h z17: an agent row and its brief cannot be taken for each other: the brief is labelled "Brief" and the agent\'s own row is not', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
     await post(v, { sessionUpdate: 'tool_call', toolCallId: 't-b', title: 'pm', kind: 'execute', status: 'in_progress',
       _meta: { 'jawata/hire': { planId: 'p-b', seat: 'pm', seatCommand: '/pm', task: 'Check the jawata version\nand dogfood', brain: 'claude', model: 'sonnet', state: 'running', elapsedMs: 1000, tokens: 0 } } });
     const row = v.$('.hire[data-plan-id="p-b"]');
-    assert.equal(row.querySelector('.hire-task summary .hire-brief-label')?.textContent, 'Brief:', 'the brief says what it is');
+    assert.equal(row.querySelector('.hire-task .hire-brief-label')?.textContent, 'Brief:', 'the brief says what it is');
     assert.equal(row.querySelector('.hire-row .hire-brief-label'), null, 'control: the agent\'s own row is not labelled a brief');
-    const { CHAT_CSS } = await import('../dist/styles.js');
-    const body = (selector) => new RegExp(`${selector.replace(/[.>:[\]]/g, c => '\\' + c)}\\s*\\{([^}]*)\\}`).exec(CHAT_CSS)?.[1] ?? '';
-    const agentMarker = body('.hire-fold');
-    const briefMarker = body('.hire-task > summary::before');
-    assert.match(briefMarker, /content:\s*'▸'/, 'the brief\'s marker is the agent\'s glyph');
-    assert.match(body('.hire-task[open] > summary::before'), /content:\s*'▾'/, 'and its opened glyph');
-    assert.match(body('.hire-task > summary'), /list-style:\s*none/, 'the native bold triangle is not drawn');
-    const weight = (text) => /font-weight:\s*(\d+)/.exec(text)?.[1];
-    assert.equal(weight(briefMarker), weight(agentMarker), 'one weight for both markers');
-    assert.notEqual(weight(agentMarker), undefined, 'and the weight is stated, not inherited by chance');
   } finally { v.dispose(); }
 });
 
-test('28h z16: the principal\'s earlier calls are not drawn until the fold is opened, so the cost of a state change does not grow with how many calls the conversation has made', async () => {
+test('28h z36: the principal\'s latest turn is one closed fold of its calls and no log of earlier calls exists', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
@@ -216,12 +263,15 @@ test('28h z16: the principal\'s earlier calls are not drawn until the fold is op
       await act(async () => { v.port.post({ type: 'promptStart' }); });
     }
     await post(v, { sessionUpdate: 'tool_call', toolCallId: 'c-last', title: 'Read', kind: 'read', status: 'completed' });
-    assert.match(v.$('.principal-calls-earlier summary').textContent, /Earlier: 150 tool calls/, 'the fold still says how many');
-    assert.equal(v.$$('.principal-calls-earlier .tool-call-inline').length, 0, 'closed, the 150 earlier calls are not in the page');
-    assert.equal(v.$$('.principal-calls-latest .tool-call-inline').length, 1, 'control: the latest turn\'s calls are drawn');
-    await v.click(v.$('.principal-calls-earlier summary'));
-    await v.settle(() => v.$$('.principal-calls-earlier .tool-call-inline').length > 0);
-    assert.equal(v.$$('.principal-calls-earlier .tool-call-inline').length, 150, 'opened, they are all there');
+    assert.ok(!v.$('.principal-calls-earlier'), 'no earlier-calls fold');
+    assert.doesNotMatch(v.$('.principal-calls').textContent, /Earlier:/, 'and no word of earlier calls');
+    assert.equal(v.$$('details.principal-calls-latest').length, 1, 'one fold of the latest turn');
+    const latest = v.$('details.principal-calls-latest');
+    assert.equal(latest.open, false, 'closed by default');
+    assert.equal(latest.querySelector('summary').textContent, '1 tool call');
+    latest.open = true;
+    await v.settle(() => latest.querySelectorAll('.tool-call-inline').length > 0);
+    assert.equal(latest.querySelectorAll('.tool-call-inline').length, 1, 'opened, it holds the one call');
   } finally { v.dispose(); }
 });
 
@@ -245,17 +295,23 @@ test('28h z14: the brain of a hire that has ended is not a menu that looks as if
   } finally { v.dispose(); }
 });
 
-test('28h D57 (i): a hire\'s prompt folds to its first line, and opened it shows all of it', async () => {
+test('28h z36: a hire\'s brief is one line and the rest of it is not shown', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
     const hire = { planId: 'p-x', seat: 'chief-engineer', name: 'Rafael', task: 'INSTRUCTION 1\nTOOL: Edit\nFILE: a.txt', brain: 'claude', model: '', state: 'running', elapsedMs: 0, tokens: 0 };
     await post(v, { sessionUpdate: 'tool_call', toolCallId: 'hx', title: 'hire', status: 'completed', kind: 'other', _meta: { 'jawata/hire': hire } });
-    const task = v.$('.hire[data-plan-id="p-x"] .hire-task');
-    assert.equal(task.querySelector('summary').textContent, 'Brief: INSTRUCTION 1', 'one line, labelled');
-    assert.equal(task.open, false, 'folded');
-    task.open = true;
-    assert.equal(task.querySelector('.hire-task-full').textContent, 'INSTRUCTION 1\nTOOL: Edit\nFILE: a.txt', 'all of it');
+    const row = v.$('.hire[data-plan-id="p-x"]');
+    const task = row.querySelector('.hire-task');
+    assert.equal(task.textContent, 'Brief: INSTRUCTION 1', 'one line, labelled');
+    assert.equal(row.querySelector('.hire-task .hire-brief-label')?.textContent, 'Brief:');
+    assert.equal(row.querySelector('.hire-row .hire-brief-label'), null, 'the agent\'s own row has no such label');
+    assert.doesNotMatch(row.textContent, /TOOL: Edit/);
+    assert.doesNotMatch(row.textContent, /FILE: a\.txt/);
+    assert.doesNotMatch(task.getAttribute('title') ?? '', /TOOL: Edit|FILE: a\.txt|INSTRUCTION 1/, 'the mouseover does not carry the brief');
+    assert.equal(row.querySelector('details.hire-task'), null, 'not a fold');
+    assert.equal(row.querySelector('.hire-task-full'), null, 'no full text anywhere in the row');
+    assert.equal(row.querySelector('.hire-task pre, .hire-task details, .hire-task summary'), null);
   } finally { v.dispose(); }
 });
 
@@ -268,7 +324,7 @@ test('28h D57 (i): an opened agent that still works is asked again for what it s
     await post(v, { sessionUpdate: 'tool_call', toolCallId: 'hy', title: 'hire', status: 'completed', kind: 'other', _meta: { 'jawata/hire': hire } });
     await v.click(v.$('.hire[data-plan-id="p-y"] .hire-fold'));
     await act(async () => { v.port.post({ type: 'hireTranscript', planId: 'p-y', turns: [{ role: 'user', text: 'Edit Foo' }, { role: 'tool', text: 'Read Foo.java' }] }); });
-    assert.deepEqual(v.$$('.hire[data-plan-id="p-y"] .hire-turn').map(e => e.textContent.replace(/\s+/g, ' ').trim()), ['user Edit Foo', 'tool Read Foo.java'], 'its prompt, then its calls');
+    assert.deepEqual(v.$$('.hire[data-plan-id="p-y"] .hire-turn').map(e => e.textContent.replace(/\s+/g, ' ').trim()), ['Read Foo.java'], 'its calls only');
     const asked = () => intents.filter(i => i.type === 'openTranscript' && i.planId === 'p-y').length;
     assert.equal(asked(), 1);
     await act(async () => { v.port.post({ type: 'hireChanged', hire: { ...hire, elapsedMs: 4000, tokens: 900 } }); });

@@ -23,11 +23,11 @@ const STATE_WORDS: Record<string, string> = {
   failed: 'The agent ended with a failure.',
 };
 
-/** The brain and model of one agent as a control: clicking it shows what the agent offers, and the one picked replaces this agent's. */
+/** The brain and model of one agent as a control. The label is what this run was started with. A pick is stored for the next hire of the seat. */
 function BrainPicker({ hire, state, send, open, onToggle }: { hire: HireView; state: ViewState; send: (intent: ViewIntent) => void; open: boolean; onToggle: () => void }) {
   const label = brainName(hire.brain, hire.model);
+  const stored = state.seatChoices[hire.seat];
   if (hire.state === 'done' || hire.state === 'failed') {
-    // An agent that has ended cannot be run again on another brain, so a menu here would look as if it changed a finished run.
     return (
       <span className="brain-fixed"
         title={`The program and model this run used. The run has finished, so this cannot change it. To change what the next ${hire.seat} runs on, use the Seats page.`}>{label}</span>
@@ -36,11 +36,12 @@ function BrainPicker({ hire, state, send, open, onToggle }: { hire: HireView; st
   return (
     <span className="brain-wrap">
       <button className="brain-btn" aria-haspopup="listbox" aria-expanded={open}
-        title="The program and model that do the work. Click to choose another; your choice replaces this one." onClick={onToggle}>{label + ' ▾'}</button>
+        title="The program and model this run was started with. Click to choose what the next hire of this seat starts on. This run is not changed." onClick={onToggle}>{label + ' ▾'}</button>
       {open ? (
         <div className="brain-menu" role="listbox" aria-label={`Brain for ${hire.seat}`}>
+          <div className="brain-menu-note">applies from the next hire of this seat</div>
           {state.brains === null ? <div className="brain-menu-wait">Loading…</div> : state.brains.map(b => {
-            const current = b.brain === hire.brain && b.model === hire.model;
+            const current = stored !== undefined && b.brain === stored.brain && b.model === stored.model;
             return (
               <div className="brain-item" role="option" aria-selected={current} tabIndex={0} key={`${b.brain}/${b.model}`}
                 onClick={() => { onToggle(); if (!current) { send({ type: 'chooseBrain', planId: hire.planId, brain: b.brain, model: b.model }); } }}
@@ -58,20 +59,25 @@ function BrainPicker({ hire, state, send, open, onToggle }: { hire: HireView; st
 /** The level of the first hire: the principal is level 0, its "Hires" line level 1, and a hire of the principal stands at level 2. */
 const HIRES_DEPTH = 2;
 
-const callsOf = (n: number): string => (n === 1 ? '1 call' : `${n} calls`);
-
-/** How one agent's calls split: jawata, other and shell on Java; a run whose calls nobody could name says so and shows no figure. */
-function UseFigures({ use }: { use: ToolUseView }) {
-  const failed = (use.failed.length > 0 ? ` · ${use.failed.length} failed` : '')
-    + (use.stepsOpen > 0 ? ` · ${use.stepsOpen === 1 ? '1 step' : `${use.stepsOpen} steps`} with no passed gate` : '');
-  if (!use.observed) {
-    return <span className={'hire-use' + (failed ? ' shell' : '')} title="This agent's program did not name its calls, so how it used jawata is not known. It does not mean it used none.">{'calls not observed' + failed}</span>;
-  }
+/**
+ * What is wrong with one agent's use of jawata, and nothing when nothing is: a shell command on a .java file, a call that failed or was
+ * refused, a step whose gate did not pass; a run whose calls nobody could name says so, because that is not a run that used none.
+ */
+function UseMark({ use }: { use: ToolUseView }) {
   const shell = use.shellOnJava.length;
+  const failed = use.failed.length;
+  const open = use.stepsOpen;
+  const parts = [
+    ...(use.observed ? [] : ['calls not observed']),
+    ...(shell > 0 ? [shell === 1 ? '1 shell command on a Java file' : `${shell} shell commands on a Java file`] : []),
+    ...(failed > 0 ? [`${failed} failed`] : []),
+    ...(open > 0 ? [open === 1 ? '1 step with no passed gate' : `${open} steps with no passed gate`] : []),
+  ];
+  if (parts.length === 0) { return null; }
   return (
-    <span className={'hire-use' + (shell > 0 || failed ? ' shell' : '')}
-      title="How this agent's calls split. A jawata call is a call to a jawata tool. A shell call on Java is a shell command that names a .java file: the agent worked on Java without the jawata tools. A failed call is a jawata call the engine answered with an error or refused. A step with no passed gate is a check this agent's run was given that did not pass when it ended. Unfold the agent to see each one.">
-      {`${callsOf(use.jawata + use.other + shell)} · ${use.jawata} jawata · ${use.other} other · ${shell} shell on Java${failed}`}
+    <span className={'hire-use' + (shell > 0 || failed > 0 || open > 0 ? ' shell' : '')}
+      title="What to look at in how this agent worked. A shell call on Java is a shell command on a .java file: the agent worked on Java without the jawata tools. A failed call is a call the engine refused or answered with an error. A step with no passed gate is a step whose check did not pass. Calls not observed means the agent's program did not name its calls, which does not mean it used no jawata tool. Unfold the agent to see each one.">
+      {parts.join(' · ')}
     </span>
   );
 }
@@ -111,6 +117,8 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
   unfolded: boolean; onFold: () => void; menuOpen: boolean; onMenu: () => void;
 }) {
   const turns = unfolded ? state.transcripts[hire.planId] : undefined;
+  // The fold shows the agent's calls only: its brief is the Brief line above, and what it said is not drawn.
+  const calls = (turns ?? []).filter(t => t.role === 'tool');
   // The agent's own figures arrive with its tool calls, so between them the clock runs here.
   const seconds = useRunningSeconds(isWorking(hire));
   // An opened agent that works is asked again whenever its card changes, so the calls it has made so far show (28h D57 (i)); the first ask
@@ -124,8 +132,8 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
   return (
     <div className={'hire ' + hire.state} data-plan-id={hire.planId} data-depth={depth} style={{ marginLeft: `${depth * 16}px` }}>
       <div className={'hire-row ' + hire.state}>
-        <button className="hire-fold" aria-expanded={unfolded} aria-label={`Show or fold what ${hire.seat} said`}
-          title="Show or fold what this agent and its program said. You cannot type into it." onClick={onFold}>{unfolded ? '▾' : '▸'}</button>
+        <button className="hire-fold" aria-expanded={unfolded} aria-label={`Show or fold the calls of ${hire.seat}`}
+          title="Show or fold the calls this agent made. You cannot type into it." onClick={onFold}>{unfolded ? '▾' : '▸'}</button>
         <span className="hire-seat" title={hire.seatCommand ? `The role this agent plays. Type ${hire.seatCommand} in a message to use the same role yourself.` : 'The role this agent plays'}>
           {hire.name ? <><span className="hire-name" title="The name this agent has in this conversation, so that several of one role can be told apart">{hire.name}</span>{' · '}</> : null}{hire.seat}{hire.seatCommand ? <> <span className="hire-cmd">{`(${hire.seatCommand})`}</span></> : null}
         </span>
@@ -136,7 +144,7 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
         {!isWorking(hire) && hire.changedFileCount !== undefined
           ? <span className="hire-files" title="How many files this agent's run changed, counted by what the files held before and after. 0 means it changed nothing, whatever it said.">{hire.changedFileCount === 1 ? '1 file changed' : `${hire.changedFileCount} files changed`}</span>
           : null}
-        {hire.toolUse ? <UseFigures use={hire.toolUse} /> : null}
+        {hire.toolUse ? <UseMark use={hire.toolUse} /> : null}
         {hire.costUsd !== undefined
           ? <span className="hire-cost" title="What this agent reports it has cost, in US dollars at API prices. On a subscription nothing is charged for it.">{costOf(hire.costUsd)}</span>
           : null}
@@ -145,17 +153,17 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
           : null}
       </div>
       {hire.task ? (
-        <details className="hire-task" title={hire.task}>
-          <summary><span className="hire-brief-label">Brief:</span> {hire.task.trim().split('\n')[0]}</summary>
-          <pre className="hire-task-full">{hire.task}</pre>
-        </details>
+        <div className="hire-task" title="The first line of what this agent was asked to do">
+          <span className="hire-brief-label">Brief:</span> {hire.task.trim().split('\n')[0]}
+        </div>
       ) : null}
       {unfolded && hire.toolUse && (hire.toolUse.shellOnJava.length > 0 || hire.toolUse.failed.length > 0 || hire.toolUse.stepsOpen > 0) ? <ShellOnJavaList use={hire.toolUse} /> : null}
       {unfolded ? (
-        <div className="hire-transcript" role="log" aria-label="Transcript, read only" title="Read only">
+        <div className="hire-transcript" role="log" aria-label="Calls, read only" title="Read only">
           {turns === undefined ? <div className="hire-transcript-wait">Loading…</div>
-            : turns.length === 0 ? <div className="hire-transcript-empty" title="Nothing this agent said has been stored.">No talk recorded for this agent.</div>
-            : turns.map((t, i) => <div className={'hire-turn ' + t.role} key={i}><span className="hire-role">{t.role}</span> {t.text}</div>)}
+            : turns.length > 0 && turns[0].role === 'missing' ? <div className="hire-transcript-empty hire-transcript-missing" title={turns[0].text}>This agent has no transcript for this hire.</div>
+            : calls.length === 0 ? <div className="hire-transcript-empty" title="This agent has made no calls so far.">No calls recorded for this agent.</div>
+            : calls.map((t, i) => <div className="hire-turn tool" key={i}>{t.text}</div>)}
         </div>
       ) : null}
     </div>
@@ -173,22 +181,13 @@ function principalCalls(state: ViewState): ToolCallView[][] {
 
 const countOf = (n: number): string => `${n} tool call${n === 1 ? '' : 's'}`;
 
-/** Below the principal: the calls of its latest turn that made any, folded and each one line that opens; the earlier turns' calls folded above them. */
+/** Below the principal: the calls of its latest turn that made any, folded and each one line that opens. No log of earlier turns' calls is kept here. */
 function PrincipalCalls({ state }: { state: ViewState }) {
-  const [earlierOpen, setEarlierOpen] = useState(false);
   const turns = principalCalls(state);
   if (turns.length === 0) { return null; }
   const latest = turns[turns.length - 1];
-  const earlier = turns.slice(0, -1).flat();
   return (
     <div className="principal-calls">
-      {earlier.length > 0 ? (
-        // The earlier calls are drawn only while the fold is open: a conversation can hold tens of thousands, and drawing them all made every state change cost as much as the calls were many.
-        <details className="principal-calls-earlier" open={earlierOpen} onToggle={e => setEarlierOpen((e.currentTarget as HTMLDetailsElement).open)}>
-          <summary title="The calls the principal made in this conversation before its latest turn, in order">{`Earlier: ${countOf(earlier.length)}`}</summary>
-          {earlierOpen ? earlier.map(t => <Tool tool={t} key={t.toolCallId} />) : null}
-        </details>
-      ) : null}
       <details className="principal-calls-latest">
         <summary className="principal-calls-title" title="The calls the principal made in its latest turn; a click shows them">{countOf(latest.length)}</summary>
         {latest.map(t => <Tool tool={t} key={t.toolCallId} />)}
@@ -218,6 +217,9 @@ function PrincipalRow({ state, send, menuOpen, onMenu }: { state: ViewState; sen
 interface EarlierRun { key: string; task: string; hires: HireView[]; cost: number; unreported: number }
 
 const TASK_WORDS = 10;
+
+/** How many earlier runs are listed before "more..." is asked for. */
+const EARLIER_RUNS_SHOWN = 10;
 
 /** The first words of a message or brief, its first line only, with an ellipsis where words were left out. */
 function firstWords(text: string): string {
@@ -287,6 +289,7 @@ export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: 
   const rows = workingTree(state.hires, team);
   const runs = earlierRuns(state, team);
   const [openRuns, setOpenRuns] = useState<Record<string, boolean>>({});
+  const [allRuns, setAllRuns] = useState(false);
   const hired = state.hires.filter(isWorking).length;
   const working = hired + (state.processing ? 1 : 0);
   const finished = state.hires.length - hired;
@@ -319,7 +322,7 @@ export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: 
       {runs.length > 0 ? (
         <div className="agents-earlier">
           <div className="agents-earlier-title" title="Runs of this conversation before the latest team, newest first. Each line gives what you asked, how many agents it used and what they cost; open one to see its team.">Earlier</div>
-          {runs.map(run => (
+          {(allRuns ? runs : runs.slice(0, EARLIER_RUNS_SHOWN)).map(run => (
             <details className="agents-earlier-run" key={run.key} open={!!openRuns[run.key]}
               onToggle={e => { const now = (e.currentTarget as HTMLDetailsElement).open; setOpenRuns(o => (!!o[run.key] === now ? o : { ...o, [run.key]: now })); }}>
               <summary title={`${run.task} — the agents of this run that have ended. A cost an agent did not report is not counted as zero.`}>{earlierLine(run)}</summary>
@@ -329,6 +332,9 @@ export function AgentsPanel({ state, send }: { state: ViewState; send: (intent: 
               )) : null}
             </details>
           ))}
+          {!allRuns && runs.length > EARLIER_RUNS_SHOWN
+            ? <button className="agents-earlier-more" title="Show the earlier runs that are not listed." onClick={() => setAllRuns(true)}>more...</button>
+            : null}
         </div>
       ) : null}
     </div>

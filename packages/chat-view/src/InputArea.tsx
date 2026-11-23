@@ -154,6 +154,22 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     setHint(null);
   };
 
+  /**
+   * The /btw button (28h z58, his word: "button for /btw only"): what is in the field is captured as a thought with the skill, and sent to
+   * the agent as `/btw <thought>` without leaving what the person is doing. It does not go through `submit`, which keeps the typed `/btw` for
+   * the side discussion. With nothing in the field it says what to do and leaves the field as it is.
+   */
+  const capture = () => {
+    const thought = text.trim().replace(/^\/btw\s*/, '');
+    if (!thought) { setHint('Type the thought you want to capture, then press btw.'); field.current?.focus(); return; }
+    send({ type: 'sendPrompt', text: '/btw ' + thought });
+    setRecalled(-1);
+    touched.current = true;
+    send({ type: 'keepDraft', text: '' });
+    setText('');
+    setHint(null);
+  };
+
   const pick = (name: string) => {
     setSlashClosed(true);
     const cmd = commands.find(c => c.name === name);
@@ -291,6 +307,9 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
           <button className="tool-btn" disabled={disabled} title="Lists the seats and skills you can start. Typing / does the same." onClick={openList}>/</button>
           <button className="tool-btn" disabled={disabled} title="Opens the btw panel on the right, a separate conversation with its own agent. This one goes on and is not told. Ctrl+Alt+S."
             onClick={askFromTheField}>Side question</button>
+          <button className="tool-btn capture-btn" disabled={disabled}
+            title="Captures the thought in the field as a note for later, with the /btw skill: a defect becomes an issue, an idea goes into the project's btw file, durable knowledge goes to /memorize. This conversation goes on."
+            onClick={capture}>btw</button>
           <button className="tool-btn new-conversation-btn" disabled={state.loading}
             title="Starts a new session with the same agent. The conversation now shown stays in the agent's session list: History opens it again."
             onClick={() => send({ type: 'newConversation' })}>New session</button>

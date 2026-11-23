@@ -21,6 +21,42 @@ const groupOf = (command: { _meta?: unknown }): string => {
   return typeof given === 'string' && GROUPS.some(g => g.key === given) ? given : 'other';
 };
 
+/**
+ * Whether the characters at `a` and `b` of the field's text stand on the same line as the person sees it, wrapping included. A hidden
+ * mirror of the field (`data-line-mirror`) copies how the field wraps and holds its text; the two characters are wrapped in spans and
+ * their `offsetTop` is compared. A position outside the text is moved to the nearest character. It depends on the field's real CSS, so a
+ * change to how the field wraps is a change to this.
+ */
+// The mirror reads the textarea's real CSS for its wrapping; this has not been tried in a browser (28h z47: Up and Down in the real field are still to be exercised).
+function sameVisualLine(el: HTMLTextAreaElement, a: number, b: number): boolean {
+  const text = el.value;
+  if (text.length === 0) { return true; }
+  const last = text.length - 1;
+  const [first, second] = [Math.min(Math.max(a, 0), last), Math.min(Math.max(b, 0), last)].sort((x, y) => x - y);
+  if (first === second) { return true; }
+  const style = window.getComputedStyle(el);
+  const mirror = document.createElement('div');
+  mirror.setAttribute('data-line-mirror', '');
+  mirror.setAttribute('aria-hidden', 'true');
+  const copied = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight', 'textTransform', 'textIndent', 'tabSize',
+    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'wordBreak'] as const;
+  for (const name of copied) { mirror.style[name] = style[name]; }
+  Object.assign(mirror.style, {
+    position: 'absolute', visibility: 'hidden', top: '0', left: '0', height: 'auto', border: '0', boxSizing: 'border-box',
+    width: el.clientWidth + 'px', whiteSpace: 'pre-wrap', overflowWrap: 'break-word',
+  });
+  const span = (from: number) => {
+    const s = document.createElement('span');
+    s.textContent = text[from];
+    return s;
+  };
+  const one = span(first);
+  const two = span(second);
+  mirror.append(text.slice(0, first), one, text.slice(first + 1, second), two, text.slice(second + 1));
+  document.body.appendChild(mirror);
+  try { return one.offsetTop === two.offsetTop; } finally { mirror.remove(); }
+}
+
 export function InputArea({ state, send }: { state: ViewState; send: (intent: ViewIntent) => void }) {
   const session = state.session;
   const commands = session?.availableCommands ?? [];
@@ -162,10 +198,13 @@ export function InputArea({ state, send }: { state: ViewState; send: (intent: Vi
     let next: number;
     if (e.key === 'ArrowUp') {
       if (el.value.slice(0, el.selectionStart).includes('\n') || recalled + 1 >= history.length) { return false; }
+      // the first line as the person sees it: a draft that wraps is moved through a line at a time before the history is walked
+      if (!sameVisualLine(el, 0, el.selectionStart - 1)) { return false; }
       if (recalled === -1) { typing.current = text; }
       next = recalled + 1;
     } else {
       if (el.value.slice(el.selectionEnd).includes('\n') || recalled === -1) { return false; }
+      if (!sameVisualLine(el, el.selectionEnd, el.value.length - 1)) { return false; }
       next = recalled - 1;
     }
     e.preventDefault();

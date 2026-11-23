@@ -7,9 +7,9 @@ import * as vscode from 'vscode';
 const pause = (milliseconds: number) => new Promise(r => setTimeout(r, milliseconds));
 const windowOfTheRun = () => execFileSync('xdotool', ['search', '--onlyvisible', '--name', 'Extension Development Host']).toString().trim().split('\n')[0];
 
-/** How many keystrokes are measured, and how far apart: 300 ms is longer than the chat's 250 ms pause before it tells the core its draft. */
+/** How many keystrokes are measured, and how far apart: 150 ms is shorter than the chat's 250 ms pause before it tells the core its draft, so each key lands before that pause has run out. */
 const KEYS = 20;
-const KEY_SPACING_MS = 300;
+const KEY_SPACING_MS = 150;
 
 /** The Chrome DevTools Protocol, over the debugging port the window was started with, as far as the measurement needs it. */
 class Devtools {

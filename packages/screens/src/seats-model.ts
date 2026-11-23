@@ -17,7 +17,7 @@ export interface SeatRow {
   readonly model: string | null;
   /** Whether the person changed this seat, held or applied: what Reset takes back. */
   readonly customised: boolean;
-  /** Whether the seat's file accepts a brain whose writes only an instruction holds; a hire of any other seat refuses such a brain. */
+  /** Whether the seat's file accepts a brain whose writes only an instruction holds; read when a brain is picked per run (a stored choice is taken as the consent). */
   readonly acceptsUncontainedWrites: boolean;
   /** Whether the seat's file says the seat changes code: a brain that cannot be kept from writing is warned about on every seat for which this is false. */
   readonly changesCode: boolean;

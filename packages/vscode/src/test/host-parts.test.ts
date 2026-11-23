@@ -46,9 +46,16 @@ suite('Host parts', () => {
 			assert.deepStrictEqual(await first.load(), []);
 			first.save(['newest', 'older']);
 			first.save(['newer still', 'newest', 'older']);
-			for (let i = 0; i < 50 && !fs.existsSync(file); i++) { await new Promise(r => setTimeout(r, 20)); }
-			await new Promise(r => setTimeout(r, 50));
-			assert.deepStrictEqual(await new InputHistoryFile(file, m => errors.push(m)).load(), ['newer still', 'newest', 'older'], 'the last save wins');
+			// Both saves are written one after the other in the background. Wait until the file holds the later one, for as long as a slow machine
+			// needs (the file existing proves only the FIRST write is done), then assert what a later store on the file loads.
+			const wanted = ['newer still', 'newest', 'older'];
+			let loaded: string[] = [];
+			for (let i = 0; i < 500; i++) {
+				loaded = fs.existsSync(file) ? await new InputHistoryFile(file, m => errors.push(m)).load() : [];
+				if (JSON.stringify(loaded) === JSON.stringify(wanted)) { break; }
+				await new Promise(r => setTimeout(r, 20));
+			}
+			assert.deepStrictEqual(loaded, wanted, 'the last save wins');
 			assert.deepStrictEqual(errors, []);
 		} finally { fs.rmSync(dir, { recursive: true, force: true }); }
 	});

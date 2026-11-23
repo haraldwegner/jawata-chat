@@ -19,6 +19,8 @@ export interface SeatRow {
   readonly customised: boolean;
   /** Whether the seat's file accepts a brain whose writes only an instruction holds; a hire of any other seat refuses such a brain. */
   readonly acceptsUncontainedWrites: boolean;
+  /** Whether the seat's file says the seat changes code: a brain that cannot be kept from writing is warned about on every seat for which this is false. */
+  readonly changesCode: boolean;
 }
 
 /** What the host answers for the seats. */
@@ -147,15 +149,20 @@ export function firstSentence(text: string): string {
 }
 
 function loginNote(brain: BrainStatus): string {
-  if (brain.login === 'notLoggedIn') { return ' (not logged in)'; }
-  if (brain.login === 'unknown') { return ' (login not checkable)'; }
+  if (brain.login === 'notLoggedIn') { return ' (not connected)'; }
+  if (brain.login === 'unknown') { return ' (connection not checkable)'; }
   return '';
+}
+
+/** The login of a brain, and, only on a seat that does not change code, that the brain cannot be kept from writing. */
+function brainNote(brain: BrainStatus, seat: SeatRow): string {
+  return loginNote(brain) + (brain.writesHeldByInstruction && !seat.changesCode ? ` (${brain.label} cannot be restricted from writing)` : '');
 }
 
 /**
  * The brains a seat can be given: each one installed here that a hire of THIS seat can start, with its default model and the models it names
- * for itself. A brain whose writes only an instruction holds is offered only to a seat whose file accepts that, because a hire of any other
- * seat refuses it. The saved choice is always offered, even when this machine cannot start it now, so the list never says something else is
+ * for itself. A brain whose writes only an instruction holds is offered to every seat: the engine does not prevent a choice the person made (his
+ * word, 2026-11-23), so a seat that must not change code is warned instead. The saved choice is always offered, even when this machine cannot start it now, so the list never says something else is
  * chosen. A brain the chat can also run on takes its models from the engine's one catalogue, what that brain's own session offers (28h D57
  * (c)), so every seat is offered the list main is; only a brain with no session of its own falls back to the models its check read.
  */
@@ -163,8 +170,8 @@ export function brainOptions(seat: SeatRow, brains: readonly BrainStatus[], conv
   catalogue: Readonly<Record<string, readonly string[]>> = {}): BrainOption[] {
   const options: BrainOption[] = [];
   if (!seat.brain) { options.push({ value: '|', label: 'not set' }); }
-  for (const brain of brains.filter(one => one.hirable && one.installed && (!one.writesHeldByInstruction || seat.acceptsUncontainedWrites))) {
-    const note = loginNote(brain) + (brain.writesHeldByInstruction ? ' (writes held only by an instruction)' : '');
+  for (const brain of brains.filter(one => one.hirable && one.installed)) {
+    const note = brainNote(brain, seat);
     options.push({ value: `${brain.id}|`, label: `${brain.label} — ${brain.takesModel ? 'its default model' : 'chooses its own model'}${note}` });
     if (brain.takesModel && !isConversation(seat)) {
       const ownSession = conversation.some(one => one.ready && one.id === brain.id);
@@ -193,7 +200,7 @@ export function conversationOptions(seat: SeatRow, conversation: readonly Conver
   for (const one of conversation.filter(brain => brain.ready)) {
     const status = brains.find(brain => brain.id === one.id);
     const label = status?.label ?? one.label;
-    const note = status ? loginNote(status) : '';
+    const note = status ? brainNote(status, seat) : '';
     options.push({ value: `${one.id}|`, label: `${label} — its default model${note}` });
     for (const model of models[one.id] ?? []) { options.push({ value: `${one.id}|${model}`, label: `${label} — ${model}${note}` }); }
   }

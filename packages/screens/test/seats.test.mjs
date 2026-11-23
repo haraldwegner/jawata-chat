@@ -11,7 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 const { adapterNotice, brainOptions, canDrop, conversationOptions, failureTargets, firstSentence, mountScreen, seatGroups, seatName } = await import('../dist/index.js');
 
 const seat = (name, extra = {}) => ({ name, command: null, purpose: `${name} does one job. And more.`, when: 'when asked', on: true,
-  brain: 'claude-code', model: null, customised: false, acceptsUncontainedWrites: false, ...extra });
+  brain: 'claude-code', model: null, customised: false, acceptsUncontainedWrites: false, changesCode: false, ...extra });
 const brain = (id, extra = {}) => ({ id, label: id.toUpperCase(), installed: true, login: 'loggedIn', reason: null, loginCommand: `${id} login`,
   models: null, hirable: true, takesModel: true, writesHeldByInstruction: false, ...extra });
 const seats = [seat('main', { command: 'main' }), seat('architect', { command: 'refactor' }), seat('cataloguer'), seat('spec-editor'), seat('btw')];
@@ -39,10 +39,21 @@ test('the brain list offers what a hire can start here, with its models, and alw
   assert.match(options[3].label, /chooses its own model/);
 });
 
-test('a brain whose writes only an instruction holds is offered only to a seat whose file accepts it, as a hire refuses it elsewhere', () => {
+test('a brain whose writes only an instruction holds is offered to every seat and warned about only on a seat that does not change code (his word: warn, do not prevent)', () => {
   const roster = [brain('codex'), brain('cursor', { writesHeldByInstruction: true })];
-  assert.deepEqual(brainOptions(seat('cataloguer', { brain: 'codex' }), roster).map(option => option.value), ['codex|'], 'cursor is not offered');
-  assert.deepEqual(brainOptions(seat('btw', { brain: 'codex', acceptsUncontainedWrites: true }), roster).map(option => option.value), ['codex|', 'cursor|']);
+  const reader = brainOptions(seat('cataloguer', { brain: 'codex' }), roster);
+  assert.deepEqual(reader.map(option => option.value), ['codex|', 'cursor|'], 'cursor is offered');
+  assert.match(reader[1].label, /CURSOR cannot be restricted from writing/);
+  assert.doesNotMatch(reader[0].label, /restricted/);
+  const worker = brainOptions(seat('developer', { brain: 'codex', changesCode: true }), roster);
+  assert.deepEqual(worker.map(option => option.value), ['codex|', 'cursor|']);
+  assert.doesNotMatch(worker[1].label, /restricted/, 'a seat that changes code is not warned');
+});
+
+test('main is warned like a seat that does not change code when it is given a brain that cannot be kept from writing', () => {
+  const roster = [brain('cursor', { writesHeldByInstruction: true })];
+  const options = conversationOptions(seat('main', { brain: 'cursor' }), [chat('cursor')], roster, {});
+  assert.match(options[0].label, /CURSOR cannot be restricted from writing/);
 });
 
 const chat = (id, extra = {}) => ({ id, label: id.toUpperCase(), ready: true, install: null, ...extra });

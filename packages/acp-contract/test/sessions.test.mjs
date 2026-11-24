@@ -53,11 +53,8 @@ test('R3 (shape only): every command carries a jawata group, and all three occur
   assert.deepEqual([...new Set(cmds.map((c) => c._meta['jawata/group']))].sort(), ['seat', 'skill', 'utility']);
 });
 
-for (const [name, source] of [['R1', 'claude-s2-pong'], ['R2', 'claude-a1']]) {
-  test(`${name} is ${source} as promoted, byte for byte`, () => {
-    assert.equal(readFileSync(path(`../sessions/${name}.jsonl`), 'utf8'), readFileSync(path(`../../../docs/phase-a/${source}.jsonl`), 'utf8'));
-  });
-}
+// R1 and R2 were promoted from claude-s2-pong and claude-a1 of the phase A probes and compared with them byte for byte; those originals moved to
+// the private jawata-plans repository (4333d00), so the comparison lives where they are and this repository keeps the recordings and their checks.
 
 test('R4 (shape only): two hires overlap, one compacts, both end done; a stop and a transcript are asked after', () => {
   const s = session('R4');
@@ -151,9 +148,8 @@ test('R7: two proposals as permission requests with a diff, answered yes and the
 test('no recording the repository keeps holds a local path, a local user name or the adapter\'s mangled folder name', () => {
   const kept = [
     ...readdirSync(path('../sessions/'), { recursive: true }).filter((f) => String(f).endsWith('.jsonl')).map((f) => path(`../sessions/${f}`)),
-    ...readdirSync(path('../../../docs/phase-a/')).filter((f) => f.endsWith('.jsonl')).map((f) => path(`../../../docs/phase-a/${f}`)),
   ];
-  assert.ok(kept.length >= 18, `found ${kept.length} recordings`);
+  assert.ok(kept.length >= 15, `found ${kept.length} recordings`);
   for (const file of kept) {
     const text = readFileSync(file, 'utf8');
     assert.ok(!/\/tmp\/|\/home\/|\/Users\/|-home-|-Users-/i.test(text), `${file.pathname} holds a local path`);

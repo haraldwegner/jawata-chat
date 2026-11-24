@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { addCopyButtons } from './copy.js';
 import { renderMarkdown } from './markdown.js';
@@ -8,14 +8,18 @@ import type { PartView, ViewState } from '@jawata/chat-core/view';
 type Entry = ViewState['entries'][number];
 type Turn = Extract<Entry, { kind: 'turn' }>['turn'];
 
-function Markdown({ text }: { text: string }) {
+// Every component that draws an earlier message is memoised (28h z66): the conversation is drawn again for each chunk of a streaming answer, and an
+// entry the core did not change keeps its identity, so only the one that grew is parsed, sanitised and drawn again. Measured in a real window
+// with a 2000-message session: typing while an answer streamed took 66 ms to the next frame (median) and held the page's main thread in about a
+// hundred long tasks of about 100 ms.
+const Markdown = memo(function Markdown({ text }: { text: string }) {
   // the core renders; sanitising is the view's, which has a DOM
   const html = DOMPurify.sanitize(renderMarkdown(text));
   const box = useRef<HTMLDivElement>(null);
   // every code block gets its copy button; the html is set again whenever the answer grows, which drops the buttons, so they are put back each time
   useLayoutEffect(() => { if (box.current) { addCopyButtons(box.current); } }, [html]);
   return <div ref={box} className="message assistant md-rendered" dangerouslySetInnerHTML={{ __html: html }} />;
-}
+});
 
 /** How many lines of a message of his are shown before it is folded (Stage 27 (z3), his words 2026-11-19: "my replies can be long as well"). */
 const FOLD_AFTER = 6;
@@ -27,7 +31,7 @@ const WRAP_AT = 100;
  * What the person wrote. A message of more than {@link FOLD_AFTER} lines shows its first lines under a fade, with a button that says how many
  * lines it holds; a click opens it for good. The whole text is in the page either way, so a copy of it is always the whole message.
  */
-function UserText({ text }: { text: string }) {
+const UserText = memo(function UserText({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   // A paragraph with no line break wraps over several lines on screen, so a line is also counted for every WRAP_AT characters (C27).
   const count = text.split('\n').reduce((lines, line) => lines + Math.max(1, Math.ceil(line.length / WRAP_AT)), 0);
@@ -40,19 +44,19 @@ function UserText({ text }: { text: string }) {
         : null}
     </>
   );
-}
+});
 
 /** The first line the agent wrote, which is what the folded line shows of it. */
 const gistOf = (text: string): string => text.trim().split('\n')[0];
 
-function Thought({ text }: { text: string }) {
+const Thought = memo(function Thought({ text }: { text: string }) {
   return (
     <details className="thought-block">
       <summary title="Click to read the agent's reasoning"><span className="thought-label">Thought</span> <span className="thought-gist">{gistOf(text)}</span></summary>
       <div className="thought-content">{text}</div>
     </details>
   );
-}
+});
 
 /** What a diff the tool made looks like: what went, then what came, under the file's name. */
 export function Diff({ path, oldText, newText }: { path: string; oldText?: string | null; newText: string }) {
@@ -68,7 +72,7 @@ export function Diff({ path, oldText, newText }: { path: string; oldText?: strin
 }
 
 /** The parts of an answer in the order they came, without its tool calls: those are in Agent Control, below the agent that made them. */
-function TurnView({ turn, streaming }: { turn: Turn; streaming: boolean }) {
+const TurnView = memo(function TurnView({ turn, streaming }: { turn: Turn; streaming: boolean }) {
   const parts = turn.parts.filter((p): p is Exclude<PartView, { kind: 'tool' }> => p.kind !== 'tool');
   if (parts.length === 0) { return null; }
   return (
@@ -81,7 +85,7 @@ function TurnView({ turn, streaming }: { turn: Turn; streaming: boolean }) {
       })}
     </div>
   );
-}
+});
 
 function EmptyState({ onConnect, onConfigure, onHistory }: { onConnect: () => void; onConfigure: () => void; onHistory: () => void }) {
   return (

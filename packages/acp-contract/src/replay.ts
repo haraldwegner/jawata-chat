@@ -63,7 +63,7 @@ export function replayAgent(session: RecordedLine[], output: WritableStream<Uint
   let conn!: AgentSideConnection;
   let tail: Promise<void> = Promise.resolve();
 
-  const play = async (lines: RecordedLine[]) => {
+  const play = async (lines: RecordedLine[], paceMs = 0) => {
     const pending = new Map<unknown, Promise<unknown>>();
     for (const l of lines) {
       const m = l.msg;
@@ -75,6 +75,7 @@ export function replayAgent(session: RecordedLine[], output: WritableStream<Uint
           : conn.extMethod(m.method, m.params));
       } else if (m.method === 'session/update') {
         await conn.sessionUpdate(m.params);
+        if (paceMs > 0) { await new Promise(r => setTimeout(r, paceMs)); }
       } else if (m.method !== undefined) {
         await conn.extNotification(m.method, m.params);
       } else {
@@ -88,7 +89,8 @@ export function replayAgent(session: RecordedLine[], output: WritableStream<Uint
     await tail;
     const seg = queues.get(method)?.shift();
     if (!seg) { throw new Error(`replay: no recorded answer left for ${method}`); }
-    await play(seg.before);
+    // a measurement can ask for a prompt's answer to arrive over time, as a live agent's does (JAWATA_REPLAY_PROMPT_PACE_MS, milliseconds between updates)
+    await play(seg.before, method === 'session/prompt' ? Number(process.env.JAWATA_REPLAY_PROMPT_PACE_MS ?? 0) : 0);
     // the response goes out when this handler returns; what followed it plays after that
     tail = new Promise<void>((resolve, reject) => setTimeout(() => play(seg.after).then(resolve, reject), 0));
     return seg.result as never;

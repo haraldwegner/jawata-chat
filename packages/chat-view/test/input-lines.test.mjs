@@ -1,4 +1,4 @@
-// The test fakes offsetTop; the mirror's wrapping in the real field has not been tried in a browser (28h z47).
+// The test fakes offsetTop; the mirror's wrapping was measured against real Chrome and a real VS Code window in 28h z65 (the numbers are in its evidence).
 // 28h z47: Up in the chat's input moves the caret one line up, and only an Up pressed with the caret already on the first visual line walks
 // the messages the person sent before; Down mirrors it with the last visual line and the newer messages. A draft that wraps over several
 // lines, or holds several, is therefore not replaced by the first Up.
@@ -91,5 +91,25 @@ test('upMovesALineBeforeItWalksMessages', async () => {
     assert.equal(field(v).value, 'two');
     assert.equal(await press(v, 'ArrowDown'), true);
     assert.equal(field(v).value, draft, 'what was being typed is back');
+  } finally { v.dispose(); }
+});
+
+// 28h z65: at the point where a long line wraps, the caret can be drawn at the end of the line above or at the start of the next, and the field
+// does not say which; the key is then left to the field, which moves it, and the history is not walked from a caret that may be on a later line.
+test('aWrapPointIsLeftToTheField', async () => {
+  const wrapped = 'aaaaaaaaaabbbbbbbbbbccccc';
+  const v = await afterSending(['older', wrapped]);
+  try {
+    await v.type(wrapped);
+    assert.equal(await press(v, 'ArrowUp', 10), false, 'caret at the wrap between the first and second line: the field moves it');
+    assert.equal(field(v).value, wrapped, 'the draft is not replaced');
+    assert.equal(await press(v, 'ArrowUp', 20), false, 'caret at the wrap between the second and third line: the field moves it');
+    assert.equal(field(v).value, wrapped);
+    assert.equal(await press(v, 'ArrowUp', 9), true, 'the last character of the first line is certainly on the first line');
+    assert.equal(field(v).value, wrapped, 'the newest message sent is the same text, so the field shows it');
+    assert.equal(await press(v, 'ArrowDown', 20), false, 'caret at the wrap before the last line: the field moves it');
+    assert.equal(field(v).value, wrapped);
+    assert.equal(await press(v, 'ArrowDown', 21), true, 'a caret after the first character of the last line is certainly on it');
+    assert.equal(field(v).value, wrapped, 'the walk comes back to what was being typed, which is the same text');
   } finally { v.dispose(); }
 });

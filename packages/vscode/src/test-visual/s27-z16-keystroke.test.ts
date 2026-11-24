@@ -9,7 +9,7 @@ const windowOfTheRun = () => execFileSync('xdotool', ['search', '--onlyvisible',
 
 /** How many keystrokes are measured, and how far apart: 150 ms is shorter than the chat's 250 ms pause before it tells the core its draft, so each key lands before that pause has run out. */
 const KEYS = 20;
-const KEY_SPACING_MS = 150;
+const KEY_SPACING_MS = Number(process.env.JAWATA_Z16_SPACING ?? 150);
 
 /** The Chrome DevTools Protocol, over the debugging port the window was started with, as far as the measurement needs it. */
 class Devtools {
@@ -174,6 +174,12 @@ suite('Visual: the chat input keeps up with typing (z16)', function () {
 			await pause(1500);
 			assert.strictEqual(await evaluate(`document.activeElement && document.activeElement.tagName`), 'TEXTAREA', 'the click did not put the focus in the input field');
 
+			if (process.env.JAWATA_Z16_STREAM) {
+				// a live agent is answering while the person types: the recording's prompt answer arrives over time (JAWATA_REPLAY_PROMPT_PACE_MS)
+				execFileSync('xdotool', ['type', '--window', windowOfTheRun(), '--delay', '20', 'go']);
+				execFileSync('xdotool', ['key', '--window', windowOfTheRun(), 'Return']);
+				await pause(2000);
+			}
 			await evaluate(INSTALL);
 			devtools.events.length = 0;
 			await devtools.call('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { recordMode: 'recordContinuously', includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'v8.execute', 'blink.user_timing'] } });

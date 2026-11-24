@@ -13,7 +13,7 @@ export type CommandGroup = (typeof COMMAND_GROUPS)[number];
 
 /** E3: a hire as a tool call, in `_meta["jawata/hire"]` of `tool_call` and `tool_call_update`. */
 export const META_HIRE = 'jawata/hire';
-export const HIRE_STATES = ['running', 'compacting', 'stalled', 'done', 'failed'] as const;
+export const HIRE_STATES = ['running', 'compacting', 'stalled', 'done', 'failed', 'refused'] as const;
 export type HireState = (typeof HIRE_STATES)[number];
 export interface HireMeta {
   planId: string;
@@ -32,6 +32,8 @@ export interface HireMeta {
   seatCommand: string;
   /** What the hire was asked to do, in words. */
   task: string;
+  /** 28h z64: why the engine refused this hire, in its own words; present only in the state `refused`, a hire that never ran. */
+  refusal?: string;
   /** The hire that hired this one; absent for a root (a PM, one per sprint). The panel is a tree built from it (S23). */
   parentPlanId?: string;
   brainSessionId?: string;
@@ -66,10 +68,10 @@ export const AUTONOMY_VALUES = ['off', 'on'] as const;
 const HIRE_FIELDS: Record<keyof HireMeta, 'string' | 'number'> = {
   planId: 'string', seat: 'string', name: 'string', brain: 'string', model: 'string', state: 'string',
   elapsedMs: 'number', tokens: 'number', costUsd: 'number', seatCommand: 'string', task: 'string', parentPlanId: 'string', brainSessionId: 'string',
-  level: 'number', toolSteps: 'number', contextTokens: 'number', verdict: 'string', enginePlan: 'string',
+  level: 'number', toolSteps: 'number', contextTokens: 'number', verdict: 'string', enginePlan: 'string', refusal: 'string',
 };
 /** The fields a hire may leave out. */
-const OPTIONAL_HIRE_FIELDS: readonly string[] = ['name', 'brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict', 'enginePlan'];
+const OPTIONAL_HIRE_FIELDS: readonly string[] = ['name', 'brainSessionId', 'parentPlanId', 'costUsd', 'level', 'toolSteps', 'contextTokens', 'verdict', 'enginePlan', 'refusal'];
 
 /** E4's reply: the stop was taken. */
 export interface HireStopReply { ok: boolean }

@@ -349,3 +349,20 @@ test('28h Stage 27 (i), the ux look: a hire that has reported no tokens shows no
     assert.equal(v.$('.hire[data-plan-id="p-z"] .hire-tokens').textContent, '900 tokens');
   } finally { v.dispose(); }
 });
+
+test('28h z64: a hire the engine refused ends as a row that says why it was refused, and its brain cannot be chosen (live: Antigravity as principal asked for the test manager)', async () => {
+  const v = await viewOn('R12', { role: 'agents' });
+  try {
+    await ready(v);
+    const card = structuredClone(hireUpdates.find(u => u.sessionUpdate === 'tool_call' && u._meta['jawata/hire'].planId === 'p-pm'));
+    card._meta['jawata/hire'].state = 'refused';
+    card._meta['jawata/hire'].refusal = 'only the pm that opened a plan can hire the test-manager; ask the pm to run the package';
+    await post(v, card);
+    const row = () => v.$('.hire[data-plan-id="p-pm"]');
+    assert.equal(row().querySelector('.hire-state').textContent, 'refused');
+    assert.match(row().querySelector('.hire-refusal').textContent, /only the pm that opened a plan can hire the test-manager/, 'the person reads why, in the engine\'s words');
+    assert.equal(row().querySelector('.brain-btn'), null, 'a hire that never ran has no brain to choose');
+    assert.equal(row().querySelector('.hire-stop'), null, 'and nothing to stop');
+    assert.match(row().querySelector('.hire-state').getAttribute('title'), /refused/i, 'the state word explains itself');
+  } finally { v.dispose(); }
+});

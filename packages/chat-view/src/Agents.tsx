@@ -21,13 +21,14 @@ const STATE_WORDS: Record<string, string> = {
   stalled: 'The agent has shown no sign of life for five minutes; the engine stops it at the second ceiling.',
   done: 'The agent has finished.',
   failed: 'The agent ended with a failure.',
+  refused: 'The engine refused to start this agent, so it never ran. The reason is shown under it.',
 };
 
 /** The brain and model of one agent as a control. The label is what this run was started with. A pick is stored for the next hire of the seat. */
 function BrainPicker({ hire, state, send, open, onToggle }: { hire: HireView; state: ViewState; send: (intent: ViewIntent) => void; open: boolean; onToggle: () => void }) {
   const label = brainName(hire.brain, hire.model);
   const stored = state.seatChoices[hire.seat];
-  if (hire.state === 'done' || hire.state === 'failed') {
+  if (hire.state === 'done' || hire.state === 'failed' || hire.state === 'refused') {
     return (
       <span className="brain-fixed"
         title={`The program and model this run used. The run has finished, so this cannot change it. To change what the next ${hire.seat} runs on, use the Seats page.`}>{label}</span>
@@ -152,6 +153,11 @@ function Row({ hire, depth, state, send, unfolded, onFold, menuOpen, onMenu }: {
           ? <button className="hire-stop" title="Ends this agent. The other agents go on." onClick={() => send({ type: 'stopHire', planId: hire.planId })}>Stop</button>
           : null}
       </div>
+      {hire.refusal ? (
+        <div className="hire-refusal" title="The engine's own words for why it did not start this agent">
+          <span className="hire-brief-label">Refused:</span> {hire.refusal}
+        </div>
+      ) : null}
       {hire.task ? (
         <div className="hire-task" title="The first line of what this agent was asked to do">
           <span className="hire-brief-label">Brief:</span> {hire.task.trim().split('\n')[0]}

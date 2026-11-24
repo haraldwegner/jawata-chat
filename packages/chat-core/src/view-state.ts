@@ -39,8 +39,10 @@ export interface HireView {
   parentPlanId?: string;
   brain: string;
   model: string;
-  /** `running`, `compacting`, `done` or `failed`. */
+  /** `running`, `compacting`, `stalled`, `done`, `failed`, or `refused` (the engine did not start it). */
   state: string;
+  /** Why the engine refused the hire, in its own words; present only when `state` is `refused`. */
+  refusal?: string;
   elapsedMs: number;
   tokens: number;
   /** What the agent reported; absent when it reported none (never 0 for a missing figure). */
@@ -97,6 +99,7 @@ export function hireFromEntry(h: Record<string, unknown>): HireView | undefined 
     planId: h.planId, seat: str(h.seat), seatCommand: str(h.seatCommand), task: str(h.task), brain: str(h.brain), model: str(h.model),
     state: str(h.state) || 'running', elapsedMs: num(h.elapsedMs), tokens: num(h.tokens),
     ...(typeof h.name === 'string' && h.name !== '' ? { name: h.name } : {}),
+    ...(typeof h.refusal === 'string' && h.refusal !== '' ? { refusal: h.refusal } : {}),
     ...(typeof h.costUsd === 'number' ? { costUsd: h.costUsd } : {}),
     ...(typeof h.parentPlanId === 'string' ? { parentPlanId: h.parentPlanId } : {}),
     ...(typeof h.brainSessionId === 'string' ? { brainSessionId: h.brainSessionId } : {}),

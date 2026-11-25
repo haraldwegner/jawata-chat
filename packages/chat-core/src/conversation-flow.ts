@@ -166,7 +166,7 @@ export class ConversationFlow {
     if (isOn(agentOf(session), agent)) { return; }
     let options: SessionConfigOption[] | null;
     try {
-      options = await this.sessions.setConfigOption(session.sessionId, PRINCIPAL_BRAIN_OPTION, agent);
+      options = await this.sessions.setConfigOption(session.sessionId, PRINCIPAL_BRAIN_OPTION, agent, true);
     } catch (e) {
       throw new Error(`its agent ${agent} is not available (${(e as Error).message})`);
     }

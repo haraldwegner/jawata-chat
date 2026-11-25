@@ -287,10 +287,10 @@ export class SessionManager extends Emitter<SessionEvents> implements ChatSessio
   }
 
   /** Change one of the session's options; the agent answers with all of them, which replace ours. */
-  async setConfigOption(sessionId: string, configId: string, value: string): Promise<SessionConfigOption[] | null> {
+  async setConfigOption(sessionId: string, configId: string, value: string, restoring?: boolean): Promise<SessionConfigOption[] | null> {
     const link = this.linkOf(sessionId);
     if (!link) { return null; }
-    const answer = await link.setSessionConfigOption({ sessionId, configId, value });
+    const answer = await link.setSessionConfigOption({ sessionId, configId, value, ...(restoring ? { _meta: { 'jawata/restore': true } } : {}) });
     const options = (answer as { configOptions?: SessionConfigOption[] } | undefined)?.configOptions ?? null;
     this.noteOptions(sessionId, options);
     return options;

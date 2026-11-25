@@ -109,6 +109,9 @@ export interface SessionLifecycle {
   getActiveSession(): Readonly<SessionInfo> | undefined;
   getActiveSessionId(): string | null;
   getActiveAgentName(): string | null;
-  /** Change one of the session's options; the answer is all of them as they now stand. */
-  setConfigOption(sessionId: string, configId: string, value: string): Promise<SessionConfigOption[] | null>;
+  /**
+   * Change one of the session's options; the answer is all of them as they now stand. `restoring` marks a set made to bring a reopened
+   * conversation back onto its agent, so the agent does not store it as the person's default.
+   */
+  setConfigOption(sessionId: string, configId: string, value: string, restoring?: boolean): Promise<SessionConfigOption[] | null>;
 }

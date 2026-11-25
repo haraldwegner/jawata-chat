@@ -38,8 +38,9 @@ function agent({ start = 'claude-code|opus', ids = 's', load = true, resume = fa
           return { configOptions: [shown()] };
         },
         async resumeSession({ sessionId }) { log.push(`resume ${sessionId}`); return { configOptions: [shown()] }; },
-        async setSessionConfigOption({ value }) {
-          log.push(`brain ${value}`);
+        async setSessionConfigOption({ value, _meta }) {
+          // a set the window makes to reopen is marked, so the engine does not store it as the person's default
+          log.push(`brain ${value}${_meta?.['jawata/restore'] ? ' (restore)' : ''}`);
           if (!offered.includes(value)) { throw new RequestError(-32602, `A brain the registry offers, not: ${value}`); }
           brain = value;
           return { configOptions: [shown()] };
@@ -102,7 +103,7 @@ test('restart: it comes back with the agent it was held with, not the default th
   const c = openWindow(memory, a);
   try {
     await c.chat.flow.connect();
-    assert.deepEqual(a.log, ['load s1', 'brain cursor|grok']);
+    assert.deepEqual(a.log, ['load s1', 'brain cursor|grok (restore)']);
     assert.equal(brainShown(c), 'cursor|grok');
   } finally { c.dispose(); }
 });
@@ -120,7 +121,7 @@ test('the agent naming its brain without the model, before its own session is op
   await oneRun(memory, agent({ start: 'claude-code|sonnet' }), c => c.chat.sendPrompt('hello'));
   const a = agent({ start: 'claude-code|opus', nameOnly: true });
   await oneRun(memory, a, c => c.chat.sendPrompt('again'));
-  assert.deepEqual(a.log, ['load s1', 'brain claude-code|sonnet', 'prompt']);
+  assert.deepEqual(a.log, ['load s1', 'brain claude-code|sonnet (restore)', 'prompt']);
   assert.equal(memory.value.agent, 'claude-code|sonnet');
 });
 
@@ -192,7 +193,7 @@ test('its agent is not available: a new conversation, and the line names the age
   const c = openWindow(memory, a);
   try {
     await c.chat.flow.connect();
-    assert.deepEqual(a.log, ['load old', 'brain cursor|grok', 'new']);
+    assert.deepEqual(a.log, ['load old', 'brain cursor|grok (restore)', 'new']);
     assert.equal(c.sessions.getActiveSessionId(), 's1');
     assert.doesNotMatch(userTexts(c), /earlier in old/, 'the conversation that could not be reopened is not left on the page');
     const said = errorsIn(c);

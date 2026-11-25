@@ -151,7 +151,7 @@ test('R5: above the input stand the controls and no option the agent sends', asy
     await v.connect();
     await v.settle();
     assert.equal(v.$$('.picker-wrap').length, 0, 'no option the agent sends is shown as a selector');
-    assert.deepEqual(v.$$('.input-toolbar .tool-btn').map(b => b.textContent.trim()), ['+', '/', 'Side question', 'btw', 'New session']);
+    assert.deepEqual(v.$$('.input-toolbar .tool-btn').map(b => b.textContent.trim()), ['+', '/', 'Side question', 'Memorize', 'New session']);
   } finally { v.dispose(); }
 });
 

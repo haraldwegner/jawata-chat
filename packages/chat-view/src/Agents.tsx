@@ -71,13 +71,13 @@ function UseMark({ use }: { use: ToolUseView }) {
   const parts = [
     ...(use.observed ? [] : ['calls not observed']),
     ...(shell > 0 ? [shell === 1 ? '1 shell command on a Java file' : `${shell} shell commands on a Java file`] : []),
-    ...(failed > 0 ? [`${failed} failed`] : []),
+    ...(failed > 0 ? [failed === 1 ? '1 call failed or refused' : `${failed} calls failed or refused`] : []),
     ...(open > 0 ? [open === 1 ? '1 step with no passed gate' : `${open} steps with no passed gate`] : []),
   ];
   if (parts.length === 0) { return null; }
   return (
     <span className={'hire-use' + (shell > 0 || failed > 0 || open > 0 ? ' shell' : '')}
-      title="What to look at in how this agent worked. A shell call on Java is a shell command on a .java file: the agent worked on Java without the jawata tools. A failed call is a call the engine refused or answered with an error. A step with no passed gate is a step whose check did not pass. Calls not observed means the agent's program did not name its calls, which does not mean it used no jawata tool. Unfold the agent to see each one.">
+      title="What to look at in how this agent worked. A shell call on Java is a shell command on a .java file: the agent worked on Java without the jawata tools. A failed or refused call is a call the engine refused or answered with an error; it does not mean the agent's work failed, which its state and its steps say. A step with no passed gate is a step whose check did not pass. Calls not observed means the agent's program did not name its calls, which does not mean it used no jawata tool. Unfold the agent to see each one.">
       {parts.join(' · ')}
     </span>
   );
@@ -106,7 +106,7 @@ function ShellOnJavaList({ use }: { use: ToolUseView }) {
       {use.failed.map((f, i) => (
         <div className="hire-exception" key={'failed-' + i}>
           <code className="hire-exception-command">{f.tool}</code>{' '}
-          <span className="hire-exception-reason">{`— failed or refused: ${f.code}`}</span>
+          <span className="hire-exception-reason">{`— failed or refused: ${f.code}${f.said ? ` · ${f.said}` : ''}`}</span>
         </div>
       ))}
     </div>

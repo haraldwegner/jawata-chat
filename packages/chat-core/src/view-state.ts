@@ -63,8 +63,8 @@ export interface ToolUseView {
   jawata: number;
   other: number;
   shellOnJava: { command: string; declared?: string }[];
-  /** The jawata calls of the run that failed or were refused, each with the tool and the error code; the engine knows these whatever the stream named. */
-  failed: { tool: string; code: string }[];
+  /** The jawata calls of the run that failed or were refused, each with the tool, the error code and the engine's message; the engine knows these whatever the stream named. */
+  failed: { tool: string; code: string; said?: string }[];
   /** How many of the run's declared steps ended with no passed gate; 0 when every gate passed or the card says nothing of it. */
   stepsOpen: number;
 }
@@ -114,8 +114,10 @@ function toolUseOf(x: unknown): { toolUse?: ToolUseView } {
   const u = x as { observed?: unknown; jawata?: unknown; other?: unknown; shellOnJava?: unknown; failed?: unknown; stepsOpen?: unknown };
   const stepsOpen = typeof u.stepsOpen === 'number' && u.stepsOpen > 0 ? u.stepsOpen : 0;
   const failed = (Array.isArray(u.failed) ? u.failed : []).flatMap(f => {
-    const c = f as { tool?: unknown; code?: unknown };
-    return typeof c.tool === 'string' ? [{ tool: c.tool, code: typeof c.code === 'string' ? c.code : 'ERROR' }] : [];
+    const c = f as { tool?: unknown; code?: unknown; said?: unknown };
+    return typeof c.tool === 'string'
+      ? [{ tool: c.tool, code: typeof c.code === 'string' ? c.code : 'ERROR', ...(typeof c.said === 'string' && c.said !== '' ? { said: c.said } : {}) }]
+      : [];
   });
   if (u.observed !== true) { return { toolUse: { observed: false, jawata: 0, other: 0, shellOnJava: [], failed, stepsOpen } }; }
   const shell = Array.isArray(u.shellOnJava) ? u.shellOnJava : [];

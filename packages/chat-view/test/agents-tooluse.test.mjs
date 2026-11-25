@@ -47,14 +47,14 @@ test('a run whose calls were counted and not named says so, and a card with no f
   } finally { v.dispose(); }
 });
 
-test('a run that had jawata calls fail or be refused says how many in its row, and unfolded lists each with its tool and error code; a run with none says nothing of it', async () => {
+test('a run that had jawata calls fail or be refused says how many calls in its row, and unfolded lists each with its tool, error code and what the engine said; a run with none says nothing of it', async () => {
   const v = await viewOn('R12', { role: 'agents' });
   try {
     await ready(v);
-    const withFailures = { observed: true, jawata: 4, other: 0, shellOnJava: [], failed: [{ tool: 'rename_symbol', code: 'REFACTORING_FAILED' }, { tool: 'files', code: 'ACCESS_DENIED' }] };
+    const withFailures = { observed: true, jawata: 4, other: 0, shellOnJava: [], failed: [{ tool: 'rename_symbol', code: 'REFACTORING_FAILED' }, { tool: 'files', code: 'ACCESS_DENIED', said: 'Access denied: /x/rules.md' }] };
     await post(v, card('dev', 'done', { toolUse: withFailures }));
     await post(v, card('ok', 'done', { toolUse: { observed: true, jawata: 4, other: 0, shellOnJava: [], failed: [] } }));
-    assert.equal(useOf(v, 'dev'), '2 failed', 'THE CLAIM: the failed calls were shown nowhere');
+    assert.equal(useOf(v, 'dev'), '2 calls failed or refused', 'THE CLAIM: a bare "2 failed" reads as the agent\'s work having failed');
     assert.equal(useOf(v, 'ok'), undefined, 'CONTROL: a run with no failures was given a mark');
     await v.click(v.$('.hire[data-plan-id="dev"] .hire-fold'));
     const rows = v.$$('.hire[data-plan-id="dev"] .hire-exception').map(r => r.textContent);
@@ -63,6 +63,8 @@ test('a run that had jawata calls fail or be refused says how many in its row, a
     assert.match(rows[0], /REFACTORING_FAILED/);
     assert.match(rows[1], /files/);
     assert.match(rows[1], /ACCESS_DENIED/);
+    assert.match(rows[1], /Access denied: \/x\/rules\.md/, 'which call it was is not told');
+    assert.doesNotMatch(rows[0], /undefined/, 'CONTROL: a call with no message was given one');
   } finally { v.dispose(); }
 });
 

@@ -36,7 +36,10 @@ export function assembleChat(host: HostPorts): { chat: Chat; updates: AgentUpdat
   const links = new ConnectionManager(updates, host);
   const supply = new AgentSupply(host, links);
   const sessions = new SessionManager(host, supply, updates);
-  const flow = new ConversationFlow(sessions, host, () => controller.hasChatContent);
+  const flow = new ConversationFlow(sessions, host, () => controller.hasChatContent, {
+    say: line => controller.say(line),
+    showOptions: options => controller.showOptions(options),
+  });
   const controller: ChatController = new ChatController(sessions, updates, host, flow);
   const chat: Chat = {
     sessions, flow, controller,

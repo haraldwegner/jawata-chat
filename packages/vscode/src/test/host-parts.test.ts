@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { InputHistoryFile } from '../host/InputHistoryFile';
+import { LastConversationState } from '../host/LastConversationState';
 import type { JawataChatApi } from '../extension';
 
 /** The two small pieces of the host that are pure: which lines a read asks for, and what a command's output keeps. */
@@ -78,6 +79,47 @@ suite('Host parts', () => {
 		assert.ok(store && typeof store.file === 'string', 'the host gives the chat a store kept in a file');
 		assert.strictEqual(path.dirname(store.file!), path.dirname(api.recordingsDir), 'beside the recordings, in the extension\'s storage for this user');
 		assert.strictEqual(path.basename(store.file!), 'input-history.json');
+	});
+
+	// His ruling 2026-11-25: each window remembers its own last conversation, in the extension's storage for the workspace it has open
+	test('the last conversation is kept in the window\'s workspace storage, one window apart from another', () => {
+		const memento = () => {
+			const kept = new Map<string, unknown>();
+			return { get: <T>(key: string) => kept.get(key) as T | undefined, update: async (key: string, value: unknown) => { if (value === undefined) { kept.delete(key); } else { kept.set(key, value); } } };
+		};
+		const left = memento();
+		const right = memento();
+		const errors: string[] = [];
+		const open = (state: ReturnType<typeof memento>) => new LastConversationState(state, () => true, m => errors.push(m));
+		assert.strictEqual(open(left).load(), undefined);
+		open(left).save({ sessionId: 'one', agent: 'cursor|grok' });
+		open(right).save({ sessionId: 'two' });
+		assert.deepStrictEqual(open(left).load(), { sessionId: 'one', agent: 'cursor|grok' });
+		assert.deepStrictEqual(open(right).load(), { sessionId: 'two' });
+		open(left).save(undefined);
+		assert.strictEqual(open(left).load(), undefined);
+		assert.deepStrictEqual(errors, []);
+	});
+
+	test('a window with no folder open remembers nothing and starts new', () => {
+		let writes = 0;
+		const state = { get: <T>() => ({ sessionId: 'from-before' }) as T, update: async () => { writes++; } };
+		const store = new LastConversationState(state, () => false, () => {});
+		assert.strictEqual(store.load(), undefined);
+		store.save({ sessionId: 'now' });
+		assert.strictEqual(writes, 0);
+	});
+
+	test('what is stored in another shape is not a conversation to reopen', () => {
+		for (const stored of ['text', {}, { sessionId: 5 }, { sessionId: '' }, null]) {
+			const state = { get: <T>() => stored as T, update: async () => {} };
+			assert.strictEqual(new LastConversationState(state, () => true, () => {}).load(), undefined, JSON.stringify(stored));
+		}
+	});
+
+	test('the chat gives its core the window\'s memory', async () => {
+		const api = (await vscode.extensions.getExtension<JawataChatApi | undefined>('jawata.jawata-chat')!.activate())!;
+		assert.ok(api.host.lastConversation, 'the host gives the chat a memory for this window');
 	});
 
 	test('disposing the terminals ends the command still running and closes its editor terminal', async function () {

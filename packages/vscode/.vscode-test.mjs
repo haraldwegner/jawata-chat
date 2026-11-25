@@ -25,7 +25,12 @@ const closedPort = await new Promise(resolve => {
 const node = process.env.npm_node_execpath || process.execPath;
 const engineJar = process.env.JAWATA_ENGINE_JAR || path.resolve(here, '../../../jawata-mcp/build/dist/target/dist/jawata.jar');
 // each start window has a user folder of its own, so no setting another test left there (a studio, an agent) reaches it
-const ownUser = name => ['--user-data-dir', path.join(here, '.vscode-test', `user-data-start-${name}`)];
+// It is emptied first: a window remembers its last conversation, and these start with none.
+const ownUser = name => {
+	const folder = path.join(here, '.vscode-test', `user-data-start-${name}`);
+	fs.rmSync(folder, { recursive: true, force: true });
+	return ['--user-data-dir', folder];
+};
 
 // The editor tests of npm test, each set in a VS Code of its own: the compiled tests under out/test, and
 // the one that looks at the real page, which needs a window no other test has touched; and the chat's start

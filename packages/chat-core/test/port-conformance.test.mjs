@@ -49,3 +49,11 @@ test('control: a host that answers a synchronous read with a promise is found', 
   lateSinks.sinks = async () => [];
   assert.ok(syncReadFailures(lateSinks).some(f => /sinks/.test(f)));
 });
+
+test('control: a window memory that answers with a promise is found: the chat asks it before it decides how to connect', () => {
+  const host = fakeHost(() => undefined);
+  host.lastConversation = { load: () => undefined, save: () => {} };
+  assert.deepEqual(syncReadFailures(host), []);
+  host.lastConversation = { load: async () => undefined, save: () => {} };
+  assert.ok(syncReadFailures(host).some(f => /lastConversation\.load/.test(f)));
+});

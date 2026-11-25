@@ -15,6 +15,7 @@ import { forgetEditorTheme, saveEditorTheme, type EditorTheme } from './editorTh
 import { VIEW_OF, chosenPlace, type Place } from './ui/places';
 import { log, logError, disposeChannels, setRecordingDir } from './utils/Logger';
 import { InputHistoryFile } from './host/InputHistoryFile';
+import { LastConversationState } from './host/LastConversationState';
 import { nodePorts, StudioStart } from './studio';
 import { forgetWindow, handOnEveryFolderChange, lookAfterStudio } from './host/lookAfterStudio';
 
@@ -46,7 +47,9 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
 
   // what the person typed in the chat is theirs across windows and restarts: it is kept in the extension's storage for this user (D56 (g))
   const inputHistory = new InputHistoryFile(vscode.Uri.joinPath(context.globalStorageUri, 'input-history.json').fsPath, logError);
-  const host = createVscodeHost(extensionVersion, inputHistory);
+  // each window's last conversation is its own, in the extension's storage for the workspace it has open: it comes back after a restart
+  const lastConversation = new LastConversationState(context.workspaceState, () => (vscode.workspace.workspaceFolders?.length ?? 0) > 0, logError);
+  const host = createVscodeHost(extensionVersion, inputHistory, lastConversation);
   // the engine's service must answer before an agent that talks to it is started: if it does not, the studio is started and waited for here,
   // in the background, and the first agent start waits for it (28h S21 (d))
   const studioStart = new StudioStart(nodePorts((text, job) => host.notifier.progress(text, job), undefined, text => { void vscode.window.showInformationMessage(`jawata chat: ${text}`); }));
@@ -121,8 +124,8 @@ export function activate(context: vscode.ExtensionContext): JawataChatApi | unde
     },
   );
 
-  // the chat opens with the window and connects in a new session, with no click (28h D57 (e)); the connect waits for the studio and the
-  // engine (holdUntil above), its progress says so meanwhile, and a connect that fails says why
+  // the chat opens with the window and connects with no click (28h D57 (e)), reopening the window's last conversation, or in a new session
+  // when it has none; the connect waits for the studio and the engine (holdUntil above), its progress says so, and a failure says why
   const started = connectsAtStart(Boolean(host.settings.agents()[AGENT_KEY]), testMode, process.env)
     ? showChat().then(() => chat.flow.connect(), error => { logError('the chat could not be opened at start', error); })
     : Promise.resolve();

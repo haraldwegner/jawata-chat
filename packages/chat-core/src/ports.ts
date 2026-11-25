@@ -141,6 +141,24 @@ export interface InputHistoryStore {
   save(entries: readonly string[]): void;
 }
 
+/** A conversation a window can reopen: the session the agent has, and the agent it was held with (the principal's brain, `brain` or `brain|model`). */
+export interface LastConversation {
+  sessionId: string;
+  agent?: string;
+}
+
+/**
+ * Where the host keeps the last conversation of ONE window, so that the window reopens it after a restart; windows never share it. A host
+ * without one, or a window it cannot tell apart from the next one, starts new each time.
+ * @public implemented by hosts outside this repository
+ */
+export interface LastConversationStore {
+  /** What was saved last for this window; undefined when nothing was. */
+  load(): LastConversation | undefined;
+  /** Keep this in place of what was kept; undefined: nothing is to come back. */
+  save(last: LastConversation | undefined): void;
+}
+
 /** The host's log. */
 export interface Log {
   log(message: string): void;
@@ -176,6 +194,8 @@ export interface HostPorts {
   clientInfo: { name: string; version: string };
   /** Where what the person typed is kept between runs; without it, it is kept for as long as the chat runs. */
   inputHistory?: InputHistoryStore;
+  /** Where this window's last conversation is kept between runs; without it, every start opens a new one. */
+  lastConversation?: LastConversationStore;
 }
 
 /** How a host call crosses a line: answered at once, a promise, a listener told later, or a notice that needs no answer. */
@@ -192,6 +212,7 @@ export const HOST_CALLS: {
   readonly agents: KindsOf<AgentHost>; readonly settings: KindsOf<Settings>; readonly chooser: KindsOf<Chooser>;
   readonly fs: KindsOf<FsPort>; readonly terminal: KindsOf<TerminalPort>; readonly log: KindsOf<Log>; readonly notifier: KindsOf<Notifier>;
   readonly actions: KindsOf<HostActions>; readonly sinks: CallKind; readonly clientInfo: CallKind; readonly inputHistory: KindsOf<InputHistoryStore>;
+  readonly lastConversation: KindsOf<LastConversationStore>;
 } = {
   agents: { ready: 'promise', spawnAgent: 'at-once', killAgent: 'at-once', onClosed: 'listener', onError: 'listener' },
   settings: { agents: 'at-once', workspaceCwd: 'at-once', agentSetup: 'at-once' },
@@ -204,6 +225,7 @@ export const HOST_CALLS: {
   sinks: 'at-once',
   clientInfo: 'at-once',
   inputHistory: { load: 'promise', save: 'notice' },
+  lastConversation: { load: 'at-once', save: 'notice' },
 };
 type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 // every member of HostPorts has its entry above

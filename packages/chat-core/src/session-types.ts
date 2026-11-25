@@ -97,7 +97,7 @@ export interface ChatSessions {
   hireTranscript(sessionId: string, planId: string): Promise<TranscriptTurn[]>;
 }
 
-/** What the conversation flow needs of the sessions: how one begins, ends and is opened. */
+/** What the conversation flow needs of the sessions: how one begins, ends and is opened, and the agent it is put on when reopened. */
 export interface SessionLifecycle {
   /** Connect to the agent and open a session with it; the session open already is reused. */
   connectToAgent(agentName: string): Promise<SessionInfo>;
@@ -109,4 +109,6 @@ export interface SessionLifecycle {
   getActiveSession(): Readonly<SessionInfo> | undefined;
   getActiveSessionId(): string | null;
   getActiveAgentName(): string | null;
+  /** Change one of the session's options; the answer is all of them as they now stand. */
+  setConfigOption(sessionId: string, configId: string, value: string): Promise<SessionConfigOption[] | null>;
 }

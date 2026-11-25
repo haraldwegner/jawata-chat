@@ -1,6 +1,7 @@
-import type { RequestPermissionRequest, RequestPermissionResponse, SessionNotification } from '@agentclientprotocol/sdk';
+import type { RequestPermissionRequest, RequestPermissionResponse, SessionConfigOption, SessionNotification } from '@agentclientprotocol/sdk';
 
 import type { ConversationFlow } from './conversation-flow.js';
+import { PRINCIPAL_BRAIN_OPTION } from './last-conversation.js';
 import { AGENT_KEY, type HostPorts } from './ports.js';
 import type { ChatSessions, SessionEvents, SessionInfo } from './session-types.js';
 import type { AgentUpdates, UpdateListener } from './agent-updates.js';
@@ -75,6 +76,7 @@ export class ChatController {
       this.sendCurrentState();
     });
     this.listen('clear-chat', () => this.clearChat());
+    this.listen('config-options-changed', (sessionId) => this.flow.optionsChanged(sessionId));
     this.listen('mode-changed', () => {
       const modes = this.sessions.getActiveSession()?.modes;
       if (modes) { this.post({ type: 'modesUpdate', modes }); }
@@ -321,6 +323,16 @@ export class ChatController {
     return this.view.entries.length > 0;
   }
 
+  /** Say one line in the chat about something that did not go as the person would expect. */
+  say(line: string): void {
+    this.post({ type: 'error', message: line });
+  }
+
+  /** Show the session's options as they now stand, after the core changed one itself. */
+  showOptions(options: SessionConfigOption[]): void {
+    this.post({ type: 'configOptionsUpdate', configOptions: options });
+  }
+
   /** Clear the chat history and return the page to its welcome state. */
   clearChat(): void {
     this.pending = [];
@@ -493,6 +505,7 @@ export class ChatController {
     const images = paths.flatMap(path => { const image = this.images.get(path); return image ? [dataUrl(image)] : []; });
     this.post({ type: 'userPrompt', text, files: paths.map(baseName), ...(images.length > 0 ? { images } : {}) });
     this.post({ type: 'promptStart' });
+    this.flow.typedIn();
     try {
       const answer = await this.sessions.sendPrompt(sessionId, text, paths.filter(p => !this.images.has(p)), this.takeImages(paths));
       this.post({ type: 'promptEnd', stopReason: answer.stopReason, usage: (answer as { usage?: unknown }).usage as never });
@@ -670,6 +683,7 @@ export class ChatController {
     if (!sessionId || !configId) { return; }
     try {
       this.post({ type: 'configOptionsUpdate', configOptions: await this.sessions.setConfigOption(sessionId, configId, value) });
+      if (configId === PRINCIPAL_BRAIN_OPTION) { this.flow.agentPicked(sessionId, value); }
     } catch (e) {
       this.host.log.logError('Failed to set config option', e);
       this.post({ type: 'error', message: `Failed to set ${configId}: ${(e as Error).message}` });

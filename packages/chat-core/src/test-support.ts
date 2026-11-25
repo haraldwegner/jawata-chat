@@ -203,7 +203,7 @@ export class LoopbackPort extends RecordingPort {
 }
 
 /** A whole chat on an in-memory host whose agent is `run`: the sessions, the controller, and the port attached to it. `ports` are the optional ports the in-memory host has none of. */
-export function chatWith(run: AgentRunner, port: RecordingPort = new RecordingPort(), ports: Pick<HostPorts, 'inputHistory'> = {}) {
+export function chatWith(run: AgentRunner, port: RecordingPort = new RecordingPort(), ports: Pick<HostPorts, 'inputHistory' | 'lastConversation'> = {}) {
   const host: FakeHost = { ...fakeHost(run), ...ports };
   const { chat: built, updates } = assembleChat(host);
   built.controller.attach(port);
@@ -262,7 +262,7 @@ export async function agentHostFailures(host: AgentHost, config: AgentConfigEntr
 
 /**
  * The calls of {@link HOST_CALLS} classified as answering at once that a host answers with a promise, or that throw (ledger 28i-C11-5):
- * the settings, the sinks and the client info are probed here; `agents.spawnAgent` and `killAgent` change the world, so
+ * the settings, the sinks, the client info and the window's last conversation are probed here; `agents.spawnAgent` and `killAgent` change the world, so
  * {@link agentHostFailures} holds them (a handle with its stream, and a boolean, returned at once).
  */
 export function syncReadFailures(host: HostPorts): string[] {
@@ -286,6 +286,8 @@ export function syncReadFailures(host: HostPorts): string[] {
   }
   if (HOST_CALLS.sinks === 'at-once') { probe('sinks', () => host.sinks('conformance')); }
   if (HOST_CALLS.clientInfo === 'at-once') { probe('clientInfo', () => host.clientInfo); }
+  const memory = host.lastConversation;
+  if (memory && HOST_CALLS.lastConversation.load === 'at-once') { probe('lastConversation.load', () => memory.load()); }
   return failures;
 }
 

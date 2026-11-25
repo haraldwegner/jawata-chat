@@ -9,6 +9,9 @@ import { VIEW_CONTRACT_VERSION, isViewIntent, type Disposable, type ViewIntent, 
 import type { PromptImage } from './session-manager.js';
 import { hireFromEntry, initialViewState, reduce, reduceAll, type ViewState } from './view-state.js';
 
+/** What the person does to the conversation shown: it waits while that conversation is being reopened. */
+const ACTS_ON_THE_CONVERSATION: ReadonlySet<ViewIntent['type']> = new Set(['sendPrompt', 'sendNow', 'setMode', 'setModel', 'setConfigOption', 'chooseBrain']);
+
 /**
  * The chat as the core runs it (architecture S4: a reducer from ACP updates and the page's intents to
  * the stream of messages the page is told). It owns the conversation (the transcript), the turn, the
@@ -200,6 +203,9 @@ export class ChatController {
 
   /** What the page asked of the core. One entry for every route a prompt or a request can take. */
   async handle(intent: ViewIntent): Promise<void> {
+    // sent or chosen while the window's conversation is still being reopened: it comes after the reopen, on that conversation and its agent
+    const reopening = this.flow.underway;
+    if (reopening && ACTS_ON_THE_CONVERSATION.has(intent.type)) { await reopening; }
     switch (intent.type) {
       case 'ready':
         if (intent.contractVersion !== VIEW_CONTRACT_VERSION) {

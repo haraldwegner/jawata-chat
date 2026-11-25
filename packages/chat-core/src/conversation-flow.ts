@@ -73,6 +73,11 @@ export class ConversationFlow {
     return this.reopening;
   }
 
+  /** The reopen under way, if one is: what acts on the conversation waits for it, so it reaches that conversation on its own agent. */
+  get underway(): Promise<void> | undefined {
+    return this.reopening;
+  }
+
   /** The person typed into the active conversation: it is the one the window comes back to. */
   typedIn(): void {
     const session = this.sessions.getActiveSession();

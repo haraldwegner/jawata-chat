@@ -299,16 +299,40 @@ test('an agent that can only resume is asked to resume, and the person is told t
 });
 
 /** A window whose reopen is held in the agent's load until `release`. */
-async function heldReopen() {
+async function heldReopen(heldWith) {
   let release;
   const gate = new Promise(resolve => { release = resolve; });
-  const memory = windowMemory({ sessionId: 'old' });
+  const memory = windowMemory({ sessionId: 'old', ...(heldWith ? { agent: heldWith } : {}) });
   const a = agent({ gate });
   const c = openWindow(memory, a);
   const connecting = c.chat.flow.connect();
   for (let i = 0; i < 100 && !a.log.includes('load old'); i++) { await tick(); }
   return { a, c, memory, connecting, release };
 }
+
+test('a message sent while the reopen is under way waits for it: it goes to that conversation, on its agent', async () => {
+  const { a, c, connecting, release } = await heldReopen('cursor|grok');
+  try {
+    const sent = c.chat.sendPrompt('hello');
+    await tick();
+    release();
+    await Promise.all([connecting, sent]);
+    assert.deepEqual(a.log, ['load old', 'brain cursor|grok (restore)', 'prompt']);
+    assert.deepEqual(errorsIn(c), []);
+  } finally { c.dispose(); }
+});
+
+test('an agent picked while the reopen is under way is the person\'s later choice: the reopen does not put the older one back over it', async () => {
+  const { a, c, connecting, release } = await heldReopen('cursor|grok');
+  try {
+    const picked = c.port.deliver({ type: 'setConfigOption', configId: 'principal-brain', value: 'claude-code|sonnet' });
+    await tick();
+    release();
+    await Promise.all([connecting, picked]);
+    await tick();
+    assert.deepEqual(a.log, ['load old', 'brain cursor|grok (restore)', 'brain claude-code|sonnet']);
+  } finally { c.dispose(); }
+});
 
 test('a second Connect while the reopen is under way is the same reopen', async () => {
   const { a, c, connecting, release } = await heldReopen();
